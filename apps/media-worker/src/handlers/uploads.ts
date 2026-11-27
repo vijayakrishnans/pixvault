@@ -12,6 +12,7 @@ import {
   type PublicUploadSession,
 } from "@saas/contracts/media";
 import { authorizeOnLibrary } from "../access.js";
+import { kickPipeline, pipelineFor } from "./pipeline.js";
 import type { Ctx } from "../ctx.js";
 import { errorResponse, successResponse, validationError } from "../http.js";
 import { logError, logInfo } from "../log.js";
@@ -167,16 +168,21 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
 
   const visibility = body.visibility ?? a.lib.visibilityDefault;
   const now = ctx.now();
+  if (existing?.status === "removed") {
+    return errorResponse("conflict", "This file was taken down and can't be replaced", 409, ctx.requestId, { reason: "taken_down" });
+  }
 
   // Dedup without sending bytes, only for callers who could read the existing file anyway: otherwise knowing a
   // hash would be enough to obtain the bytes behind it.
   if (blob && (await authorizeOnLibrary(ctx.env, ctx.actor, "file.read", a.lib, a.facts, ctx.requestId))) {
     try {
+      const pipe = await pipelineFor(ctx, orgId, mime, visibility);
       const result = await idx.call<CommitResult>({
         op: "commit",
-        input: { fileId: crypto.randomUUID(), path, name, folder: folder!, size, sha256, mime, visibility, replace: body.replace === true, objectKey: null, actor: ctx.actor.subjectId, nowIso: now.toISOString() },
+        input: { fileId: crypto.randomUUID(), path, name, folder: folder!, size, sha256, mime, visibility, replace: body.replace === true, objectKey: null, actor: ctx.actor.subjectId, nowIso: now.toISOString(), processing: pipe.processing },
       });
       await settle(ctx, orgId, result);
+      await kickPipeline(ctx, orgId, libraryId, result.file, pipe.requireSafety);
       return successResponse({ file: toPublicFile(result.file, a.lib, ctx.env), deduplicated: true }, ctx.requestId, 200);
     } catch (e) {
       if (e instanceof IndexCallError && e.code === "conflict") return errorResponse("conflict", "A file already exists at this path", 409, ctx.requestId);
@@ -309,6 +315,7 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
     await o.idx.call({ op: "closeSession", id: s.id, state: "aborted" });
     return errorResponse("hash_mismatch", "The stored bytes don't match the declared size and SHA-256; start a new upload", 422, ctx.requestId);
   }
+  const pipe = await pipelineFor(ctx, orgId, s.mime, s.visibility);
   try {
     const result = await step("index", () => o.idx.call<CommitResult>({
       op: "commit",
@@ -326,9 +333,11 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
         objectKey: s.object_key,
         actor: ctx.actor.subjectId,
         nowIso: ctx.now().toISOString(),
+        processing: pipe.processing,
       },
     }));
     await step("settle", () => settle(ctx, orgId, result));
+    await kickPipeline(ctx, orgId, libraryId, result.file, pipe.requireSafety);
     logInfo(ctx.requestId, "commit.done", { session: s.id, size: s.size, deduplicated: result.deduplicated, ms: Date.now() - t0 });
     return successResponse({ file: toPublicFile(result.file, o.a.lib, ctx.env), deduplicated: result.deduplicated }, ctx.requestId);
   } catch (e) {

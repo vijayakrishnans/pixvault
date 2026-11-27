@@ -1,0 +1,31 @@
+# PV-22: PV4, ProcessFileWorkflow. Minted under milestone PV4; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-22
+spec:
+  goal: "Images, and public uploads on a free plan, are committed as processing and served only after ProcessFileWorkflow runs: it removes location metadata (JPEG GPS IFD and GPS XMP, PNG eXIf/XMP, WebP EXIF/XMP) by swapping in a cleaned blob, records width and height, and publishes the route. Workflows replace the queue: a run that fails after retries holds the file and records a failure row that a replay works from; a sweep restarts lost runs."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/contracts
+    - default/pixvault/db
+    - default/pixvault/db-tests
+    - default/pixvault/db-migrate
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - packages/contracts/**
+    - packages/db/**
+    - tests/db/**
+    - apps/api-edge/**
+    - tests/api-edge/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "GPS EXIF is absent from a stored synthetic JPEG after processing (test, and on stage)"
+    - "a run that fails after retries holds the file and never serves it (test)"
+    - "a replay of a held file runs the pipeline again (test)"
+  gates: []

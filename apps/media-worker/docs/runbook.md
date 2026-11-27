@@ -34,3 +34,7 @@ exercised through `api-edge` (this Worker has no public URL).
   project. Raise the plan, or archive a library.
 - **Everything 404s for a user who should see a library**: check their org role and their row in
   `media_library_members` (names and ids only). Every decision is policy-worker's; `access_explain` shows why.
+- **A file stays `processing`**: its ProcessFileWorkflow run hasn't finished. The index restarts a lost run after
+  10 minutes. Runs are listed in the Cloudflare dashboard under Workflows → `pixvault-process-file-<env>`.
+- **A file is `held` with `failed:<step>`**: its run failed after retries. `GET …/libraries/{lib}/pipeline-failures`
+  lists them (ids and step names only); `POST …/files/{fil}/reprocess` runs it again.

@@ -36,13 +36,32 @@ export interface FileRow {
   size: number;
   mime: string;
   visibility: "public" | "private";
-  status: "processing" | "held" | "public" | "private" | "flagged" | "trashed";
+  status: "processing" | "held" | "public" | "private" | "flagged" | "removed" | "trashed";
   prev_status: string | null;
   version: number;
   uploaded_by: string;
   created_at: string;
   updated_at: string;
   trashed_at: string | null;
+  /** Pipeline results (PV4); null until the file has been processed. */
+  width: number | null;
+  height: number | null;
+  /** JSON array of tags. */
+  tags: string | null;
+  /** "pass" | "fail" | "error" | "skipped" | "manual" */
+  moderation: string | null;
+  /** Why the pipeline held the file, or what it did (no file content). */
+  pipeline_note: string | null;
+}
+
+/** Pipeline outcome for one file version (written by ProcessFileWorkflow). */
+export interface ProcessingResult {
+  status: "public" | "private" | "held" | "flagged";
+  width?: number | null;
+  height?: number | null;
+  tags?: string[] | null;
+  moderation?: string | null;
+  note?: string | null;
 }
 
 export interface SessionRow {
@@ -135,11 +154,30 @@ CREATE TABLE IF NOT EXISTS outbox (
   seq INTEGER PRIMARY KEY AUTOINCREMENT, op TEXT NOT NULL, path TEXT NOT NULL, value TEXT, created_at TEXT NOT NULL);
 `;
 
+// Columns added after a library's index was created. CREATE TABLE IF NOT EXISTS never adds columns, so each index
+// adds the ones it lacks when it starts.
+const ADDED_COLUMNS: [table: string, column: string, ddl: string][] = [
+  ["files", "width", "INTEGER"],
+  ["files", "height", "INTEGER"],
+  ["files", "tags", "TEXT"],
+  ["files", "moderation", "TEXT"],
+  ["files", "pipeline_note", "TEXT"],
+];
+
 const one = <T>(rows: T[]): T | null => rows[0] ?? null;
 
 export class LibraryIndexCore {
   constructor(private readonly sql: Sql) {
     for (const stmt of SCHEMA.split(";").map((s) => s.trim()).filter(Boolean)) this.sql.exec(stmt);
+    const have = new Map<string, Set<string>>();
+    for (const [table, column, ddl] of ADDED_COLUMNS) {
+      if (!have.has(table)) have.set(table, new Set(this.sql.exec<{ name: string }>(`PRAGMA table_info(${table})`).toArray().map((c) => c.name)));
+      if (!have.get(table)!.has(column)) {
+        this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+        have.get(table)!.add(column);
+      }
+    }
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS files_status ON files (status, updated_at)`);
   }
 
   // ── identity ──────────────────────────────────────────────
@@ -202,12 +240,19 @@ export class LibraryIndexCore {
     });
   }
 
-  setVisibility(id: string, visibility: "public" | "private", nowIso: string): FileRow {
+  /**
+   * Change who can see a file. With `requireSafety` (a public file on a free plan), a file that hasn't passed
+   * moderation goes through the pipeline first: it is `processing` until then, and the caller starts the pipeline.
+   */
+  setVisibility(id: string, visibility: "public" | "private", nowIso: string, requireSafety = false): FileRow {
     return this.sql.transaction(() => {
       const f = this.getFile(id);
       if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
-      // Only files that are plainly public or private follow their visibility; held or flagged files stay as they are (PV4).
-      const status = f.status === "public" || f.status === "private" ? visibility : f.status;
+      // Only files that are plainly public or private follow their visibility; processing, held, flagged and removed
+      // files stay as they are.
+      const plain = f.status === "public" || f.status === "private";
+      const needsCheck = plain && visibility === "public" && requireSafety && f.moderation !== "pass" && f.moderation !== "manual";
+      const status = needsCheck ? "processing" : plain ? visibility : f.status;
       this.sql.exec(`UPDATE files SET visibility = ?, status = ?, updated_at = ? WHERE id = ?`, visibility, status, nowIso, id);
       const updated = this.getFile(id)!;
       this.enqueueRoute(updated, nowIso);
@@ -227,6 +272,90 @@ export class LibraryIndexCore {
         )
         .toArray(),
     );
+  }
+
+  // ── pipeline (PV4) ────────────────────────────────────────
+
+  /** The file and its object, if it is still waiting for the pipeline with these bytes. */
+  processingTarget(id: string, sha256: string): { file: FileRow; objectKey: string } | null {
+    const f = this.getFile(id);
+    if (!f || f.status !== "processing" || f.blob_sha256 !== sha256) return null;
+    const b = this.findBlob(sha256);
+    return b ? { file: f, objectKey: b.object_key } : null;
+  }
+
+  /**
+   * Point a processing file's current version at new bytes (e.g. with GPS removed). The old blob loses a reference
+   * (other files may still share it); the new bytes join an existing blob if they match one.
+   */
+  swapBlob(input: { id: string; fromSha: string; toSha: string; toKey: string; toSize: number; nowIso: string }): {
+    file: FileRow;
+    deleteKeys: string[];
+    storedBytes: number;
+    releasedBytes: number;
+  } {
+    return this.sql.transaction(() => {
+      const f = this.getFile(input.id);
+      // A retried step whose swap already happened: nothing more to do.
+      if (f && f.status === "processing" && f.blob_sha256 === input.toSha) return { file: f, deleteKeys: [], storedBytes: 0, releasedBytes: 0 };
+      if (!f || f.status !== "processing" || f.blob_sha256 !== input.fromSha) throw new IndexError("invalid_state", "The file changed meanwhile");
+      const deleteKeys: string[] = [];
+      let storedBytes = 0;
+      let releasedBytes = 0;
+      const existing = this.findBlob(input.toSha);
+      if (existing) {
+        this.sql.exec(`UPDATE blobs SET refcount = refcount + 1 WHERE sha256 = ?`, input.toSha);
+        if (existing.object_key !== input.toKey) deleteKeys.push(input.toKey);
+      } else {
+        this.sql.exec(`INSERT INTO blobs (sha256, object_key, size, refcount, created_at) VALUES (?, ?, ?, 1, ?)`, input.toSha, input.toKey, input.toSize, input.nowIso);
+        storedBytes = input.toSize;
+      }
+      this.sql.exec(`UPDATE versions SET blob_sha256 = ?, size = ? WHERE file_id = ? AND version = ?`, input.toSha, input.toSize, f.id, f.version);
+      this.sql.exec(`UPDATE files SET blob_sha256 = ?, size = ?, updated_at = ? WHERE id = ?`, input.toSha, input.toSize, input.nowIso, f.id);
+      const r = this.release(input.fromSha);
+      if (r) {
+        deleteKeys.push(r.key);
+        releasedBytes = r.size;
+      }
+      return { file: this.getFile(f.id)!, deleteKeys, storedBytes, releasedBytes };
+    });
+  }
+
+  /** Record the pipeline's outcome, unless the file has changed since (a newer upload starts its own run). */
+  finishProcessing(id: string, sha256: string, result: ProcessingResult, nowIso: string): FileRow | null {
+    return this.sql.transaction(() => {
+      const f = this.getFile(id);
+      if (!f || f.status !== "processing" || f.blob_sha256 !== sha256) return null;
+      this.sql.exec(
+        `UPDATE files SET status = ?, width = COALESCE(?, width), height = COALESCE(?, height), tags = COALESCE(?, tags),
+           moderation = COALESCE(?, moderation), pipeline_note = ?, updated_at = ? WHERE id = ?`,
+        result.status, result.width ?? null, result.height ?? null, result.tags ? JSON.stringify(result.tags) : null,
+        result.moderation ?? null, result.note ?? null, nowIso, id,
+      );
+      const done = this.getFile(id)!;
+      this.enqueueRoute(done, nowIso);
+      return done;
+    });
+  }
+
+  /** Put a held or flagged file back through the pipeline (a replay). */
+  reprocess(id: string, nowIso: string): FileRow {
+    return this.sql.transaction(() => {
+      const f = this.getFile(id);
+      if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
+      if (f.status !== "held" && f.status !== "processing") throw new IndexError("invalid_state", "Only held files can be processed again");
+      this.sql.exec(`UPDATE files SET status = 'processing', pipeline_note = NULL, updated_at = ? WHERE id = ?`, nowIso, id);
+      return this.getFile(id)!;
+    });
+  }
+
+  /** Files that have been processing since before `cutoffIso` (their run was lost or failed to start). */
+  stuckProcessing(cutoffIso: string): FileRow[] {
+    return this.sql.exec<FileRow>(`SELECT * FROM files WHERE status = 'processing' AND updated_at <= ? LIMIT 50`, cutoffIso).toArray();
+  }
+
+  oldestProcessingAt(): string | null {
+    return one(this.sql.exec<{ t: string | null }>(`SELECT MIN(updated_at) AS t FROM files WHERE status = 'processing'`).toArray())?.t ?? null;
   }
 
   // ── reads ─────────────────────────────────────────────────
@@ -349,6 +478,8 @@ export class LibraryIndexCore {
     objectKey: string | null;
     actor: string;
     nowIso: string;
+    /** The file must pass the pipeline before it is served (images, and public uploads on a free plan). */
+    processing?: boolean;
   }): CommitResult {
     return this.sql.transaction(() => {
       if (input.sessionId) {
@@ -358,6 +489,8 @@ export class LibraryIndexCore {
       }
       const existing = this.liveFileAt(input.path);
       if (existing && !input.replace) throw new IndexError("conflict", "A file already exists at this path");
+      if (existing?.status === "removed") throw new IndexError("forbidden", "This file was taken down and can't be replaced");
+      const status = input.processing ? "processing" : existing ? existing.visibility : input.visibility;
 
       const deleteKeys: string[] = [];
       let releasedBytes = 0;
@@ -382,9 +515,11 @@ export class LibraryIndexCore {
       if (existing) {
         fileId = existing.id;
         version = existing.version + 1;
+        // New bytes: earlier pipeline results no longer apply.
         this.sql.exec(
-          `UPDATE files SET blob_sha256 = ?, size = ?, mime = ?, version = ?, updated_at = ? WHERE id = ?`,
-          input.sha256, input.size, input.mime, version, input.nowIso, fileId,
+          `UPDATE files SET blob_sha256 = ?, size = ?, mime = ?, version = ?, status = ?, prev_status = NULL, width = NULL,
+             height = NULL, tags = NULL, moderation = NULL, pipeline_note = NULL, updated_at = ? WHERE id = ?`,
+          input.sha256, input.size, input.mime, version, status, input.nowIso, fileId,
         );
       } else {
         this.sql.exec(
@@ -392,7 +527,7 @@ export class LibraryIndexCore {
              uploaded_by, created_at, updated_at, trashed_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1, ?, ?, ?, NULL)`,
           fileId, input.path, input.name, input.folder, input.sha256, input.size, input.mime, input.visibility,
-          input.visibility, input.actor, input.nowIso, input.nowIso,
+          status, input.actor, input.nowIso, input.nowIso,
         );
       }
       this.sql.exec(
@@ -493,7 +628,7 @@ export class LibraryIndexCore {
   }
 
   /** Make an older version current again (a new version pointing at the old bytes). */
-  restoreVersion(id: string, version: number, actor: string, nowIso: string): FileRow {
+  restoreVersion(id: string, version: number, actor: string, nowIso: string, processing = false): FileRow {
     return this.sql.transaction(() => {
       const f = this.getFile(id);
       if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
@@ -504,7 +639,12 @@ export class LibraryIndexCore {
       const next = f.version + 1;
       this.sql.exec(`UPDATE blobs SET refcount = refcount + 1 WHERE sha256 = ?`, v.blob_sha256);
       this.sql.exec(`INSERT INTO versions (file_id, version, blob_sha256, size, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)`, id, next, v.blob_sha256, v.size, actor, nowIso);
-      this.sql.exec(`UPDATE files SET blob_sha256 = ?, size = ?, version = ?, updated_at = ? WHERE id = ?`, v.blob_sha256, v.size, next, nowIso, id);
+      if (f.status === "removed") throw new IndexError("forbidden", "This file was taken down");
+      this.sql.exec(
+        `UPDATE files SET blob_sha256 = ?, size = ?, version = ?, status = ?, width = NULL, height = NULL, tags = NULL,
+           moderation = NULL, pipeline_note = NULL, updated_at = ? WHERE id = ?`,
+        v.blob_sha256, v.size, next, processing ? "processing" : f.visibility, nowIso, id,
+      );
       const current = this.getFile(id)!;
       this.enqueueRoute(current, nowIso);
       return current;

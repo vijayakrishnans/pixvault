@@ -162,4 +162,35 @@ export interface MediaRepository {
   recordUpload(orgId: string, month: string, bytes: number, storedBytes: number, at: Date): Promise<MediaResult<true>>;
   /** Release stored bytes when a blob is purged. Never goes below zero. */
   releaseStorage(orgId: string, bytes: number, at: Date): Promise<MediaResult<true>>;
+  /** Add stored bytes without counting an upload (e.g. a sanitized copy of an image). */
+  addStorage(orgId: string, bytes: number, at: Date): Promise<MediaResult<true>>;
+  /** True when the org has no active or trialing subscription to a paid plan. */
+  orgIsOnFreePlan(orgId: string): Promise<MediaResult<boolean>>;
+  recordPipelineFailure(input: PipelineFailureInput): Promise<MediaResult<true>>;
+  listPipelineFailures(filter: { orgId?: string; libraryId?: string; status?: "open" | "replayed" | "resolved"; limit: number }): Promise<MediaResult<PipelineFailure[]>>;
+  /** Mark a file's open failures replayed or resolved. */
+  settlePipelineFailures(orgId: string, libraryId: string, fileId: string, status: "replayed" | "resolved", at: Date): Promise<MediaResult<true>>;
+}
+
+export interface PipelineFailureInput {
+  orgId: string;
+  libraryId: string;
+  fileId: string;
+  sha256: string;
+  step: string;
+  errorName: string;
+  at: Date;
+}
+
+export interface PipelineFailure {
+  id: string;
+  orgId: string;
+  libraryId: string;
+  fileId: string;
+  sha256: string;
+  step: string;
+  errorName: string;
+  status: "open" | "replayed" | "resolved";
+  createdAt: string;
+  resolvedAt: string | null;
 }

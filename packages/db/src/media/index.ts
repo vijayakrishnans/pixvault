@@ -14,5 +14,7 @@ export type {
   PrincipalKindValue,
   OrgUsage,
   OrgLimitOverrides,
+  PipelineFailure,
+  PipelineFailureInput,
 } from "./types.js";
 export { createMediaRepository, managedPrefix } from "./repository.js";

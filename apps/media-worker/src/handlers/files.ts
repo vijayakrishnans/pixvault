@@ -15,6 +15,7 @@ import type { Library } from "@saas/db/media";
 import type { Env } from "../env.js";
 import { fileUrl, signedFileUrl } from "../serving.js";
 import { monthOf, normalizeFolder } from "./uploads.js";
+import { kickPipeline, pipelineFor } from "./pipeline.js";
 
 export function toPublicFile(f: FileRow, lib: Library, env: Env): PublicFile {
   return {
@@ -35,7 +36,22 @@ export function toPublicFile(f: FileRow, lib: Library, env: Env): PublicFile {
     trashedAt: f.trashed_at,
     // A plain URL only for public files; private ones get a signed URL on request.
     url: f.status === "public" && f.visibility === "public" ? fileUrl(env, lib, f.path) : null,
+    width: f.width ?? null,
+    height: f.height ?? null,
+    tags: parseTags(f.tags),
+    moderation: f.moderation ?? null,
+    pipelineNote: f.pipeline_note ?? null,
   };
+}
+
+function parseTags(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return Array.isArray(v) ? v.filter((t): t is string => typeof t === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 const nf = (ctx: Ctx) => errorResponse("not_found", "Not found", 404, ctx.requestId);
@@ -75,7 +91,7 @@ export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, library
   return successResponse({ files: r.files.map((f) => toPublicFile(f, a.lib, ctx.env)), nextCursor: r.nextCursor }, ctx.requestId);
 }
 
-async function loadFile(ctx: Ctx, orgId: string, libraryId: string, fileId: string) {
+export async function loadFile(ctx: Ctx, orgId: string, libraryId: string, fileId: string) {
   const a = await loadAuthorized(ctx, orgId, libraryId, "library.read");
   if (!a.ok) return { ok: false as const, response: a.response };
   const idx = indexFor(ctx.env, { orgId, libraryId });
@@ -173,10 +189,13 @@ export async function handleRestoreVersion(ctx: Ctx, orgId: string, libraryId: s
   if (!l.ok) return l.response;
   if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.update", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
   try {
-    const f = await l.idx.call<FileRow>({ op: "restoreVersion", id: fileId, version, actor: ctx.actor.subjectId, nowIso: ctx.now().toISOString() });
+    const pipe = await pipelineFor(ctx, orgId, l.file.mime, l.file.visibility);
+    const f = await l.idx.call<FileRow>({ op: "restoreVersion", id: fileId, version, actor: ctx.actor.subjectId, nowIso: ctx.now().toISOString(), processing: pipe.processing });
+    await kickPipeline(ctx, orgId, libraryId, f, pipe.requireSafety, `h${ctx.now().getTime().toString(36)}`);
     return successResponse({ file: toPublicFile(f, l.a.lib, ctx.env) }, ctx.requestId);
   } catch (e) {
     if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
+    if (e instanceof IndexCallError && e.code === "forbidden") return errorResponse("conflict", e.message, 409, ctx.requestId, { reason: "taken_down" });
     throw e;
   }
 }
@@ -217,7 +236,10 @@ export async function handleUpdateFile(ctx: Ctx, request: Request, orgId: string
   if (!l.ok) return l.response;
   if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.update", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
   try {
-    const f = await l.idx.call<FileRow>({ op: "setVisibility", id: fileId, visibility: body.visibility, nowIso: ctx.now().toISOString() });
+    // Making a file public on a free plan puts it through the safety check first (it isn't served until it passes).
+    const { requireSafety } = await pipelineFor(ctx, orgId, l.file.mime, body.visibility);
+    const f = await l.idx.call<FileRow>({ op: "setVisibility", id: fileId, visibility: body.visibility, nowIso: ctx.now().toISOString(), requireSafety });
+    await kickPipeline(ctx, orgId, libraryId, f, requireSafety, `v${ctx.now().getTime().toString(36)}`);
     return successResponse({ file: toPublicFile(f, l.a.lib, ctx.env) }, ctx.requestId);
   } catch (e) {
     if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);

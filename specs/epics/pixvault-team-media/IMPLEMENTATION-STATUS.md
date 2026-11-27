@@ -9,7 +9,7 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 | PV1: libraries and access | ✅ done 2026-11-27: PV-4 backend (libraries, roles, guests, media-worker, facade; 1,200-case matrix; isolation sweep); PV-5 multi-tenant profile; PV-6 media-web app shell and brand check. Verified live on stage | #6 (`dc41aa6`), #7 (`df92dc9`), #8 (`e34ecfc`), #9 (`d932ebf`), PV-8 CSP fix (this PR) |
 | PV2: index, storage, uploads | ✅ done 2026-11-27: PV-9 R2 bucket; PV-10 LibraryIndex DO, streamed multipart uploads, dedup, versions, trash, quotas; PV-12 Workers Logs; PV-13 streamed commit hash; PV-11 upload page. Stage acceptance 14/14 incl. 2 GB | #11, #12 (`74c78e5`), #13, #14 (`c4de4c4`), PV-11 (this PR) |
 | PV3: serving | ✅ done 2026-11-27: PV-14 gaps register and path correction; PV-15 routes KV (own root); PV-16 serving data plane; PV-17 serve-worker; PV-18 and PV-19 smoke and Server-Timing; PV-20 links in the app | #16, #17, #18, #19, #20, #21, PV-20 (this PR) |
-| PV4: pipeline and safety | | |
+| PV4: pipeline and safety | in progress: PV-22 ProcessFileWorkflow, location removal, held failures and replay | PV-22 (this PR) |
 | PV5: browser and live collaboration | | |
 | PV6: sharing | | |
 | PV7: BYO storage | | |
@@ -115,3 +115,11 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 - **Serving paths carry the org slug** (`/<orgSlug>/<libSlug>/<path>`), captured at library creation (G13, G46).
 - **Presets instead of arbitrary sizes** for transforms (GAPS G49), and **workers.dev** as the serving host until a
   custom domain is possible (G48).
+
+### PV4
+
+- **Workflows instead of Queues** (the user's decision, 2026-11-27): Orunbase can't mint a Queues scope (W-3). A
+  failed run holds the file and records a row in `media_pipeline_failures`; a replay endpoint and a sweep replace
+  the dead-letter queue (GAPS G56).
+- **Cleaning swaps the blob**: the uploaded bytes are verified against the client's SHA-256, then the pipeline writes
+  a cleaned copy under its own SHA-256 and moves the file's current version to it (dedup and refcounts apply).

@@ -77,6 +77,10 @@ export class World {
   readonly index = new FakeIndexNamespace();
   readonly kv = new Map<string, string>();
   readonly orgSlugs = new Map<string, string>();
+  /** ProcessFileWorkflow runs started (PV4); `runPipelines()` executes them. */
+  readonly workflows: { id: string; params: PipelineParams }[] = [];
+  /** Make the next Workflow create calls fail (a lost start). */
+  failWorkflowStarts = false;
   readonly env: Env;
   now = new Date("2026-11-27T10:00:00.000Z");
 
@@ -101,6 +105,20 @@ export class World {
         delete: async (k: string) => void self.kv.delete(k),
       } as unknown as KVNamespace,
       SERVE_BASE: "https://serve.test",
+      PROCESS_FILE: {
+        create: async ({ id, params }: { id: string; params: PipelineParams }) => {
+          if (self.failWorkflowStarts) throw new Error("workflow create failed");
+          if (self.workflows.some((w) => w.id === id)) throw new Error("instance already exists");
+          self.workflows.push({ id, params });
+          return { id };
+        },
+      } as unknown as Workflow<PipelineParams>,
+      IMAGES: {
+        info: async (stream: ReadableStream) => {
+          await new Response(stream).arrayBuffer();
+          return { format: "image/jpeg", fileSize: 1, width: 32, height: 24 };
+        },
+      } as unknown as ImagesBinding,
       MEMBERSHIP_WORKER: fetcher(async (req) => {
         if (req.method === "GET") {
           // GET /v1/organizations/org_<hex>: the org, for its members only (as membership-worker does).
@@ -162,6 +180,32 @@ export class World {
     return { id, pub: pub("org", id), slug };
   }
 
+  /**
+   * Run the pipeline for every Workflow started so far (and any they start), with Workflows' step retries.
+   * Returns each run's result.
+   */
+  async runPipelines(): Promise<string[]> {
+    const out: string[] = [];
+    const step: Step = {
+      async do<T>(_name: string, config: StepConfig, fn: () => Promise<T>): Promise<T> {
+        const limit = config.retries?.limit ?? 0;
+        for (let attempt = 0; ; attempt++) {
+          try {
+            return await fn();
+          } catch (e) {
+            if (attempt >= limit) throw e;
+          }
+        }
+      },
+    };
+    while (this.ranWorkflows < this.workflows.length) {
+      const w = this.workflows[this.ranWorkflows++]!;
+      out.push(await runPipeline(this.env, w.params, step, () => this.now));
+    }
+    return out;
+  }
+  private ranWorkflows = 0;
+
   /** Run every library index's outbox drain into the fake KV, as the Durable Object's alarm does. */
   async drain(): Promise<number> {
     let n = 0;
@@ -219,6 +263,8 @@ import { createHash } from "node:crypto";
 import { dispatch } from "@media-worker/index-do/library-index";
 import { LibraryIndexCore, type Sql } from "@media-worker/index-do/core";
 import { drainOutbox } from "@media-worker/index-do/routes";
+import { runPipeline, type Step, type StepConfig } from "@media-worker/pipeline/run";
+import type { PipelineParams } from "@media-worker/pipeline/start";
 
 export const sha256hex = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
@@ -249,7 +295,13 @@ export class FakeBucket {
   async get(key: string) {
     const o = this.objects.get(key);
     if (!o) return null;
-    return { key, size: o.bytes.length, body: new Response(o.bytes).body! };
+    const bytes = o.bytes;
+    return {
+      key,
+      size: bytes.length,
+      body: new Response(bytes).body!,
+      arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    };
   }
   async delete(keys: string | string[]) {
     for (const k of Array.isArray(keys) ? keys : [keys]) this.objects.delete(k);

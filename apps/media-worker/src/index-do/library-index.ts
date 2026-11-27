@@ -6,7 +6,8 @@ import { DurableObject } from "cloudflare:workers";
 import { createSqlExecutor } from "@saas/db/d1";
 import { createMediaRepository } from "@saas/db/media";
 import type { Env } from "../env.js";
-import { IndexError, LibraryIndexCore, type Scope, type Sql } from "./core.js";
+import { IndexError, LibraryIndexCore, type ProcessingResult, type Scope, type Sql } from "./core.js";
+import { startPipeline } from "../pipeline/start.js";
 import { abortUpload } from "../storage/object-store.js";
 import { drainOutbox } from "./routes.js";
 
@@ -25,9 +26,13 @@ export type IndexOp =
   | { op: "trash"; id: string; nowIso: string }
   | { op: "restore"; id: string; nowIso: string }
   | { op: "purge"; id: string }
-  | { op: "restoreVersion"; id: string; version: number; actor: string; nowIso: string }
+  | { op: "restoreVersion"; id: string; version: number; actor: string; nowIso: string; processing?: boolean }
   | { op: "setRetentionDays"; days: number }
-  | { op: "setVisibility"; id: string; visibility: "public" | "private"; nowIso: string }
+  | { op: "setVisibility"; id: string; visibility: "public" | "private"; nowIso: string; requireSafety?: boolean }
+  | { op: "processingTarget"; id: string; sha256: string }
+  | { op: "swapBlob"; input: Parameters<LibraryIndexCore["swapBlob"]>[0] }
+  | { op: "finishProcessing"; id: string; sha256: string; result: ProcessingResult; nowIso: string }
+  | { op: "reprocess"; id: string; nowIso: string }
   | { op: "requeueAllRoutes"; nowIso: string }
   | { op: "randomPublic"; folder: string; mimePrefix: string };
 
@@ -69,12 +74,20 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
       case "purge":
         return { ok: true, value: core.purge(req.id) };
       case "restoreVersion":
-        return { ok: true, value: core.restoreVersion(req.id, req.version, req.actor, req.nowIso) };
+        return { ok: true, value: core.restoreVersion(req.id, req.version, req.actor, req.nowIso, req.processing ?? false) };
       case "setRetentionDays":
         core.setRetentionDays(req.days);
         return { ok: true, value: true };
       case "setVisibility":
-        return { ok: true, value: core.setVisibility(req.id, req.visibility, req.nowIso) };
+        return { ok: true, value: core.setVisibility(req.id, req.visibility, req.nowIso, req.requireSafety ?? false) };
+      case "processingTarget":
+        return { ok: true, value: core.processingTarget(req.id, req.sha256) };
+      case "swapBlob":
+        return { ok: true, value: core.swapBlob(req.input) };
+      case "finishProcessing":
+        return { ok: true, value: core.finishProcessing(req.id, req.sha256, req.result, req.nowIso) };
+      case "reprocess":
+        return { ok: true, value: core.reprocess(req.id, req.nowIso) };
       case "requeueAllRoutes":
         return { ok: true, value: core.requeueAllRoutes(req.nowIso) };
       case "randomPublic":
@@ -86,6 +99,7 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
   }
 }
 
+const STUCK_MS = 10 * 60_000;
 const DAY = 86_400_000;
 
 export class LibraryIndex extends DurableObject<Env> {
@@ -105,7 +119,9 @@ export class LibraryIndex extends DurableObject<Env> {
     const result = dispatch(this.core, scope, req);
     // The outbox drains on an alarm right away, so the request isn't held up by KV writes; sessions expire and
     // trash ages out on later alarms.
-    if (result.ok && (this.core.outboxSize() > 0 || req.op === "openSession" || req.op === "trash")) await this.scheduleAlarm();
+    if (result.ok && (this.core.outboxSize() > 0 || req.op === "openSession" || req.op === "trash" || req.op === "commit" || req.op === "setVisibility" || req.op === "reprocess" || req.op === "restoreVersion")) {
+      await this.scheduleAlarm();
+    }
     return result;
   }
 
@@ -114,6 +130,8 @@ export class LibraryIndex extends DurableObject<Env> {
     if (this.core.outboxSize() > 0) times.push(Date.now());
     const s = this.core.nextSessionExpiry();
     if (s) times.push(Date.parse(s));
+    const p = this.core.oldestProcessingAt();
+    if (p) times.push(Date.parse(p) + STUCK_MS);
     const t = this.core.oldestTrashedAt();
     if (t) times.push(Date.parse(t) + this.core.retentionDays() * DAY);
     if (!times.length) return;
@@ -133,6 +151,20 @@ export class LibraryIndex extends DurableObject<Env> {
     for (const s of this.core.expiredSessions(now.toISOString())) {
       if (bucket) await abortUpload(bucket, s.object_key, s.mode, s.multipart_upload_id);
       this.core.closeSession(s.id, "aborted");
+    }
+    // A file still processing after STUCK_MS lost its run (or it never started): start another.
+    const orgIdForSweep = this.orgId();
+    if (orgIdForSweep && libraryId) {
+      for (const f of this.core.stuckProcessing(new Date(now.getTime() - STUCK_MS).toISOString())) {
+        const started = await startPipeline(
+          this.env,
+          { orgId: orgIdForSweep, libraryId, fileId: f.id, sha256: f.blob_sha256, requireSafety: f.visibility === "public" },
+          `s${now.getTime().toString(36)}`,
+        );
+        // Touch it either way so the sweep waits another STUCK_MS before trying again.
+        this.ctx.storage.sql.exec(`UPDATE files SET updated_at = ? WHERE id = ? AND status = 'processing'`, now.toISOString(), f.id);
+        if (!started) console.error(JSON.stringify({ level: "error", msg: "pipeline_sweep_start_failed", file: f.id }));
+      }
     }
     const cutoff = new Date(now.getTime() - this.core.retentionDays() * DAY).toISOString();
     let released = 0;

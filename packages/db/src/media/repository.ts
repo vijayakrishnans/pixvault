@@ -2,6 +2,7 @@ import type { SqlExecutor, SqlStatement } from "../d1/executor.js";
 import { executeBatch } from "../d1/executor.js";
 import { isUniqueViolation } from "../d1/errors.js";
 import type {
+  PipelineFailure,
   CreateInvitationInput,
   CreateLibraryInput,
   Library,
@@ -468,6 +469,94 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
         return { ok: true, value: true };
       } catch {
         return internal("Failed to release storage");
+      }
+    },
+
+    async addStorage(orgId, bytes, at) {
+      try {
+        await executor.execute(
+          `INSERT INTO media_usage (org_id, period, storage_bytes, created_at, updated_at) VALUES ($1, 'total', $2, $3, $3)
+           ON CONFLICT (org_id, period) DO UPDATE SET storage_bytes = media_usage.storage_bytes + excluded.storage_bytes,
+             updated_at = excluded.updated_at`,
+          [orgId, bytes, at.toISOString()],
+        );
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to add storage");
+      }
+    },
+
+    async orgIsOnFreePlan(orgId) {
+      try {
+        const r = await executor.execute<Row>(
+          `SELECT 1 AS paid FROM billing_subscriptions s JOIN billing_plans p ON p.id = s.plan_id
+           WHERE s.org_id = $1 AND s.status IN ('active', 'trialing') AND COALESCE(p.price_amount_cents, 0) > 0 LIMIT 1`,
+          [orgId],
+        );
+        return { ok: true, value: r.rowCount === 0 };
+      } catch {
+        return internal("Failed to read the org's plan");
+      }
+    },
+
+    async recordPipelineFailure(input) {
+      try {
+        await executor.execute(
+          `INSERT INTO media_pipeline_failures (id, org_id, library_id, file_id, sha256, step, error_name, status, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', $8)`,
+          [crypto.randomUUID(), input.orgId, input.libraryId, input.fileId, input.sha256, input.step.slice(0, 40), input.errorName.slice(0, 80), input.at.toISOString()],
+        );
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to record the pipeline failure");
+      }
+    },
+
+    async listPipelineFailures(filter) {
+      try {
+        const where: string[] = [];
+        const params: unknown[] = [];
+        const add = (column: string, v: unknown) => {
+          params.push(v);
+          where.push(`${column} = $${params.length}`);
+        };
+        if (filter.orgId) add("org_id", filter.orgId);
+        if (filter.libraryId) add("library_id", filter.libraryId);
+        if (filter.status) add("status", filter.status);
+        params.push(Math.min(200, Math.max(1, filter.limit)));
+        const r = await executor.execute<Row>(
+          `SELECT * FROM media_pipeline_failures ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY created_at DESC LIMIT $${params.length}`,
+          params,
+        );
+        return {
+          ok: true,
+          value: r.rows.map((row) => ({
+            id: String(row.id),
+            orgId: String(row.org_id),
+            libraryId: String(row.library_id),
+            fileId: String(row.file_id),
+            sha256: String(row.sha256),
+            step: String(row.step),
+            errorName: String(row.error_name),
+            status: row.status as PipelineFailure["status"],
+            createdAt: String(row.created_at),
+            resolvedAt: row.resolved_at == null ? null : String(row.resolved_at),
+          })),
+        };
+      } catch {
+        return internal("Failed to list pipeline failures");
+      }
+    },
+
+    async settlePipelineFailures(orgId, libraryId, fileId, status, at) {
+      try {
+        await executor.execute(
+          `UPDATE media_pipeline_failures SET status = $4, resolved_at = $5 WHERE org_id = $1 AND library_id = $2 AND file_id = $3 AND status = 'open'`,
+          [orgId, libraryId, fileId, status, at.toISOString()],
+        );
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to update pipeline failures");
       }
     },
 
