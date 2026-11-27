@@ -4,7 +4,7 @@ As-built ≠ intent. This file records what actually shipped and every place the
 
 | Milestone | State | PR |
 |---|---|---|
-| PV0: the spec | | |
+| PV0: the spec | in progress: PV-1 landed (doc set + port inventory); PV-2 listing in review | #3 (`0ca8a26`) |
 | PV1: libraries and access | | |
 | PV2: index, storage, uploads | | |
 | PV3: serving | | |

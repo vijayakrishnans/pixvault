@@ -38,3 +38,15 @@ apps/notifications-worker/wrangler.jsonc
 apps/admin-worker/wrangler.jsonc
 apps/integrations-worker/wrangler.jsonc
 apps/webhooks-worker/wrangler.jsonc
+
+# Secrets and local config: never committed (the repo is public)
+.env*
+!.env.example
+.dev.vars
+.dev.vars.*
+*values*.yaml
+!**/fixtures/**/*values*.yaml
+*.pem
+*.key
+*.p12
+cf-token.txt
