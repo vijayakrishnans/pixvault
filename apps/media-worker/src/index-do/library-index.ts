@@ -8,6 +8,7 @@ import { createMediaRepository } from "@saas/db/media";
 import type { Env } from "../env.js";
 import { IndexError, LibraryIndexCore, type Scope, type Sql } from "./core.js";
 import { abortUpload } from "../storage/object-store.js";
+import { drainOutbox } from "./routes.js";
 
 export type IndexOp =
   | { op: "findBlob"; sha256: string }
@@ -25,7 +26,10 @@ export type IndexOp =
   | { op: "restore"; id: string; nowIso: string }
   | { op: "purge"; id: string }
   | { op: "restoreVersion"; id: string; version: number; actor: string; nowIso: string }
-  | { op: "setRetentionDays"; days: number };
+  | { op: "setRetentionDays"; days: number }
+  | { op: "setVisibility"; id: string; visibility: "public" | "private"; nowIso: string }
+  | { op: "requeueAllRoutes"; nowIso: string }
+  | { op: "randomPublic"; folder: string; mimePrefix: string };
 
 export type IndexResult = { ok: true; value: unknown } | { ok: false; code: string; message: string };
 
@@ -69,6 +73,12 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
       case "setRetentionDays":
         core.setRetentionDays(req.days);
         return { ok: true, value: true };
+      case "setVisibility":
+        return { ok: true, value: core.setVisibility(req.id, req.visibility, req.nowIso) };
+      case "requeueAllRoutes":
+        return { ok: true, value: core.requeueAllRoutes(req.nowIso) };
+      case "randomPublic":
+        return { ok: true, value: core.randomPublic(req.folder, req.mimePrefix) };
     }
   } catch (e) {
     if (e instanceof IndexError) return { ok: false, code: e.code, message: e.message };
@@ -93,26 +103,32 @@ export class LibraryIndex extends DurableObject<Env> {
 
   async call(scope: Scope, req: IndexOp): Promise<IndexResult> {
     const result = dispatch(this.core, scope, req);
-    // Sessions expire and trash ages out: make sure an alarm is set whenever there is something to clean.
-    if (result.ok && (req.op === "openSession" || req.op === "trash")) await this.scheduleAlarm();
+    // The outbox drains on an alarm right away, so the request isn't held up by KV writes; sessions expire and
+    // trash ages out on later alarms.
+    if (result.ok && (this.core.outboxSize() > 0 || req.op === "openSession" || req.op === "trash")) await this.scheduleAlarm();
     return result;
   }
 
   private async scheduleAlarm(): Promise<void> {
     const times: number[] = [];
+    if (this.core.outboxSize() > 0) times.push(Date.now());
     const s = this.core.nextSessionExpiry();
     if (s) times.push(Date.parse(s));
     const t = this.core.oldestTrashedAt();
     if (t) times.push(Date.parse(t) + this.core.retentionDays() * DAY);
     if (!times.length) return;
-    const next = Math.max(Date.now() + 60_000, Math.min(...times));
+    const soonest = Math.min(...times);
+    // Outbox work runs now; cleanup work no sooner than a minute out.
+    const next = soonest <= Date.now() ? Date.now() : Math.max(Date.now() + 60_000, soonest);
     const current = await this.ctx.storage.getAlarm();
     if (current === null || current > next) await this.ctx.storage.setAlarm(next);
   }
 
-  /** Abort expired upload sessions and purge trash older than the library's retention. */
+  /** Drain the outbox to the routes KV, abort expired upload sessions, purge trash older than the library's retention. */
   async alarm(): Promise<void> {
     const now = new Date();
+    const libraryId = this.metaValue("library_id");
+    if (this.env.ROUTES_KV && libraryId) await drainOutbox(this.core, this.env.ROUTES_KV, libraryId);
     const bucket = this.env.MEDIA_BUCKET;
     for (const s of this.core.expiredSessions(now.toISOString())) {
       if (bucket) await abortUpload(bucket, s.object_key, s.mode, s.multipart_upload_id);
@@ -133,7 +149,11 @@ export class LibraryIndex extends DurableObject<Env> {
   }
 
   private orgId(): string | null {
-    const r = this.ctx.storage.sql.exec<{ value: string }>(`SELECT value FROM meta WHERE key = 'org_id'`).toArray();
+    return this.metaValue("org_id");
+  }
+
+  private metaValue(key: string): string | null {
+    const r = this.ctx.storage.sql.exec<{ value: string }>(`SELECT value FROM meta WHERE key = ?`, key).toArray();
     return r[0]?.value ?? null;
   }
 }

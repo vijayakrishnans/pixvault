@@ -31,7 +31,8 @@
       // Workers Logs: structured lines from src/log.ts (ids and sizes only).
       "observability": { "enabled": true, "head_sampling_rate": 1 },
       "vars": {
-        "ENVIRONMENT": "stage"
+        "ENVIRONMENT": "stage",
+        "SERVE_BASE": "https://pixvault-serve-worker-stage.vijayakrishnan12994.workers.dev"
       },
       "d1_databases": [
         {
@@ -44,6 +45,12 @@
         {
           "binding": "MEDIA_BUCKET",
           "bucket_name": "@@wiring(cloudflare-r2/stage:r2_bucket_name)@@"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "ROUTES_KV",
+          "id": "@@wiring(cloudflare-kv-media/stage:media_routes_kv_id)@@"
         }
       ],
       "durable_objects": {
@@ -70,7 +77,8 @@
       // Workers Logs: structured lines from src/log.ts (ids and sizes only).
       "observability": { "enabled": true, "head_sampling_rate": 1 },
       "vars": {
-        "ENVIRONMENT": "prod"
+        "ENVIRONMENT": "prod",
+        "SERVE_BASE": "https://pixvault-serve-worker-prod.vijayakrishnan12994.workers.dev"
       },
       "d1_databases": [
         {
@@ -83,6 +91,12 @@
         {
           "binding": "MEDIA_BUCKET",
           "bucket_name": "@@wiring(cloudflare-r2/prod:r2_bucket_name)@@"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "ROUTES_KV",
+          "id": "@@wiring(cloudflare-kv-media/prod:media_routes_kv_id)@@"
         }
       ],
       "durable_objects": {

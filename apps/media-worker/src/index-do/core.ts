@@ -87,6 +87,25 @@ export interface CommitResult {
 
 export const MAX_VERSIONS = 10;
 
+/** What serve-worker needs to serve one path (design §1.3). Written to KV as `route:<libraryId>:<sha256(path)>`. */
+export interface RouteValue {
+  /** object key */ k: string;
+  /** MIME type */ m: string;
+  /** size */ s: number;
+  /** etag: the bytes' SHA-256 */ e: string;
+  /** visibility */ v: "public" | "private";
+  /** file status */ st: FileRow["status"];
+  /** file name (for Content-Disposition) */ n: string;
+  /** file id */ f: string;
+}
+
+export interface OutboxRow {
+  seq: number;
+  op: "route.put" | "route.delete";
+  path: string;
+  value: string | null;
+}
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS blobs (
@@ -112,6 +131,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   parts_json TEXT NOT NULL DEFAULT '{}', state TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions (state, expires_at);
+CREATE TABLE IF NOT EXISTS outbox (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT, op TEXT NOT NULL, path TEXT NOT NULL, value TEXT, created_at TEXT NOT NULL);
 `;
 
 const one = <T>(rows: T[]): T | null => rows[0] ?? null;
@@ -145,6 +166,67 @@ export class LibraryIndexCore {
   retentionDays(): number {
     const r = one(this.sql.exec<{ value: string }>(`SELECT value FROM meta WHERE key = 'retention_days'`).toArray());
     return r ? Number(r.value) : 30;
+  }
+
+  // ── outbox (design §1.3): every change that serving must see, in the same transaction as the change ──
+
+  private enqueueRoute(f: FileRow, nowIso: string): void {
+    if (f.status === "trashed") {
+      this.sql.exec(`INSERT INTO outbox (op, path, value, created_at) VALUES ('route.delete', ?, NULL, ?)`, f.path, nowIso);
+      return;
+    }
+    const blob = this.findBlob(f.blob_sha256);
+    if (!blob) return;
+    const value: RouteValue = { k: blob.object_key, m: f.mime, s: f.size, e: f.blob_sha256, v: f.visibility, st: f.status, n: f.name, f: f.id };
+    this.sql.exec(`INSERT INTO outbox (op, path, value, created_at) VALUES ('route.put', ?, ?, ?)`, f.path, JSON.stringify(value), nowIso);
+  }
+
+  pendingOutbox(limit: number): OutboxRow[] {
+    return this.sql.exec<OutboxRow>(`SELECT seq, op, path, value FROM outbox ORDER BY seq ASC LIMIT ?`, limit).toArray();
+  }
+
+  ackOutbox(seqs: number[]): void {
+    for (const seq of seqs) this.sql.exec(`DELETE FROM outbox WHERE seq = ?`, seq);
+  }
+
+  outboxSize(): number {
+    return Number(one(this.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM outbox`).toArray())?.n ?? 0);
+  }
+
+  /** Re-publish every live file's route (a library that predates serving, or a rebuilt KV). */
+  requeueAllRoutes(nowIso: string): number {
+    return this.sql.transaction(() => {
+      const files = this.sql.exec<FileRow>(`SELECT * FROM files WHERE status != 'trashed'`).toArray();
+      for (const f of files) this.enqueueRoute(f, nowIso);
+      return files.length;
+    });
+  }
+
+  setVisibility(id: string, visibility: "public" | "private", nowIso: string): FileRow {
+    return this.sql.transaction(() => {
+      const f = this.getFile(id);
+      if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
+      // Only files that are plainly public or private follow their visibility; held or flagged files stay as they are (PV4).
+      const status = f.status === "public" || f.status === "private" ? visibility : f.status;
+      this.sql.exec(`UPDATE files SET visibility = ?, status = ?, updated_at = ? WHERE id = ?`, visibility, status, nowIso, id);
+      const updated = this.getFile(id)!;
+      this.enqueueRoute(updated, nowIso);
+      return updated;
+    });
+  }
+
+  /** A random public image under `folder` (and its subfolders), for the random-image API. */
+  randomPublic(folder: string, mimePrefix: string): FileRow | null {
+    const like = folder === "/" ? "/%" : `${folder}/%`;
+    return one(
+      this.sql
+        .exec<FileRow>(
+          `SELECT * FROM files WHERE status = 'public' AND path LIKE ? AND mime LIKE ? ORDER BY RANDOM() LIMIT 1`,
+          like,
+          `${mimePrefix}%`,
+        )
+        .toArray(),
+    );
   }
 
   // ── reads ─────────────────────────────────────────────────
@@ -333,7 +415,9 @@ export class LibraryIndexCore {
           releasedBytes += released.size;
         }
       }
-      return { file: this.getFile(fileId)!, deduplicated, storedBytes, deleteKeys, releasedBytes };
+      const file = this.getFile(fileId)!;
+      this.enqueueRoute(file, input.nowIso);
+      return { file, deduplicated, storedBytes, deleteKeys, releasedBytes };
     });
   }
 
@@ -355,7 +439,9 @@ export class LibraryIndexCore {
       const f = this.getFile(id);
       if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
       this.sql.exec(`UPDATE files SET prev_status = status, status = 'trashed', trashed_at = ?, updated_at = ? WHERE id = ?`, nowIso, nowIso, id);
-      return this.getFile(id)!;
+      const trashed = this.getFile(id)!;
+      this.enqueueRoute(trashed, nowIso);
+      return trashed;
     });
   }
 
@@ -368,7 +454,9 @@ export class LibraryIndexCore {
         `UPDATE files SET status = COALESCE(prev_status, visibility), prev_status = NULL, trashed_at = NULL, updated_at = ? WHERE id = ?`,
         nowIso, id,
       );
-      return this.getFile(id)!;
+      const restored = this.getFile(id)!;
+      this.enqueueRoute(restored, nowIso);
+      return restored;
     });
   }
 
@@ -417,7 +505,9 @@ export class LibraryIndexCore {
       this.sql.exec(`UPDATE blobs SET refcount = refcount + 1 WHERE sha256 = ?`, v.blob_sha256);
       this.sql.exec(`INSERT INTO versions (file_id, version, blob_sha256, size, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)`, id, next, v.blob_sha256, v.size, actor, nowIso);
       this.sql.exec(`UPDATE files SET blob_sha256 = ?, size = ?, version = ?, updated_at = ? WHERE id = ?`, v.blob_sha256, v.size, next, nowIso, id);
-      return this.getFile(id)!;
+      const current = this.getFile(id)!;
+      this.enqueueRoute(current, nowIso);
+      return current;
     });
   }
 }

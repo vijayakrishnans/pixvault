@@ -22,6 +22,10 @@ export interface Library {
   retentionDays: number;
   settingsJson: string;
   status: "active" | "archived";
+  /** Serving identity (220_media_serving): null until captured for libraries created before PV3. */
+  orgSlug: string | null;
+  signingKey: string | null;
+  signingKeyVersion: number;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -73,6 +77,8 @@ export interface CreateLibraryInput {
   /** The creator, added as manager. Omitted when the creator is a service principal. */
   creator?: { principalId: string; email: string | null } | undefined;
   storageBackendId: string;
+  orgSlug?: string | null | undefined;
+  signingKey?: string | null | undefined;
   createdAt: Date;
 }
 
@@ -147,6 +153,8 @@ export interface MediaRepository {
 
   getStorageBackend(orgId: string, libraryId: string): Promise<MediaResult<StorageBackend>>;
 
+  /** Fill in a library's org slug and signing key where they're missing (never overwrites). */
+  setServingIdentity(orgId: string, libraryId: string, orgSlug: string, signingKey: string, at: Date): Promise<MediaResult<Library>>;
   /** Stored bytes (all time) and this month's uploads for one org. `month` is 'YYYY-MM'. */
   getUsage(orgId: string, month: string): Promise<MediaResult<OrgUsage>>;
   getLimitOverrides(orgId: string): Promise<MediaResult<OrgLimitOverrides | null>>;

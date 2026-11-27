@@ -34,6 +34,12 @@ spec:
         - mode: advisory
           when:
             triggerRef: github-pull-request
+    - component: cloudflare-kv-media
+      mode: enforced
+      modeRules:
+        - mode: advisory
+          when:
+            triggerRef: github-pull-request
     - component: cloudflare-r2
       mode: enforced
       modeRules:
@@ -54,6 +60,8 @@ spec:
     WIRING_CLOUDFLARE_D1_PROD: "secret://ws_KG0H9PEH/pixvault/prod/WIRING_CLOUDFLARE_D1"
     WIRING_CLOUDFLARE_R2_STAGE: "secret://ws_KG0H9PEH/pixvault/stage/WIRING_CLOUDFLARE_R2"
     WIRING_CLOUDFLARE_R2_PROD: "secret://ws_KG0H9PEH/pixvault/prod/WIRING_CLOUDFLARE_R2"
+    WIRING_CLOUDFLARE_KV_MEDIA_STAGE: "secret://ws_KG0H9PEH/pixvault/stage/WIRING_CLOUDFLARE_KV_MEDIA"
+    WIRING_CLOUDFLARE_KV_MEDIA_PROD: "secret://ws_KG0H9PEH/pixvault/prod/WIRING_CLOUDFLARE_KV_MEDIA"
 
   subscribe:
     environments:
@@ -96,7 +104,7 @@ spec:
     turboFilter: "@saas/media-worker"
     wranglerConfig: wrangler.jsonc
     wranglerTemplate: wrangler.template.jsonc
-    wiringComponents: "cloudflare-d1,cloudflare-r2"
+    wiringComponents: "cloudflare-d1,cloudflare-r2,cloudflare-kv-media"
     wiringEnvs: "stage,prod"
     wiringFixture: wiring.fixture.json
     installCommand: pnpm install --frozen-lockfile

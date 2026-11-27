@@ -34,6 +34,8 @@ import {
   handleMediaUsage,
   handleRestoreFile,
   handleRestoreVersion,
+  handleSignedUrl,
+  handleUpdateFile,
 } from "./handlers/files.js";
 import { errorResponse, methodNotAllowed, notFound } from "./http.js";
 import { logError, routeTemplate } from "./log.js";
@@ -70,6 +72,7 @@ const FILES_RE = new RegExp(`${LIB}\\/files$`);
 const FILE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)$`);
 const FILE_CONTENT_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/content$`);
 const FILE_RESTORE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/restore$`);
+const FILE_SIGNED_URL_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/signed-url$`);
 const FILE_VERSIONS_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/versions$`);
 const FILE_VERSION_RESTORE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/versions\\/(\\d{1,6})\\/restore$`);
 const MEDIA_USAGE_RE = /^\/v1\/organizations\/([^/]+)\/media-usage$/;
@@ -145,7 +148,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     // Files and uploads need the bucket and the index.
-    const fileRoute = [UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
+    const fileRoute = [UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
     if (fileRoute) {
       if (!env.MEDIA_BUCKET || !env.LIBRARY_INDEX) return errorResponse("internal_error", "Service unavailable", 503, requestId);
       const lm = path.match(new RegExp(LIB))!;
@@ -178,6 +181,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
       if (!fid) return nf();
       if ((m = path.match(FILE_CONTENT_RE))) return method === "GET" ? await handleFileContent(ctx, orgId, libId, fid) : methodNotAllowed(requestId);
       if ((m = path.match(FILE_RESTORE_RE))) return method === "POST" ? await handleRestoreFile(ctx, orgId, libId, fid) : methodNotAllowed(requestId);
+      if ((m = path.match(FILE_SIGNED_URL_RE))) return method === "POST" ? await handleSignedUrl(ctx, request, orgId, libId, fid) : methodNotAllowed(requestId);
       if ((m = path.match(FILE_VERSIONS_RE))) return method === "GET" ? await handleListVersions(ctx, orgId, libId, fid) : methodNotAllowed(requestId);
       if ((m = path.match(FILE_VERSION_RESTORE_RE))) {
         return method === "POST" ? await handleRestoreVersion(ctx, orgId, libId, fid, Number(m[4])) : methodNotAllowed(requestId);
@@ -185,6 +189,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
       if ((m = path.match(FILE_RE))) {
         if (method === "GET") return await handleGetFile(ctx, orgId, libId, fid);
         if (method === "DELETE") return await handleDeleteFile(ctx, url, orgId, libId, fid);
+        if (method === "PATCH") return await handleUpdateFile(ctx, request, orgId, libId, fid);
         return methodNotAllowed(requestId);
       }
       return nf();

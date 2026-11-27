@@ -113,6 +113,9 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
   const sha256 = body.sha256 as string;
   const name = body.name as string;
   const path = folder === "/" ? `/${name}` : `${folder}/${name}`;
+  // Names beginning with "_" at a library's root are reserved for the system (e.g. /_random; design §2.5).
+  const top = path.split("/")[1] ?? "";
+  if (top.startsWith("_")) return validationError(ctx.requestId, { name: ["Names starting with '_' are reserved at the top of a library"] });
 
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.upload");
   if (!a.ok) return a.response;
@@ -159,7 +162,7 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
 
   const existing = await idx.call<FileRow | null>({ op: "liveFileAt", path });
   if (existing && body.replace !== true) {
-    return errorResponse("conflict", "A file already exists at this path", 409, ctx.requestId, { fileId: toPublicFile(existing, a.lib.id).id });
+    return errorResponse("conflict", "A file already exists at this path", 409, ctx.requestId, { fileId: toPublicFile(existing, a.lib, ctx.env).id });
   }
 
   const visibility = body.visibility ?? a.lib.visibilityDefault;
@@ -174,7 +177,7 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
         input: { fileId: crypto.randomUUID(), path, name, folder: folder!, size, sha256, mime, visibility, replace: body.replace === true, objectKey: null, actor: ctx.actor.subjectId, nowIso: now.toISOString() },
       });
       await settle(ctx, orgId, result);
-      return successResponse({ file: toPublicFile(result.file, a.lib.id), deduplicated: true }, ctx.requestId, 200);
+      return successResponse({ file: toPublicFile(result.file, a.lib, ctx.env), deduplicated: true }, ctx.requestId, 200);
     } catch (e) {
       if (e instanceof IndexCallError && e.code === "conflict") return errorResponse("conflict", "A file already exists at this path", 409, ctx.requestId);
       throw e;
@@ -327,7 +330,7 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
     }));
     await step("settle", () => settle(ctx, orgId, result));
     logInfo(ctx.requestId, "commit.done", { session: s.id, size: s.size, deduplicated: result.deduplicated, ms: Date.now() - t0 });
-    return successResponse({ file: toPublicFile(result.file, o.a.lib.id), deduplicated: result.deduplicated }, ctx.requestId);
+    return successResponse({ file: toPublicFile(result.file, o.a.lib, ctx.env), deduplicated: result.deduplicated }, ctx.requestId);
   } catch (e) {
     if (e instanceof IndexCallError && e.code === "conflict") {
       await bucket.delete(s.object_key);

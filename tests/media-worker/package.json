@@ -35,6 +35,7 @@
       "^@saas/contracts/(.*)$": "<rootDir>/../../packages/contracts/src/$1.ts",
       "^@media-worker/(.*)$": "<rootDir>/../../apps/media-worker/src/$1.ts",
       "^@saas/policy-engine$": "<rootDir>/../../packages/policy-engine/src/index.ts",
+      "^@saas/shared/(.*)$": "<rootDir>/../../packages/shared/src/$1.ts",
       "^@saas/db$": "<rootDir>/../../packages/db/src/index.ts",
       "^@saas/db/manifest$": "<rootDir>/../../packages/db/src/manifest.ts",
       "^@saas/db/types$": "<rootDir>/../../packages/db/src/types.ts",

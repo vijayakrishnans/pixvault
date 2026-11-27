@@ -33,6 +33,9 @@
       ],
       "cloudflare:workers": [
         "./src/stubs/cloudflare-workers.ts"
+      ],
+      "@saas/shared/*": [
+        "../../packages/shared/src/*.ts"
       ]
     }
   },

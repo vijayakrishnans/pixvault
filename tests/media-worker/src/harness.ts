@@ -75,6 +75,8 @@ export class World {
   readonly policyCalls: AuthorizationRequest[] = [];
   readonly bucket = new FakeBucket();
   readonly index = new FakeIndexNamespace();
+  readonly kv = new Map<string, string>();
+  readonly orgSlugs = new Map<string, string>();
   readonly env: Env;
   now = new Date("2026-11-27T10:00:00.000Z");
 
@@ -93,7 +95,23 @@ export class World {
       PLATFORM_DB: d1Over(this.db) as unknown as D1Database,
       MEDIA_BUCKET: this.bucket as unknown as R2Bucket,
       LIBRARY_INDEX: this.index as unknown as DurableObjectNamespace,
+      ROUTES_KV: {
+        get: async (k: string) => self.kv.get(k) ?? null,
+        put: async (k: string, v: string) => void self.kv.set(k, v),
+        delete: async (k: string) => void self.kv.delete(k),
+      } as unknown as KVNamespace,
+      SERVE_BASE: "https://serve.test",
       MEMBERSHIP_WORKER: fetcher(async (req) => {
+        if (req.method === "GET") {
+          // GET /v1/organizations/org_<hex>: the org, for its members only (as membership-worker does).
+          const m = new URL(req.url).pathname.match(/^\/v1\/organizations\/org_([0-9a-f]{32})$/);
+          if (!m) return json(null, 404);
+          const h = m[1]!;
+          const orgId = `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+          const actor = req.headers.get("x-actor-subject-id") ?? "";
+          if (!(self.orgRoles.get(orgId)?.get(actor)?.length)) return json(null, 404);
+          return json({ organization: { id: `org_${h}`, slug: self.orgSlugs.get(orgId), name: "Org" } });
+        }
         const body = (await req.json()) as { subject: { id: string }; orgId: string };
         const roles = self.orgRoles.get(body.orgId)?.get(body.subject.id) ?? [];
         const memberships: MembershipFact[] = roles.map((role) => ({
@@ -136,10 +154,22 @@ export class World {
     };
   }
 
-  newOrg(): { id: string; pub: string } {
+  newOrg(): { id: string; pub: string; slug: string } {
     const id = crypto.randomUUID();
     this.orgRoles.set(id, new Map());
-    return { id, pub: pub("org", id) };
+    const slug = `team-${id.slice(0, 8)}`;
+    this.orgSlugs.set(id, slug);
+    return { id, pub: pub("org", id), slug };
+  }
+
+  /** Run every library index's outbox drain into the fake KV, as the Durable Object's alarm does. */
+  async drain(): Promise<number> {
+    let n = 0;
+    for (const [name, core] of this.index.cores) {
+      const libraryId = name.split(":lib:")[1]!;
+      n += await drainOutbox(core, { put: async (k, v) => void this.kv.set(k, v), delete: async (k) => void this.kv.delete(k) }, libraryId);
+    }
+    return n;
   }
 
   newUser(name: string): User {
@@ -188,6 +218,7 @@ export class World {
 import { createHash } from "node:crypto";
 import { dispatch } from "@media-worker/index-do/library-index";
 import { LibraryIndexCore, type Sql } from "@media-worker/index-do/core";
+import { drainOutbox } from "@media-worker/index-do/routes";
 
 export const sha256hex = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
