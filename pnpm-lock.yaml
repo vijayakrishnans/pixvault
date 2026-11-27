@@ -976,6 +976,8 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  tests/media-web: {}
+
   tests/media-worker:
     dependencies:
       '@saas/contracts':
@@ -985,6 +987,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20250508.0
         version: 4.20260702.1
+      '@jest/globals':
+        specifier: ^29.7.0
+        version: 29.7.0
       '@saas/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint
