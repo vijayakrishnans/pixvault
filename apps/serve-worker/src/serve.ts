@@ -41,7 +41,10 @@ export interface ServeDeps {
   waitUntil?: (p: Promise<unknown>) => void;
 }
 
-const MAP_TTL_MS = 30_000;
+// KV results are cached at each edge location for KV_CACHE_TTL seconds (KV's minimum), so a visibility change or a
+// trash reaches every location within about that long (GAPS G50). The isolate keeps maps no longer than KV does.
+export const KV_CACHE_TTL = 30;
+const MAP_TTL_MS = 15_000;
 const mapMemo = new Map<string, { at: number; value: LibraryMap | null }>();
 
 /** Exported for tests: forget the isolate's library maps. */
@@ -87,7 +90,7 @@ async function loadMap(env: Env, org: string, lib: string, now: number): Promise
   const key = `lib:${org}/${lib}`;
   const memo = mapMemo.get(key);
   if (memo && now - memo.at < MAP_TTL_MS) return memo.value;
-  const raw = await env.ROUTES_KV!.get(key, { cacheTtl: 60 });
+  const raw = await env.ROUTES_KV!.get(key, { cacheTtl: KV_CACHE_TTL });
   const value = raw ? (JSON.parse(raw) as LibraryMap) : null;
   mapMemo.set(key, { at: now, value });
   return value;
@@ -174,7 +177,7 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
     return new Response(null, { status: 302, headers: { location: target, "cache-control": "no-store" } });
   }
 
-  const raw = await env.ROUTES_KV.get(`route:${map.l}:${await sha256Hex(p.path)}`, { cacheTtl: 60 });
+  const raw = await env.ROUTES_KV.get(`route:${map.l}:${await sha256Hex(p.path)}`, { cacheTtl: KV_CACHE_TTL });
   if (!raw) return notFound();
   const route = JSON.parse(raw) as RouteValue;
   if (route.st !== "public" && route.st !== "private") return notFound(); // processing, held, flagged: not served (PV4)

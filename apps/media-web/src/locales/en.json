@@ -165,6 +165,7 @@
       "markdown": "Markdown",
       "html": "HTML",
       "bbcode": "BBCode"
-    }
+    },
+    "propagation": "Changes can take up to a minute to reach every location."
   }
 }
