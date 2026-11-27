@@ -1,0 +1,19 @@
+# PV-24: PV4, moderation answer shape. Minted under milestone PV4; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-24
+spec:
+  goal: "On stage the real moderation model's answer through the Workers AI binding couldn't be read, so a safe synthetic image was held. Moderation now accepts an answer already parsed into an object as well as text, gives the model room to answer, and logs only the answer's shape when it can't be read."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "an already-parsed answer is read like text (test)"
+    - "on stage, a synthetic public image on a free plan passes moderation by the real model and is served"
+  gates: []

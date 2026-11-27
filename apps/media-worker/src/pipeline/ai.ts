@@ -41,12 +41,21 @@ export interface ModerationVerdict {
 
 /** Read the model's answer: JSON, possibly inside a ```json fence. Anything else is an error, never a pass. */
 export function parseVerdict(text: unknown): ModerationVerdict {
-  if (typeof text !== "string") return { outcome: "error", categories: [] };
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) return { outcome: "error", categories: [] };
+  let v: { verdict?: unknown; categories?: unknown };
+  if (text && typeof text === "object" && !Array.isArray(text)) {
+    v = text as { verdict?: unknown; categories?: unknown }; // the binding may hand back JSON already parsed
+  } else {
+    if (typeof text !== "string") return { outcome: "error", categories: [] };
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start < 0 || end <= start) return { outcome: "error", categories: [] };
+    try {
+      v = JSON.parse(text.slice(start, end + 1)) as { verdict?: unknown; categories?: unknown };
+    } catch {
+      return { outcome: "error", categories: [] };
+    }
+  }
   try {
-    const v = JSON.parse(text.slice(start, end + 1)) as { verdict?: unknown; categories?: unknown };
     const categories = Array.isArray(v.categories)
       ? v.categories.filter((c): c is string => typeof c === "string" && (UNSAFE_CATEGORIES as readonly string[]).includes(c))
       : [];
@@ -66,10 +75,23 @@ export async function moderate(env: Env, jpeg: Uint8Array): Promise<ModerationVe
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: [{ type: "text", text: "Classify this image." }, { type: "image_url", image_url: { url: toDataUri(jpeg) } }] },
     ],
-    max_tokens: 80,
+    max_tokens: 200,
     temperature: 0,
   } as never)) as { response?: unknown; choices?: { message?: { content?: unknown } }[] };
-  return parseVerdict(r?.response ?? r?.choices?.[0]?.message?.content);
+  const answer = r?.response ?? r?.choices?.[0]?.message?.content;
+  const verdict = parseVerdict(answer);
+  if (verdict.outcome === "error") {
+    // The answer's shape only (never its text), so an unreadable answer can be diagnosed from Workers Logs.
+    console.warn(JSON.stringify({
+      level: "warn",
+      msg: "moderation_unreadable",
+      responseType: Array.isArray(r?.response) ? "array" : typeof r?.response,
+      hasChoices: Array.isArray(r?.choices),
+      keys: r && typeof r === "object" ? Object.keys(r).slice(0, 12) : [],
+      length: typeof answer === "string" ? answer.length : null,
+    }));
+  }
+  return verdict;
 }
 
 /** Up to 3 labels the classifier is fairly sure of, lower-cased. Failures give no tags, never a failed run. */

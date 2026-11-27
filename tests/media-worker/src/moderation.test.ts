@@ -13,7 +13,9 @@ describe("parseVerdict", () => {
     expect(parseVerdict('```json\n{"verdict":"safe","categories":[]}\n```')).toEqual({ outcome: "pass", categories: [] });
     expect(parseVerdict('{"verdict":"unsafe","categories":["nudity","made_up"]}')).toEqual({ outcome: "fail", categories: ["nudity"] });
     expect(parseVerdict('{"verdict":"safe","categories":["violence_graphic"]}')).toEqual({ outcome: "fail", categories: ["violence_graphic"] });
-    for (const t of ['{"verdict":"maybe"}', "I think it is fine", "{not json}", "", 42, null, undefined]) {
+    expect(parseVerdict({ verdict: "safe", categories: [] })).toEqual({ outcome: "pass", categories: [] }); // already parsed
+    expect(parseVerdict({ verdict: "unsafe", categories: ["nudity"] })).toEqual({ outcome: "fail", categories: ["nudity"] });
+    for (const t of [[], { verdict: "perhaps" }, '{"verdict":"maybe"}', "I think it is fine", "{not json}", "", 42, null, undefined]) {
       expect(parseVerdict(t).outcome).toBe("error");
     }
   });
