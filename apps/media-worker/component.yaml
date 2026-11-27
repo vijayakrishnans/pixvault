@@ -34,6 +34,12 @@ spec:
         - mode: advisory
           when:
             triggerRef: github-pull-request
+    - component: cloudflare-r2
+      mode: enforced
+      modeRules:
+        - mode: advisory
+          when:
+            triggerRef: github-pull-request
     - component: cloudflare-d1
       mode: enforced
       modeRules:
@@ -46,6 +52,8 @@ spec:
   secretEnv:
     WIRING_CLOUDFLARE_D1_STAGE: "secret://ws_KG0H9PEH/pixvault/stage/WIRING_CLOUDFLARE_D1"
     WIRING_CLOUDFLARE_D1_PROD: "secret://ws_KG0H9PEH/pixvault/prod/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_R2_STAGE: "secret://ws_KG0H9PEH/pixvault/stage/WIRING_CLOUDFLARE_R2"
+    WIRING_CLOUDFLARE_R2_PROD: "secret://ws_KG0H9PEH/pixvault/prod/WIRING_CLOUDFLARE_R2"
 
   subscribe:
     environments:
@@ -88,7 +96,7 @@ spec:
     turboFilter: "@saas/media-worker"
     wranglerConfig: wrangler.jsonc
     wranglerTemplate: wrangler.template.jsonc
-    wiringComponents: "cloudflare-d1"
+    wiringComponents: "cloudflare-d1,cloudflare-r2"
     wiringEnvs: "stage,prod"
     wiringFixture: wiring.fixture.json
     installCommand: pnpm install --frozen-lockfile

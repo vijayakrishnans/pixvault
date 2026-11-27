@@ -24,8 +24,27 @@ import {
   handleRemoveMember,
   handleRevokeInvitation,
 } from "./handlers/members.js";
+import { handleAbortUpload, handleCommitUpload, handleCreateUpload, handleGetUpload, handlePutPart } from "./handlers/uploads.js";
+import {
+  handleDeleteFile,
+  handleFileContent,
+  handleGetFile,
+  handleListFiles,
+  handleListVersions,
+  handleMediaUsage,
+  handleRestoreFile,
+  handleRestoreVersion,
+} from "./handlers/files.js";
 import { errorResponse, methodNotAllowed, notFound } from "./http.js";
-import { generateRequestId, isPrincipalId, parseInvitationPublicId, parseLibraryPublicId, parseOrgPublicId } from "./ids.js";
+import {
+  generateRequestId,
+  isPrincipalId,
+  parseFilePublicId,
+  parseInvitationPublicId,
+  parseLibraryPublicId,
+  parseOrgPublicId,
+  parseSessionPublicId,
+} from "./ids.js";
 
 export interface ActorContext {
   subjectId: string;
@@ -41,6 +60,18 @@ const MEMBERS_RE = /^\/v1\/organizations\/([^/]+)\/libraries\/([^/]+)\/members$/
 const MEMBER_RE = /^\/v1\/organizations\/([^/]+)\/libraries\/([^/]+)\/members\/([^/]+)$/;
 const INVITATIONS_RE = /^\/v1\/organizations\/([^/]+)\/libraries\/([^/]+)\/invitations$/;
 const INVITATION_RE = /^\/v1\/organizations\/([^/]+)\/libraries\/([^/]+)\/invitations\/([^/]+)$/;
+const LIB = "^\\/v1\\/organizations\\/([^/]+)\\/libraries\\/([^/]+)";
+const UPLOADS_RE = new RegExp(`${LIB}\\/uploads$`);
+const UPLOAD_RE = new RegExp(`${LIB}\\/uploads\\/([^/]+)$`);
+const UPLOAD_PART_RE = new RegExp(`${LIB}\\/uploads\\/([^/]+)\\/parts\\/(\\d{1,5})$`);
+const UPLOAD_COMMIT_RE = new RegExp(`${LIB}\\/uploads\\/([^/]+)\\/commit$`);
+const FILES_RE = new RegExp(`${LIB}\\/files$`);
+const FILE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)$`);
+const FILE_CONTENT_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/content$`);
+const FILE_RESTORE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/restore$`);
+const FILE_VERSIONS_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/versions$`);
+const FILE_VERSION_RESTORE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/versions\\/(\\d{1,6})\\/restore$`);
+const MEDIA_USAGE_RE = /^\/v1\/organizations\/([^/]+)\/media-usage$/;
 const GUEST_LIBRARIES = "/v1/media/libraries";
 const ACCEPT_INVITATIONS = "/v1/media/invitations/accept";
 
@@ -95,6 +126,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     now: deps?.now ?? (() => new Date()),
   };
 
+  const nf = () => errorResponse("not_found", "Not found", 404, requestId);
   try {
     if (path === GUEST_LIBRARIES) {
       return method === "GET" ? await handleListGuestLibraries(ctx) : methodNotAllowed(requestId);
@@ -104,7 +136,58 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     let m: RegExpMatchArray | null;
-    const nf = () => errorResponse("not_found", "Not found", 404, requestId);
+
+    if ((m = path.match(MEDIA_USAGE_RE))) {
+      const orgId = parseOrgPublicId(m[1]!);
+      if (!orgId) return nf();
+      return method === "GET" ? await handleMediaUsage(ctx, orgId) : methodNotAllowed(requestId);
+    }
+
+    // Files and uploads need the bucket and the index.
+    const fileRoute = [UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
+    if (fileRoute) {
+      if (!env.MEDIA_BUCKET || !env.LIBRARY_INDEX) return errorResponse("internal_error", "Service unavailable", 503, requestId);
+      const lm = path.match(new RegExp(LIB))!;
+      const orgId = parseOrgPublicId(lm[1]!);
+      const libId = parseLibraryPublicId(lm[2]!);
+      if (!orgId || !libId) return nf();
+      if ((m = path.match(UPLOADS_RE))) return method === "POST" ? await handleCreateUpload(ctx, request, orgId, libId) : methodNotAllowed(requestId);
+      if ((m = path.match(UPLOAD_PART_RE))) {
+        const ups = parseSessionPublicId(m[3]!);
+        if (!ups) return nf();
+        return method === "PUT" ? await handlePutPart(ctx, request, orgId, libId, ups, Number(m[4])) : methodNotAllowed(requestId);
+      }
+      if ((m = path.match(UPLOAD_COMMIT_RE))) {
+        const ups = parseSessionPublicId(m[3]!);
+        if (!ups) return nf();
+        return method === "POST" ? await handleCommitUpload(ctx, orgId, libId, ups) : methodNotAllowed(requestId);
+      }
+      if ((m = path.match(UPLOAD_RE))) {
+        const ups = parseSessionPublicId(m[3]!);
+        if (!ups) return nf();
+        if (method === "GET") return await handleGetUpload(ctx, orgId, libId, ups);
+        if (method === "DELETE") return await handleAbortUpload(ctx, orgId, libId, ups);
+        return methodNotAllowed(requestId);
+      }
+      if ((m = path.match(FILES_RE))) return method === "GET" ? await handleListFiles(ctx, url, orgId, libId) : methodNotAllowed(requestId);
+      const fid = (() => {
+        const fm = path.match(new RegExp(`${LIB}\\/files\\/([^/]+)`));
+        return fm ? parseFilePublicId(fm[3]!) : null;
+      })();
+      if (!fid) return nf();
+      if ((m = path.match(FILE_CONTENT_RE))) return method === "GET" ? await handleFileContent(ctx, orgId, libId, fid) : methodNotAllowed(requestId);
+      if ((m = path.match(FILE_RESTORE_RE))) return method === "POST" ? await handleRestoreFile(ctx, orgId, libId, fid) : methodNotAllowed(requestId);
+      if ((m = path.match(FILE_VERSIONS_RE))) return method === "GET" ? await handleListVersions(ctx, orgId, libId, fid) : methodNotAllowed(requestId);
+      if ((m = path.match(FILE_VERSION_RESTORE_RE))) {
+        return method === "POST" ? await handleRestoreVersion(ctx, orgId, libId, fid, Number(m[4])) : methodNotAllowed(requestId);
+      }
+      if ((m = path.match(FILE_RE))) {
+        if (method === "GET") return await handleGetFile(ctx, orgId, libId, fid);
+        if (method === "DELETE") return await handleDeleteFile(ctx, url, orgId, libId, fid);
+        return methodNotAllowed(requestId);
+      }
+      return nf();
+    }
 
     if ((m = path.match(LIBRARIES_RE))) {
       const orgId = parseOrgPublicId(m[1]!);

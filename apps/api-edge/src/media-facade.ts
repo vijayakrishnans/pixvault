@@ -14,6 +14,18 @@ const ORG_LIBRARY_MEMBERS_RE = /^\/v1\/organizations\/[^/]+\/libraries\/[^/]+\/m
 const ORG_LIBRARY_MEMBER_RE = /^\/v1\/organizations\/[^/]+\/libraries\/[^/]+\/members\/[^/]+$/;
 const ORG_LIBRARY_INVITATIONS_RE = /^\/v1\/organizations\/[^/]+\/libraries\/[^/]+\/invitations$/;
 const ORG_LIBRARY_INVITATION_RE = /^\/v1\/organizations\/[^/]+\/libraries\/[^/]+\/invitations\/[^/]+$/;
+const L = "^\\/v1\\/organizations\\/[^/]+\\/libraries\\/[^/]+";
+const ORG_LIBRARY_UPLOADS_RE = new RegExp(`${L}\\/uploads$`);
+const ORG_LIBRARY_UPLOAD_RE = new RegExp(`${L}\\/uploads\\/[^/]+$`);
+const ORG_LIBRARY_UPLOAD_PART_RE = new RegExp(`${L}\\/uploads\\/[^/]+\\/parts\\/\\d{1,5}$`);
+const ORG_LIBRARY_UPLOAD_COMMIT_RE = new RegExp(`${L}\\/uploads\\/[^/]+\\/commit$`);
+const ORG_LIBRARY_FILES_RE = new RegExp(`${L}\\/files$`);
+const ORG_LIBRARY_FILE_RE = new RegExp(`${L}\\/files\\/[^/]+$`);
+const ORG_LIBRARY_FILE_CONTENT_RE = new RegExp(`${L}\\/files\\/[^/]+\\/content$`);
+const ORG_LIBRARY_FILE_RESTORE_RE = new RegExp(`${L}\\/files\\/[^/]+\\/restore$`);
+const ORG_LIBRARY_FILE_VERSIONS_RE = new RegExp(`${L}\\/files\\/[^/]+\\/versions$`);
+const ORG_LIBRARY_FILE_VERSION_RESTORE_RE = new RegExp(`${L}\\/files\\/[^/]+\\/versions\\/\\d{1,6}\\/restore$`);
+const ORG_MEDIA_USAGE_RE = /^\/v1\/organizations\/[^/]+\/media-usage$/;
 const MEDIA_LIBRARIES = "/v1/media/libraries";
 const MEDIA_ACCEPT = "/v1/media/invitations/accept";
 
@@ -24,6 +36,17 @@ const ALLOWED: ReadonlyArray<[RegExp | string, ReadonlySet<string>]> = [
   [ORG_LIBRARY_MEMBER_RE, new Set(["PUT", "DELETE"])],
   [ORG_LIBRARY_INVITATIONS_RE, new Set(["POST"])],
   [ORG_LIBRARY_INVITATION_RE, new Set(["DELETE"])],
+  [ORG_LIBRARY_UPLOADS_RE, new Set(["POST"])],
+  [ORG_LIBRARY_UPLOAD_RE, new Set(["GET", "DELETE"])],
+  [ORG_LIBRARY_UPLOAD_PART_RE, new Set(["PUT"])],
+  [ORG_LIBRARY_UPLOAD_COMMIT_RE, new Set(["POST"])],
+  [ORG_LIBRARY_FILES_RE, new Set(["GET"])],
+  [ORG_LIBRARY_FILE_RE, new Set(["GET", "DELETE"])],
+  [ORG_LIBRARY_FILE_CONTENT_RE, new Set(["GET"])],
+  [ORG_LIBRARY_FILE_RESTORE_RE, new Set(["POST"])],
+  [ORG_LIBRARY_FILE_VERSIONS_RE, new Set(["GET"])],
+  [ORG_LIBRARY_FILE_VERSION_RESTORE_RE, new Set(["POST"])],
+  [ORG_MEDIA_USAGE_RE, new Set(["GET"])],
   [MEDIA_LIBRARIES, new Set(["GET"])],
   [MEDIA_ACCEPT, new Set(["POST"])],
 ];
@@ -53,7 +76,9 @@ export async function handleMediaRoute(
     return errorResponse("unsupported", "Method not allowed", 405, requestId);
   }
 
-  return replayOrExecute(request, requestId, env, "media", async () => {
+  // Upload traffic (sessions, parts, commits) has its own budget: a 2 GB file is 60 part requests.
+  const family = /\/uploads(\/|$)/.test(pathname) ? "media_upload" : "media";
+  return replayOrExecute(request, requestId, env, family, async () => {
     if (!env.IDENTITY_WORKER) {
       return errorResponse("internal_error", "Authentication service unavailable", 503, requestId);
     }

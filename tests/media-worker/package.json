@@ -28,6 +28,7 @@
       ".ts"
     ],
     "moduleNameMapper": {
+      "^cloudflare:workers$": "<rootDir>/src/stubs/cloudflare-workers.ts",
       "^(\\.{1,2}/.*)\\.js$": "$1",
       "^@saas/contracts$": "<rootDir>/../../packages/contracts/src/index.ts",
       "^@saas/contracts/(.*)$": "<rootDir>/../../packages/contracts/src/$1.ts",

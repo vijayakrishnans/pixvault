@@ -12,5 +12,7 @@ export type {
   MediaRepositoryError,
   LibraryRoleValue,
   PrincipalKindValue,
+  OrgUsage,
+  OrgLimitOverrides,
 } from "./types.js";
 export { createMediaRepository, managedPrefix } from "./repository.js";

@@ -6,3 +6,5 @@ export default {
     return route(request, env);
   },
 } satisfies ExportedHandler<Env>;
+
+export { LibraryIndex } from "./index-do/library-index.js";

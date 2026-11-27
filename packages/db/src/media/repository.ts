@@ -12,6 +12,8 @@ import type {
   StorageBackend,
   UpdateLibraryInput,
   UpsertMemberInput,
+  OrgUsage,
+  OrgLimitOverrides,
 } from "./types.js";
 
 type Row = Record<string, unknown>;
@@ -373,6 +375,81 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
         return r.rowCount === 0 ? notFound() : { ok: true, value: mapMember(r.rows[0]!) };
       } catch {
         return internal("Failed to accept invitation");
+      }
+    },
+
+    async getUsage(orgId, month) {
+      try {
+        const r = await executor.execute<Row>(
+          `SELECT period, uploads, upload_bytes, storage_bytes FROM media_usage WHERE org_id = $1 AND period IN ('total', $2)`,
+          [orgId, month],
+        );
+        const usage: OrgUsage = { storageBytes: 0, uploadsThisMonth: 0, uploadBytesThisMonth: 0 };
+        for (const row of r.rows) {
+          if (row.period === "total") usage.storageBytes = Number(row.storage_bytes);
+          else {
+            usage.uploadsThisMonth = Number(row.uploads);
+            usage.uploadBytesThisMonth = Number(row.upload_bytes);
+          }
+        }
+        return { ok: true, value: usage };
+      } catch {
+        return internal("Failed to read usage");
+      }
+    },
+
+    async getLimitOverrides(orgId) {
+      try {
+        const r = await executor.execute<Row>(`SELECT * FROM media_org_limits WHERE org_id = $1`, [orgId]);
+        if (r.rowCount === 0) return { ok: true, value: null };
+        const row = r.rows[0]!;
+        const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+        const value: OrgLimitOverrides = {
+          storageBytesLimit: n(row.storage_bytes_limit),
+          uploadsPerMonthLimit: n(row.uploads_per_month_limit),
+          maxFileBytes: n(row.max_file_bytes),
+        };
+        return { ok: true, value };
+      } catch {
+        return internal("Failed to read limits");
+      }
+    },
+
+    async recordUpload(orgId, month, bytes, storedBytes, at) {
+      const ts = at.toISOString();
+      try {
+        await executeBatch(executor, [
+          {
+            text: `INSERT INTO media_usage (org_id, period, uploads, upload_bytes, created_at, updated_at)
+                   VALUES ($1, $2, 1, $3, $4, $4)
+                   ON CONFLICT (org_id, period) DO UPDATE SET uploads = uploads + 1,
+                     upload_bytes = upload_bytes + excluded.upload_bytes, updated_at = excluded.updated_at`,
+            params: [orgId, month, bytes, ts],
+          },
+          {
+            text: `INSERT INTO media_usage (org_id, period, storage_bytes, created_at, updated_at)
+                   VALUES ($1, 'total', $2, $3, $3)
+                   ON CONFLICT (org_id, period) DO UPDATE SET storage_bytes = storage_bytes + excluded.storage_bytes,
+                     updated_at = excluded.updated_at`,
+            params: [orgId, storedBytes, ts],
+          },
+        ]);
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to record upload");
+      }
+    },
+
+    async releaseStorage(orgId, bytes, at) {
+      try {
+        await executor.execute(
+          `UPDATE media_usage SET storage_bytes = MAX(0, storage_bytes - $2), updated_at = $3
+           WHERE org_id = $1 AND period = 'total'`,
+          [orgId, bytes, at.toISOString()],
+        );
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to release storage");
       }
     },
 

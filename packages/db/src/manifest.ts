@@ -192,5 +192,14 @@ export const manifest: MigrationManifest = {
       description:
         "Pixvault media control plane (PV1) — libraries, library members and guest invitations, storage backends, and the later-milestone control tables (domains, share/upload links, WebDAV credentials, serve-route mirror, abuse cases, import jobs); every table org-scoped",
     },
+    {
+      id: "210_media_usage",
+      context: "media",
+      path: "210_media_usage/up.sql",
+      checksum:
+        "e5e7abe5c0368aa1ac4f45eff71f70316a58a20270937a458de04ad735040d65",
+      description:
+        "Pixvault media usage (PV2) — per-org stored bytes and monthly uploads (upsert-only counters) and per-org limit overrides",
+    },
   ],
 };

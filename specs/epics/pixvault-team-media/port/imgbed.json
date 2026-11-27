@@ -685,8 +685,8 @@
       "component": "media-worker",
       "target": "apps/media-worker/src/files/scan.ts",
       "testId": "upload/e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "verified"
     },
     {
       "id": "IB-050",
@@ -699,8 +699,8 @@
       "component": "media-worker trash",
       "target": "apps/media-worker/src/files/path.ts",
       "testId": "upload/e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "verified"
     },
     {
       "id": "IB-051",
@@ -713,8 +713,8 @@
       "component": "media-worker trash",
       "target": "apps/media-worker/src/files/batch.ts",
       "testId": "upload/e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "verified"
     },
     {
       "id": "IB-052",
@@ -783,8 +783,8 @@
       "component": "media-worker",
       "target": "apps/media-worker/src/files/quota.ts",
       "testId": "upload/e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "verified"
     },
     {
       "id": "IB-057",
@@ -1105,8 +1105,8 @@
       "component": "media-worker uploads",
       "target": "apps/media-worker/src/upload/_middleware.ts",
       "testId": "upload/e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "in-progress"
     },
     {
       "id": "IB-080",
@@ -1119,8 +1119,8 @@
       "component": "media-worker uploads",
       "target": "apps/media-worker/src/upload/chunk-merge.ts",
       "testId": "upload/e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "in-progress"
     },
     {
       "id": "IB-081",
@@ -1133,8 +1133,8 @@
       "component": "media-worker uploads",
       "target": "apps/media-worker/src/upload/chunk-upload.ts",
       "testId": "upload/e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "in-progress"
     },
     {
       "id": "IB-082",
@@ -1189,8 +1189,8 @@
       "component": "media-worker uploads",
       "target": "apps/media-worker/src/upload/index.ts",
       "testId": "upload/e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "in-progress"
     },
     {
       "id": "IB-086",
@@ -1203,8 +1203,8 @@
       "component": "media-worker uploads",
       "target": "apps/media-worker/src/upload/upload-tools.ts",
       "testId": "upload/e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "in-progress"
     },
     {
       "id": "IB-087",
@@ -1427,8 +1427,8 @@
       "component": "LibraryIndex DO",
       "target": "apps/media-worker/src/index/d1-database.ts",
       "testId": "index/consistency",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "verified"
     },
     {
       "id": "IB-103",
@@ -1441,8 +1441,8 @@
       "component": "LibraryIndex DO",
       "target": "apps/media-worker/src/index/database-adapter.ts",
       "testId": "index/consistency",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "verified"
     },
     {
       "id": "IB-104",
@@ -1497,8 +1497,8 @@
       "component": "LibraryIndex DO",
       "target": "apps/media-worker/src/index/index-manager.ts",
       "testId": "index/consistency",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "verified"
     },
     {
       "id": "IB-108",
@@ -1651,8 +1651,8 @@
       "component": "storage-worker ObjectStore",
       "target": "apps/storage-worker/src/stores/s3-client.ts",
       "testId": "storage/byo-e2e",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-10",
+      "status": "in-progress"
     },
     {
       "id": "IB-119",

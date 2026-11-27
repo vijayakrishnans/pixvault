@@ -30,6 +30,9 @@
       ],
       "@saas/db": [
         "../../packages/db/src/index.ts"
+      ],
+      "cloudflare:workers": [
+        "./src/stubs/cloudflare-workers.ts"
       ]
     }
   },
