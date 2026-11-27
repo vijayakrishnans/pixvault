@@ -3,7 +3,12 @@
 
 import { randomBytes } from "node:crypto";
 import { UPLOAD_PART_SIZE } from "@saas/contracts/media";
-import { World, sha256hex, type User } from "./harness.js";
+import { FakeDigestStream, World, sha256hex, type User } from "./harness.js";
+
+// Production verifies multipart commits through workerd's crypto.DigestStream; these tests do too.
+beforeAll(() => {
+  (globalThis as unknown as { crypto: { DigestStream?: unknown } }).crypto.DigestStream = FakeDigestStream;
+});
 
 
 describe("uploads, dedup, versions, trash and quotas", () => {

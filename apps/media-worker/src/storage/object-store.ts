@@ -60,17 +60,38 @@ export async function abortUpload(bucket: R2Bucket, key: string, mode: string, u
   }
 }
 
+/** Largest object the buffered fallback will hash. Workers have 128 MB of memory; production never takes this path. */
+export const MAX_BUFFERED_HASH_BYTES = 64 * 1024 * 1024;
+
+type DigestStreamCtor = new (algorithm: string) => WritableStream<ArrayBuffer | ArrayBufferView> & { digest: Promise<ArrayBuffer> };
+
+/**
+ * The runtime's streaming digest. In workerd it is `crypto.DigestStream` (a property of `crypto`, not a global).
+ * Looking for a global once sent every commit down the buffered path, and a 200 MB file hit the memory limit
+ * (PV-13).
+ */
+export function streamingDigest(): DigestStreamCtor | null {
+  const c = (globalThis as { crypto?: { DigestStream?: unknown } }).crypto;
+  return typeof c?.DigestStream === "function" ? (c.DigestStream as DigestStreamCtor) : null;
+}
+
 /** SHA-256 (hex) of a stored object, streamed through the runtime's digest stream: constant memory at any size. */
 export async function sha256OfObject(bucket: R2Bucket, key: string): Promise<{ sha256: string; size: number } | null> {
   const obj = await bucket.get(key);
   if (!obj) return null;
   let bytes: Uint8Array;
-  if (typeof DigestStream === "function") {
-    const digest = new DigestStream("SHA-256");
+  const Digest = streamingDigest();
+  if (Digest) {
+    const digest = new Digest("SHA-256");
     await obj.body.pipeTo(digest);
     bytes = new Uint8Array(await digest.digest);
   } else {
-    // Outside workerd (tests): buffer and digest. Production always takes the streaming path above.
+    // Only outside workerd (tests). Refuse to buffer anything that wouldn't fit a Worker, so a missing streaming
+    // digest fails loudly instead of running out of memory in production.
+    if (obj.size > MAX_BUFFERED_HASH_BYTES) {
+      await obj.body.cancel();
+      throw new Error(`no streaming digest available; refusing to buffer ${obj.size} bytes`);
+    }
     bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", await new Response(obj.body).arrayBuffer()));
   }
   return { sha256: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(""), size: obj.size };
