@@ -1,0 +1,21 @@
+# PV-11: PV2, the upload page (resumable, with trash). Minted under milestone PV2; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-11
+spec:
+  goal: "A library page in media-web uploads files by drag-and-drop, paste or picker with per-file progress, hashes them incrementally in the browser, resumes interrupted uploads after a reload, and lists, downloads, trashes, restores and purges files, with the usage bar."
+  affects:
+    - default/pixvault/media-web
+    - default/pixvault/media-web-tests
+    - apps/media-web/**
+    - tests/media-web/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/pixvault-ledger.md
+    - WAITING.md
+    - tasks/**
+  doneWhen:
+    - "the browser SHA-256 matches Node's for inputs across chunk boundaries (test)"
+    - "an interrupted upload resumes from its missing parts after a reload (test and browser run)"
+    - "on stage, a file uploaded through the page downloads byte-for-byte, and trash, restore and purge work from the page"
+  gates: []

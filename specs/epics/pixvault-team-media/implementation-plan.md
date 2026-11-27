@@ -38,7 +38,7 @@ signed in through Cirrus identity, with the org and library switcher, and the re
 - cross-org and cross-library isolation tests pass on every PV1 table and route (a denied read is 404)
 - `pnpm test:brand` finds no ImgBed or Sanyue mark, logo or upstream link in shipped output
 
-## PV2: library index, managed storage and uploads
+## PV2: library index, managed storage and uploads ✅
 
 This milestone adds the `LibraryIndex` DO (SQLite schema from design §1.3, outbox and alarm) and `storage-worker`
 (`ObjectStore` with `managed-r2`; presign, multipart, HEAD, copy, delete). It adds upload sessions with presigned

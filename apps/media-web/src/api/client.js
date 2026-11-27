@@ -71,8 +71,17 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
 
   const lib = (org, id = "") => `/v1/organizations/${encodeURIComponent(org)}/libraries${id ? `/${encodeURIComponent(id)}` : ""}`;
 
+  /** Fetch a file's bytes as a Blob (signed-in download; public links arrive with serving in PV3). */
+  async function download(org, id, fileId) {
+    const t = token();
+    const res = await fetchImpl(`${base}${lib(org, id)}/files/${encodeURIComponent(fileId)}/content`, { headers: t ? { authorization: `Bearer ${t}` } : {} });
+    if (!res.ok) throw new ApiError(res.status, "download_failed", `Download failed (${res.status})`);
+    return res.blob();
+  }
+
   return {
     request,
+    download,
     auth: {
       loginStart: (email) => request("POST", "/v1/auth/login/start", { email }),
       loginComplete: (challengeId, code) => request("POST", "/v1/auth/login/complete", { challengeId, code }),
@@ -96,6 +105,18 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
       invite: (org, id, email, role) => request("POST", `${lib(org, id)}/invitations`, { email, role }),
       revokeInvitation: (org, id, invitationId) => request("DELETE", `${lib(org, id)}/invitations/${encodeURIComponent(invitationId)}`),
       guestLibraries: () => request("GET", "/v1/media/libraries"),
+      usage: (org) => request("GET", `/v1/organizations/${encodeURIComponent(org)}/media-usage`),
+      files: (org, id, { folder, trash, cursor } = {}) => {
+        const q = new URLSearchParams();
+        if (folder) q.set("folder", folder);
+        if (trash) q.set("trash", "1");
+        if (cursor) q.set("cursor", cursor);
+        const qs = q.toString();
+        return request("GET", `${lib(org, id)}/files${qs ? `?${qs}` : ""}`);
+      },
+      trashFile: (org, id, fileId) => request("DELETE", `${lib(org, id)}/files/${encodeURIComponent(fileId)}`),
+      restoreFile: (org, id, fileId) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/restore`),
+      purgeFile: (org, id, fileId) => request("DELETE", `${lib(org, id)}/files/${encodeURIComponent(fileId)}?permanent=1`),
       acceptInvitations: () => request("POST", "/v1/media/invitations/accept"),
     },
   };

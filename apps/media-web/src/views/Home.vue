@@ -21,12 +21,11 @@
           <dt>{{ $t("home.visibility") }}</dt>
           <dd>{{ l.visibilityDefault === "public" ? $t("library.public") : $t("library.private") }}</dd>
         </dl>
-        <router-link :to="{ name: 'librarySettings', params: { org: l.orgId, lib: l.id } }">
+        <router-link :to="{ name: 'library', params: { org: l.orgId, lib: l.id } }">
           <el-button>{{ $t("home.open") }}</el-button>
         </router-link>
       </article>
     </div>
-    <p class="pv-muted soon">{{ $t("home.uploadsSoon") }}</p>
 
     <el-dialog v-model="dialog" :title="$t('home.new')" width="min(460px, 92vw)">
       <el-form label-position="top" @submit.prevent="create">
@@ -130,7 +129,7 @@ export default {
         this.form = { name: "", slug: "", visibilityDefault: "private", everyoneInOrg: false };
         this.slugTouched = false;
         await this.$store.dispatch("loadLibraries");
-        this.$router.push({ name: "librarySettings", params: { org: r.library.orgId, lib: r.library.id } });
+        this.$router.push({ name: "library", params: { org: r.library.orgId, lib: r.library.id } });
       } catch (e) {
         ElMessage.error(e.status === 412 ? this.$t("errors.limit") : e.message || this.$t("errors.generic"));
       } finally {

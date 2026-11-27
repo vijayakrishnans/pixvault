@@ -7,6 +7,7 @@ const routes = [
   { path: "/login", name: "login", component: () => import("../views/Login.vue"), meta: { public: true } },
   { path: "/onboarding", name: "onboarding", component: () => import("../views/Onboarding.vue") },
   { path: "/", name: "home", component: () => import("../views/Home.vue") },
+  { path: "/o/:org/l/:lib", name: "library", component: () => import("../views/UploadHome.vue"), props: true },
   { path: "/o/:org/l/:lib/settings", name: "librarySettings", component: () => import("../views/SystemConfig.vue"), props: true },
   { path: "/:pathMatch(.*)*", name: "notFound", component: () => import("../views/NotFound.vue"), meta: { public: true } },
 ];

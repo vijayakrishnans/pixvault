@@ -17,7 +17,7 @@
         <router-link
           v-for="l in libraries"
           :key="l.id"
-          :to="{ name: 'librarySettings', params: { org: l.orgId, lib: l.id } }"
+          :to="{ name: 'library', params: { org: l.orgId, lib: l.id } }"
           class="lib"
           :class="{ active: $route.params.lib === l.id }"
           @click="menuOpen = false"
@@ -33,7 +33,7 @@
         <router-link
           v-for="l in guestLibraries"
           :key="l.id"
-          :to="{ name: 'librarySettings', params: { org: l.orgId, lib: l.id } }"
+          :to="{ name: 'library', params: { org: l.orgId, lib: l.id } }"
           class="lib"
           @click="menuOpen = false"
         >
@@ -84,6 +84,10 @@ export default {
       const m = /^pixvault-media-web-([a-z0-9]+)\.(.+)$/.exec(window.location.hostname);
       return m ? `https://pixvault-web-console-next-${m[1]}.${m[2]}` : null;
     },
+  },
+  mounted() {
+    // A deep link or reload lands here without the home page having loaded the team's libraries.
+    if (!this.libraries.length && this.orgId) this.$store.dispatch("loadLibraries").catch(() => {});
   },
   methods: {
     async switchOrg(id) {

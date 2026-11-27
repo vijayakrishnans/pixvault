@@ -42,8 +42,7 @@
     "new": "New library",
     "open": "Open",
     "role": "Your role",
-    "visibility": "Default visibility",
-    "uploadsSoon": "Uploads and browsing arrive with the next release."
+    "visibility": "Default visibility"
   },
   "library": {
     "name": "Name",
@@ -107,5 +106,41 @@
   "errors": {
     "generic": "Something went wrong. Try again.",
     "limit": "Your plan's library limit is reached."
+  },
+  "upload": {
+    "usage": "{used} of {limit} used",
+    "drop": "Drop files here, or click to choose",
+    "hint": "You can also paste an image. Large files upload in parts and resume if interrupted.",
+    "folder": "Folder, e.g. /campaigns/2026",
+    "files": "Files",
+    "trash": "Trash",
+    "empty": "No files yet.",
+    "trashEmpty": "Trash is empty.",
+    "name": "Name",
+    "size": "Size",
+    "uploaded": "Uploaded",
+    "trashed": "Deleted",
+    "download": "Download",
+    "delete": "Delete",
+    "restore": "Restore",
+    "purge": "Delete forever",
+    "more": "Load more",
+    "resumed": "resumed",
+    "dedup": "already in this library, no storage used",
+    "replace": "Replace it",
+    "retry": "Retry",
+    "exists": "A file with this name is already in this folder.",
+    "trashedMsg": "Moved to trash",
+    "restoredMsg": "Restored",
+    "purgedMsg": "Deleted forever",
+    "purgeConfirm": "Delete \"{name}\" forever? This can't be undone.",
+    "phase": {
+      "queued": "Waiting",
+      "hashing": "Checking the file",
+      "starting": "Starting",
+      "uploading": "Uploading",
+      "verifying": "Verifying",
+      "done": "Uploaded"
+    }
   }
 }
