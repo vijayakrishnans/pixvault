@@ -1,0 +1,20 @@
+# PV-20: PV3, links in the app and PV3 acceptance. Minted under milestone PV3; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-20
+spec:
+  goal: "The app gives every file its links in four formats (escaped for each), creates expiring signed links for private files, and lets editors and managers switch a file public or private; PV3's stage acceptance is recorded and the milestone marked done."
+  affects:
+    - default/pixvault/media-web
+    - default/pixvault/media-web-tests
+    - apps/media-web/**
+    - tests/media-web/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "a hostile file name can't break out of any link format (test)"
+    - "on stage, the app shows a public file's link and creates a working signed link for a private one"
+    - "implementation-plan marks PV3 done with its stage measurements"
+  gates: []

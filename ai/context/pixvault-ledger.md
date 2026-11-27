@@ -27,6 +27,7 @@ measured numbers, deferred items.
 | api-edge | https://pixvault-api-edge-stage.vijayakrishnan12994.workers.dev | https://pixvault-api-edge-prod.vijayakrishnan12994.workers.dev |
 | console | https://pixvault-web-console-next-stage.vijayakrishnan12994.workers.dev | https://pixvault-web-console-next-prod.vijayakrishnan12994.workers.dev |
 | app (PV-6) | https://pixvault-media-web-stage.vijayakrishnan12994.workers.dev | https://pixvault-media-web-prod.vijayakrishnan12994.workers.dev |
+| files (PV3) | https://pixvault-serve-worker-stage.vijayakrishnan12994.workers.dev | https://pixvault-serve-worker-prod.vijayakrishnan12994.workers.dev |
 
 ## Skill revisions run under (registry, 2026-11-27)
 
@@ -73,6 +74,12 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - Latency: a D1 query is ~250 ms from the stage edge (Cirrus `GET projects` db;dur=251); `/health` 454 ms; index
   list 354 ms downstream.
 - Workers Paid confirmed (W-4): a 200 MB commit hashes in one request, far beyond the free plan's 10 ms of CPU.
+- PV3 stage acceptance (2026-11-27): 9/9 functional checks. Exact bytes served; the same path under another
+  library 404; private without signature 404; signed link 200 (`private, no-store`); active types download; tampered
+  signature 404; altered expiry refused; preset thumb → WebP (1,949 B → 48 B synthetic PNG); unknown preset 400.
+- PV3 latency: worker time (Server-Timing) for a cached public file p50 6 ms, **p95 9 ms**, p99 587 ms over 150
+  requests (148 cache hits); preset p95 6 ms. Client TTFB from the build box: p50 50 ms, p95 224–339 ms, with
+  `/health` alone at p95 321–352 ms and some connect timeouts, so the tail is this client's network (G53).
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

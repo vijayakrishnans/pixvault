@@ -142,5 +142,29 @@
       "verifying": "正在验证",
       "done": "已上传"
     }
+  },
+  "links": {
+    "open": "链接",
+    "public": "公开",
+    "private": "私有",
+    "makePublic": "公开",
+    "publicHint": "任何拿到链接的人都能查看此文件。",
+    "privateHint": "只有本库成员可以打开。创建一个会过期的链接来分享它。",
+    "createSigned": "创建链接",
+    "expires": "{at} 过期",
+    "copy": "复制",
+    "copied": "已复制",
+    "copyFailed": "复制失败：请选中文本后手动复制",
+    "ttl": {
+      "hour": "1 小时",
+      "day": "1 天",
+      "week": "7 天"
+    },
+    "format": {
+      "url": "URL",
+      "markdown": "Markdown",
+      "html": "HTML",
+      "bbcode": "BBCode"
+    }
   }
 }

@@ -60,7 +60,7 @@ Cron for stale sessions, and the upload page.
 - a session over the org's storage or monthly upload quota is refused with `quota_exceeded`
 - DO commit throughput is measured and recorded (PV-C)
 
-## PV3: serving
+## PV3: serving ✅
 
 This milestone adds `serve-worker` at `i.<domain>`, the KV route cache filled from the DO outbox (with
 `serve_routes` as the rebuild mirror), public serving with immutable caching and ETag, and private files by HMAC
@@ -78,6 +78,12 @@ the random-image API and Analytics Engine data points.
 - an expired, altered or other-library signature returns 404; a valid one returns 200
 - a file in library A can't be served through library B's path, slug or domain (test)
 - a preset not on the library's list returns 400 and isn't counted
+
+**As built (2026-11-27):** serve-worker on workers.dev rather than `i.<domain>` (GAPS G48), at
+`/<orgSlug>/<libSlug>/<path>` (G13). The worker's own time for a cached public file is p95 9 ms over 150 requests
+(Server-Timing; client TTFB from the build box is dominated by its network, G53). KV is rebuilt from each library's
+index (`requeueAllRoutes`) instead of a `serve_routes` mirror (G54). The 451 blocked list waits for moderation
+(G55), key rotation for sharing (G47). Ledger: *Measured*.
 
 ## PV4: pipeline and safety
 
