@@ -6,7 +6,7 @@ As-built ≠ intent. This file records what actually shipped and every place the
 |---|---|---|
 | PV0: the spec | ✅ done 2026-11-27: PV-1 doc set + port inventory; PV-2 public, listing-ready repo; PV-3 WAITING.md | #3 (`0ca8a26`), #4 (`213d751`), PV-3 (this PR) |
 | PV1: libraries and access | ✅ done 2026-11-27: PV-4 backend (libraries, roles, guests, media-worker, facade; 1,200-case matrix; isolation sweep); PV-5 multi-tenant profile; PV-6 media-web app shell and brand check. Verified live on stage | #6 (`dc41aa6`), #7 (`df92dc9`), #8 (`e34ecfc`), #9 (`d932ebf`), PV-8 CSP fix (this PR) |
-| PV2: index, storage, uploads | | |
+| PV2: index, storage, uploads | in progress: PV-9 managed R2 bucket | PV-9 (this PR) |
 | PV3: serving | | |
 | PV4: pipeline and safety | | |
 | PV5: browser and live collaboration | | |
