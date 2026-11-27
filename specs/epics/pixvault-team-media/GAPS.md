@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-27, PV-22._
+_Last updated: 2026-11-28, PV-23._
 
 ## Blocked
 
@@ -100,6 +100,10 @@ _Last updated: 2026-11-27, PV-22._
 | G58 | **No blurhash or stored thumbnails** | The design's pipeline makes a thumbnail and a blurhash. | Thumbnails are served on demand by the preset transforms (PV3), and nothing reads a blurhash until the library browser. | PV5 (library browser) |
 | G59 | **"Free plan" means no active or trialing subscription to a priced plan** | Orgs with per-org overrides or a zero-price paid plan count as free. If the plan can't be read, the org is treated as free (the safer side). | `orgIsOnFreePlan` reads `billing_subscriptions` and `billing_plans`. | A plan feature flag for "trusted uploads", PV11 |
 | G60 | **Files wait for the pipeline before they are served** | An image is `processing` (404 on its link) for the seconds a run takes, or up to 10 minutes if the run is lost and the sweep restarts it. | Deliberate: an image is never served before its location data is removed. | Measure on stage; a progress indicator in the app, PV5 |
+| G61 | **Only images are moderated** | A public non-image on a free plan (a PDF, a video) goes through the pipeline but isn't classified (`moderation: not_applicable`) and is served afterwards. Videos and PDFs could carry unsafe content. | Image moderation covers the brief's main risk (an image host). Video and PDF need frame or page extraction, which the Workers runtime doesn't offer. | Video frames via Stream or a container, PDFs via page rendering: PV9; meanwhile abuse reports and takedown (PV-24) cover them |
+| G62 | **Moderation is one model's judgement, with no hash matching** | False positives hold good files (a person approves them); false negatives serve bad ones until reported. There's no known-CSAM hash matching in the pipeline. | Workers AI vision model with a strict JSON contract; anything unclear holds the file; nothing the model says is stored. Cloudflare's CSAM Scanning Tool works on zones, and serving is on workers.dev. | CSAM scanning once serving has a zone (W-5, W-6); an evaluation set of synthetic cases, PV11 |
+| G63 | **ImageNet labels as tags; no search over them** | Tags are resnet-50's ImageNet classes (only those it scores ≥ 0.4, at most 3), e.g. "tabby cat", not descriptive keywords. Nothing searches them yet. | A cheap baseline that stays inside the account; tags are stored on the file. | A captioning model for descriptive tags and FTS over names and tags, PV5 |
+| G64 | **No notification when a file is flagged or held** | Editors learn about the review queue only by opening it. No `file.flagged` webhook. | The queue is `GET …/files?review=1`. Notifications and webhooks need the events outbox (G26). | PV5 (events), with `file.flagged` |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed

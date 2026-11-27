@@ -79,6 +79,9 @@ export class World {
   readonly orgSlugs = new Map<string, string>();
   /** ProcessFileWorkflow runs started (PV4); `runPipelines()` executes them. */
   readonly workflows: { id: string; params: PipelineParams }[] = [];
+  /** What the moderation model answers next (its raw text), or an error it throws. */
+  aiVerdict: string | Error = '```json\n{"verdict":"safe","categories":[]}\n```';
+  readonly aiCalls: { model: string }[] = [];
   /** Make the next Workflow create calls fail (a lost start). */
   failWorkflowStarts = false;
   readonly env: Env;
@@ -118,7 +121,27 @@ export class World {
           await new Response(stream).arrayBuffer();
           return { format: "image/jpeg", fileSize: 1, width: 32, height: 24 };
         },
+        input(stream: ReadableStream) {
+          const chain = {
+            transform: () => chain,
+            output: async () => {
+              await new Response(stream).arrayBuffer();
+              return { response: () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 1, 2, 3, 0xff, 0xd9])) };
+            },
+          };
+          return chain;
+        },
       } as unknown as ImagesBinding,
+      AI: {
+        run: async (model: string) => {
+          self.aiCalls.push({ model });
+          if (model.includes("resnet")) return [{ label: "Tabby Cat", score: 0.91 }, { label: "Lynx", score: 0.42 }, { label: "Parachute", score: 0.12 }];
+          if (self.aiVerdict instanceof Error) throw self.aiVerdict;
+          return { response: self.aiVerdict };
+        },
+      } as unknown as Ai,
+      MODERATION_MODEL: "@cf/test/moderation",
+      TAGS_MODEL: "@cf/test/resnet",
       MEMBERSHIP_WORKER: fetcher(async (req) => {
         if (req.method === "GET") {
           // GET /v1/organizations/org_<hex>: the org, for its members only (as membership-worker does).

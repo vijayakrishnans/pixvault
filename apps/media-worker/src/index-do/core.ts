@@ -338,6 +338,30 @@ export class LibraryIndexCore {
     });
   }
 
+  /**
+   * A person's decision on a held or flagged file. Approve serves it as its visibility says (moderation "manual");
+   * reject moves it to the trash. A file held because its run failed must be replayed, not approved: its location
+   * data may still be in it.
+   */
+  review(id: string, decision: "approve" | "reject", nowIso: string): FileRow {
+    return this.sql.transaction(() => {
+      const f = this.getFile(id);
+      if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
+      if (f.status !== "held" && f.status !== "flagged") throw new IndexError("invalid_state", "This file isn't waiting for review");
+      if (decision === "approve" && (f.pipeline_note ?? "").startsWith("failed:")) {
+        throw new IndexError("invalid_state", "Processing failed for this file: process it again instead");
+      }
+      if (decision === "approve") {
+        this.sql.exec(`UPDATE files SET status = visibility, moderation = 'manual', updated_at = ? WHERE id = ?`, nowIso, id);
+      } else {
+        this.sql.exec(`UPDATE files SET prev_status = status, status = 'trashed', trashed_at = ?, updated_at = ? WHERE id = ?`, nowIso, nowIso, id);
+      }
+      const after = this.getFile(id)!;
+      this.enqueueRoute(after, nowIso);
+      return after;
+    });
+  }
+
   /** Put a held or flagged file back through the pipeline (a replay). */
   reprocess(id: string, nowIso: string): FileRow {
     return this.sql.transaction(() => {
@@ -376,13 +400,14 @@ export class LibraryIndexCore {
     return this.findBlob(file.blob_sha256)?.object_key ?? null;
   }
 
-  listFiles(opts: { folder?: string; status?: "live" | "trashed"; uploadedBy?: string; cursor?: string; limit: number }): {
+  listFiles(opts: { folder?: string; status?: "live" | "trashed" | "review"; uploadedBy?: string; cursor?: string; limit: number }): {
     files: FileRow[];
     nextCursor: string | null;
   } {
     const where: string[] = [];
     const params: unknown[] = [];
     if (opts.status === "trashed") where.push(`status = 'trashed'`);
+    else if (opts.status === "review") where.push(`status IN ('held', 'flagged')`);
     else where.push(`status != 'trashed'`);
     if (opts.folder !== undefined) {
       where.push(`folder = ?`);
