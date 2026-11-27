@@ -1,0 +1,16 @@
+# PV-7: PV1 fix-forward, the media-web smoke waits out a new workers.dev host. Minted under milestone PV1.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-7
+spec:
+  goal: "The media-web deploy smoke retries for up to 30 seconds, so a first deploy to a new workers.dev host converges green instead of failing on the host's first seconds of 404."
+  affects:
+    - default/pixvault/media-web
+    - apps/media-web/component.yaml
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - the smoke command retries the title and deep-link checks before failing
+    - the convergence of this merge is green for media-web on stage and prod
+  gates: []

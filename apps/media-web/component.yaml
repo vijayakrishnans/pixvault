@@ -56,8 +56,10 @@ spec:
     workersDevSubdomain: vijayakrishnan12994
     installCommand: pnpm install --frozen-lockfile
     buildCommand: pnpm exec turbo run build --filter=@saas/media-web
-    # No pipe into `grep -q` (it can SIGPIPE curl on a large page): match the captured page with `case`.
-    smokeCommand: "html=$(curl -sfL \"${DEPLOYED_URL}/\") && case \"$html\" in *'<title>Pixvault</title>'*) true ;; *) echo 'media-web: title not found'; false ;; esac && deep=$(curl -sfL \"${DEPLOYED_URL}/o/x/l/y/settings\") && case \"$deep\" in *'<div id=\"app\">'*) true ;; *) echo 'media-web: SPA fallback missing'; false ;; esac"
+    # A brand-new workers.dev host answers 404 for its first seconds (PV-7: both first deploys failed 0.2 s after
+    # upload), so each check retries for up to 30 s. No pipe into `grep -q` (it can SIGPIPE curl on a large
+    # page): the captured page is matched with `case`.
+    smokeCommand: "ok=; for i in 1 2 3 4 5 6 7 8 9 10; do html=$(curl -sfL \"${DEPLOYED_URL}/\") && deep=$(curl -sfL \"${DEPLOYED_URL}/o/x/l/y/settings\") && case \"$html\" in *'<title>Pixvault</title>'*) case \"$deep\" in *'<div id=\"app\">'*) ok=1 ;; esac ;; esac; [ -n \"$ok\" ] && break; sleep 3; done; [ -n \"$ok\" ] || { echo 'media-web: title or SPA fallback not served after 30 s'; false; }"
   labels:
     team: platform
     layer: delivery
