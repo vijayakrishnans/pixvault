@@ -57,7 +57,8 @@ export type RouteFamily =
   | "billing"
   | "audit"
   | "notifications"
-  | "integrations";
+  | "integrations"
+  | "media";
 
 interface BucketLimits {
   /** Bucket capacity (max tokens). */
@@ -107,6 +108,11 @@ const LIMITS: Record<RouteFamily, FamilyConfig> = {
   billing: {
     identity: { limit: 60, windowSec: 60 },
     org: { limit: 300, windowSec: 60 },
+  },
+  // Pixvault media (libraries; later files and uploads): the app browses and polls more than the console.
+  media: {
+    identity: { limit: 120, windowSec: 60 },
+    org: { limit: 600, windowSec: 60 },
   },
   audit: {
     identity: { limit: 120, windowSec: 60 },

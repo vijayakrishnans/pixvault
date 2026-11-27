@@ -26,10 +26,15 @@ describe("Integrations Migration Verification", () => {
     );
   });
 
-  it("orders the integrations migrations at the manifest tail", () => {
+  it("orders the integrations migrations together, before any later context's", () => {
+    // Was "at the manifest tail"; later contexts (200_media_control) now follow. The ordering intent is kept:
+    // 190 immediately follows 180, and both precede every later migration id.
     const ids = manifest.migrations.map((m) => m.id);
-    expect(ids.indexOf("180_integrations_foundation")).toBe(ids.length - 2);
-    expect(ids.indexOf("190_integrations_delivery_attribution")).toBe(ids.length - 1);
+    const i180 = ids.indexOf("180_integrations_foundation");
+    const i190 = ids.indexOf("190_integrations_delivery_attribution");
+    expect(i180).toBeGreaterThanOrEqual(0);
+    expect(i190).toBe(i180 + 1);
+    for (const later of ids.slice(i190 + 1)) expect(later > "190").toBe(true);
   });
 
   it("manifest checksums match the on-disk up.sql files", () => {

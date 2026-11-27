@@ -1,0 +1,137 @@
+// Media (Pixvault) control-plane types. Every row is org-scoped; every repository method takes orgId first.
+
+export type MediaRepositoryError =
+  | { kind: "not_found" }
+  | { kind: "conflict"; entity: string }
+  | { kind: "internal"; message: string };
+
+export type MediaResult<T> = { ok: true; value: T } | { ok: false; error: MediaRepositoryError };
+
+export type LibraryRoleValue = "manager" | "editor" | "uploader" | "viewer";
+export type PrincipalKindValue = "member" | "guest";
+
+export interface Library {
+  id: string;
+  orgId: string;
+  projectId: string;
+  slug: string;
+  name: string;
+  visibilityDefault: "public" | "private";
+  everyoneInOrg: boolean;
+  moderationLevel: "off" | "standard" | "strict";
+  retentionDays: number;
+  settingsJson: string;
+  status: "active" | "archived";
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  archivedAt: Date | null;
+}
+
+export interface LibraryMember {
+  orgId: string;
+  libraryId: string;
+  principalKind: PrincipalKindValue;
+  principalId: string;
+  email: string | null;
+  role: LibraryRoleValue;
+  createdAt: Date;
+}
+
+export interface LibraryInvitation {
+  id: string;
+  orgId: string;
+  libraryId: string;
+  emailLower: string;
+  role: "uploader" | "viewer";
+  createdBy: string;
+  createdAt: Date;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  revokedAt: Date | null;
+}
+
+export interface StorageBackend {
+  id: string;
+  orgId: string;
+  libraryId: string;
+  kind: "managed-r2" | "s3-compatible";
+  prefix: string;
+  status: string;
+}
+
+export interface CreateLibraryInput {
+  id: string;
+  orgId: string;
+  projectId: string;
+  slug: string;
+  name: string;
+  visibilityDefault: "public" | "private";
+  everyoneInOrg: boolean;
+  settingsJson: string;
+  createdBy: string;
+  /** The creator, added as manager. Omitted when the creator is a service principal. */
+  creator?: { principalId: string; email: string | null } | undefined;
+  storageBackendId: string;
+  createdAt: Date;
+}
+
+export interface UpdateLibraryInput {
+  name?: string | undefined;
+  visibilityDefault?: "public" | "private" | undefined;
+  everyoneInOrg?: boolean | undefined;
+  moderationLevel?: "off" | "standard" | "strict" | undefined;
+  retentionDays?: number | undefined;
+  settingsJson?: string | undefined;
+  updatedAt: Date;
+}
+
+export interface UpsertMemberInput {
+  orgId: string;
+  libraryId: string;
+  principalKind: PrincipalKindValue;
+  principalId: string;
+  email: string | null;
+  role: LibraryRoleValue;
+  createdBy: string;
+  at: Date;
+}
+
+export interface CreateInvitationInput {
+  id: string;
+  orgId: string;
+  libraryId: string;
+  emailLower: string;
+  role: "uploader" | "viewer";
+  createdBy: string;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+export interface MediaRepository {
+  createLibrary(input: CreateLibraryInput): Promise<MediaResult<Library>>;
+  getLibrary(orgId: string, libraryId: string): Promise<MediaResult<Library>>;
+  /** Active libraries in one org, oldest first. */
+  listLibraries(orgId: string): Promise<MediaResult<Library[]>>;
+  updateLibrary(orgId: string, libraryId: string, input: UpdateLibraryInput): Promise<MediaResult<Library>>;
+  archiveLibrary(orgId: string, libraryId: string, at: Date): Promise<MediaResult<Library>>;
+
+  listMembers(orgId: string, libraryId: string): Promise<MediaResult<LibraryMember[]>>;
+  /** Every library role the principal holds in one org (all libraries). */
+  listPrincipalRoles(orgId: string, principalId: string): Promise<MediaResult<LibraryMember[]>>;
+  /** Orgs and libraries where the principal is a guest, across orgs (for the guest's library list). */
+  listGuestMemberships(principalId: string): Promise<MediaResult<LibraryMember[]>>;
+  upsertMember(input: UpsertMemberInput): Promise<MediaResult<LibraryMember>>;
+  removeMember(orgId: string, libraryId: string, principalId: string): Promise<MediaResult<true>>;
+  countManagers(orgId: string, libraryId: string): Promise<MediaResult<number>>;
+
+  createInvitation(input: CreateInvitationInput): Promise<MediaResult<LibraryInvitation>>;
+  listOpenInvitations(orgId: string, libraryId: string, now: Date): Promise<MediaResult<LibraryInvitation[]>>;
+  revokeInvitation(orgId: string, libraryId: string, invitationId: string, at: Date): Promise<MediaResult<true>>;
+  /** Open, unexpired invitations for one email, across orgs. */
+  listInvitationsForEmail(emailLower: string, now: Date): Promise<MediaResult<LibraryInvitation[]>>;
+  /** Mark accepted and add the guest member, atomically. */
+  acceptInvitation(invitation: LibraryInvitation, principalId: string, at: Date): Promise<MediaResult<LibraryMember>>;
+
+  getStorageBackend(orgId: string, libraryId: string): Promise<MediaResult<StorageBackend>>;
+}

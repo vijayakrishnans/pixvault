@@ -98,6 +98,10 @@
         {
           "binding": "INTEGRATIONS_WORKER",
           "service": "pixvault-integrations-worker-stage"
+        },
+        {
+          "binding": "MEDIA_WORKER",
+          "service": "pixvault-media-worker-stage"
         }
       ],
       "durable_objects": {
@@ -168,6 +172,10 @@
         {
           "binding": "INTEGRATIONS_WORKER",
           "service": "pixvault-integrations-worker-prod"
+        },
+        {
+          "binding": "MEDIA_WORKER",
+          "service": "pixvault-media-worker-prod"
         }
       ],
       "durable_objects": {

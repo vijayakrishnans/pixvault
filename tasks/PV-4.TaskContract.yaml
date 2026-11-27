@@ -1,0 +1,48 @@
+# PV-4: PV1, libraries and access (the backend). Minted in Orunbase under milestone PV1; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-4
+spec:
+  goal: "Orgs have libraries (Cirrus projects) with library roles and guests, served by media-worker through an api-edge facade, every check through policy-worker, with permission-matrix and cross-org isolation tests."
+  affects:
+    # components, as orun task check names them (exact match)
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - default/pixvault/contracts
+    - default/pixvault/db
+    - default/pixvault/db-migrate
+    - default/pixvault/db-tests
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/policy-engine
+    - default/pixvault/policy-engine-tests
+    - default/pixvault/policy-worker
+    # paths inside them
+    - packages/db/src/migrations/200_media_control/**
+    - packages/db/src/manifest.ts
+    - packages/db/src/types.ts
+    - packages/db/src/index.ts
+    - packages/db/src/media/**
+    - packages/db/package.json
+    - packages/contracts/**
+    - packages/policy-engine/**
+    - apps/policy-worker/**
+    - apps/media-worker/**
+    - apps/api-edge/**
+    - tests/media-worker/**
+    - tests/policy-engine/**
+    - tests/db/**
+    - tests/api-edge/**
+    - tests/contracts/**
+    - pnpm-lock.yaml
+    - .gitignore
+    - specs/epics/pixvault-team-media/**
+    - ai/context/pixvault-ledger.md
+    - tasks/**
+  doneWhen:
+    - migration 200_media_control creates the PV1 control tables, every one with org_id
+    - the permission matrix test (org role x library role x action) passes
+    - cross-org and cross-library isolation tests pass on every PV1 table and route; a denied read is 404
+    - media-worker answers /health on stage and prod and the libraries facade answers through api-edge
+  gates: []

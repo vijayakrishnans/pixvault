@@ -183,5 +183,14 @@ export const manifest: MigrationManifest = {
       description:
         "Connection pointer on the inbound-delivery inbox (nullable connection_id + partial index) — lets the per-connection delivery log scope precisely; attributed by the IG2 cron drain",
     },
+    {
+      id: "200_media_control",
+      context: "media",
+      path: "200_media_control/up.sql",
+      checksum:
+        "97ea502aa6f774560c0c110f7d0729246057674be578e6cf020079dae18168d0",
+      description:
+        "Pixvault media control plane (PV1) — libraries, library members and guest invitations, storage backends, and the later-milestone control tables (domains, share/upload links, WebDAV credentials, serve-route mirror, abuse cases, import jobs); every table org-scoped",
+    },
   ],
 };

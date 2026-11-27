@@ -44,6 +44,7 @@ spec:
     - component: webhooks-worker
     - component: billing-worker
     - component: integrations-worker
+    - component: media-worker
     - component: identity-worker
     - component: membership-worker
     - component: metering-worker

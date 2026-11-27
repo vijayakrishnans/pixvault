@@ -13,6 +13,14 @@ import type {
 
 export { POLICY_VERSION } from "@saas/contracts/policy";
 import { POLICY_VERSION } from "@saas/contracts/policy";
+import { authorizeLibrary, isLibraryAction } from "./library.js";
+export {
+  authorizeLibrary,
+  isLibraryAction,
+  effectiveLibraryRole,
+  LIBRARY_ROLE_ACTIONS,
+  validateLibraryRoleAssignment,
+} from "./library.js";
 
 const ORG_ROLE_PERMISSIONS: Record<OrganizationRole, readonly string[]> = {
   owner: [
@@ -288,6 +296,11 @@ export function authorize(input: AuthorizationRequest): AuthorizationResponse {
 
   if (!orgId) {
     return deny("invalid_scope", "");
+  }
+
+  // Media library actions (Pixvault) have their own evaluation: org role ∪ library role facts.
+  if (isLibraryAction(action)) {
+    return authorizeLibrary(input);
   }
 
   if (!ALL_KNOWN_ACTIONS.has(action)) {
