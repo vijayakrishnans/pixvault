@@ -26,6 +26,7 @@ measured numbers, deferred items.
 |---|---|---|
 | api-edge | https://pixvault-api-edge-stage.vijayakrishnan12994.workers.dev | https://pixvault-api-edge-prod.vijayakrishnan12994.workers.dev |
 | console | https://pixvault-web-console-next-stage.vijayakrishnan12994.workers.dev | https://pixvault-web-console-next-prod.vijayakrishnan12994.workers.dev |
+| app (PV-6) | https://pixvault-media-web-stage.vijayakrishnan12994.workers.dev | https://pixvault-media-web-prod.vijayakrishnan12994.workers.dev |
 
 ## Skill revisions run under (registry, 2026-11-27)
 
@@ -43,10 +44,22 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - 2026-11-27: **No `orun/compliance` check is posted on this repo** (bootstrap PRs #1 and #2 had none either). The
   pen is still kept (branch, trailer, manifest, contract) and `orun task check` runs locally before every push.
 
+## Decisions (PV1)
+
+- 2026-11-27: **Solo profile off (PV-5).** The baseline shipped single-user, and teams need orgs, members,
+  invitations and API keys.
+- 2026-11-27: **Library roles decided by policy-worker.** `library_role` facts are evaluated in
+  `packages/policy-engine/src/library.ts`; consumers of the engine must be redeployed (`# orun: redeploy` trigger).
+- 2026-11-27: **`orun task check` matches `affects` by exact qualified component id** (`default/pixvault/<name>`),
+  so every contract lists the components it changes.
+
 ## Measured
 
 - Bootstrap: 08:07:23Z → 08:13:45Z on 2026-11-27 (about 6.5 min, exit 0); 42 components × 3 envs → 89 jobs.
 - `/health` right after the bootstrap: stage 0.65 s, prod 0.54 s (cold, from WSL in India).
+- PV1 tests: policy matrix 1,200 cases (suite 1,434); media-worker 31 over real SQLite; media facade 14; media-web 24.
+- PV1 live smoke on stage (2026-11-27): 17/17 checks, including 6 cross-org probes returning 404.
+- Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items
 

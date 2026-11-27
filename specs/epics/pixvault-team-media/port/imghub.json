@@ -6,15 +6,15 @@
       "id": "IH-001",
       "repo": "Sanyue-ImgHub",
       "source": "public/_headers",
-      "decision": "adapt",
-      "reason": "HTML shell and headers rebranded",
+      "decision": "replace",
+      "reason": "static _headers become the media-web Worker's security headers (PV-6)",
       "origin": "pv1-decision",
       "milestone": "PV1",
-      "component": "media-web static",
-      "target": "apps/media-web/public/_headers",
-      "testId": "brand/grep",
-      "taskKey": null,
-      "status": "planned"
+      "component": "media-web Worker",
+      "target": null,
+      "testId": "app/headers",
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-002",
@@ -25,10 +25,10 @@
       "origin": "pv1-decision",
       "milestone": "PV1",
       "component": "media-web static",
-      "target": "apps/media-web/public/index.html",
+      "target": "apps/media-web/index.html",
       "testId": "brand/grep",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-003",
@@ -41,7 +41,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -55,7 +55,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -69,7 +69,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -83,7 +83,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -97,7 +97,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -111,8 +111,8 @@
       "component": "media-web shell",
       "target": "apps/media-web/src/App.vue",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-009",
@@ -125,7 +125,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -139,7 +139,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -153,7 +153,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -167,7 +167,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -181,7 +181,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -195,7 +195,7 @@
       "component": "—",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -209,20 +209,20 @@
       "component": "Cirrus identity sign-in",
       "target": null,
       "testId": "app/auth",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-016",
       "repo": "Sanyue-ImgHub",
       "source": "src/components/DashboardTabs.vue",
       "decision": "adapt",
-      "reason": "app shell, router, store, i18n and themes, rebranded, with org/library switcher",
+      "reason": "dashboard chrome and dialogs arrive with the library browser (moved from PV1 in PV-6)",
       "origin": "pv1-decision",
-      "milestone": "PV1",
-      "component": "media-web shell",
+      "milestone": "PV5",
+      "component": "media-web library browser",
       "target": "apps/media-web/src/components/DashboardTabs.vue",
-      "testId": "app/shell",
+      "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
     },
@@ -273,12 +273,12 @@
       "repo": "Sanyue-ImgHub",
       "source": "src/components/FloatingSaveButton.vue",
       "decision": "adapt",
-      "reason": "app shell, router, store, i18n and themes, rebranded, with org/library switcher",
+      "reason": "dashboard chrome and dialogs arrive with the library browser (moved from PV1 in PV-6)",
       "origin": "pv1-decision",
-      "milestone": "PV1",
-      "component": "media-web shell",
+      "milestone": "PV5",
+      "component": "media-web library browser",
       "target": "apps/media-web/src/components/FloatingSaveButton.vue",
-      "testId": "app/shell",
+      "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
     },
@@ -293,8 +293,8 @@
       "component": "media-web brand",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-022",
@@ -307,8 +307,8 @@
       "component": "media-web shell",
       "target": "apps/media-web/src/components/LanguageSwitcher.vue",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-023",
@@ -321,8 +321,8 @@
       "component": "media-web brand",
       "target": null,
       "testId": "brand/grep",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-024",
@@ -335,8 +335,8 @@
       "component": "media-web shell",
       "target": "apps/media-web/src/components/ToggleDark.vue",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-025",
@@ -357,12 +357,12 @@
       "repo": "Sanyue-ImgHub",
       "source": "src/components/config/CustomSelect.vue",
       "decision": "adapt",
-      "reason": "library settings screen (storage and domain tabs land in PV7/PV8)",
+      "reason": "output-format and select controls belong to the upload page (moved from PV1 in PV-6)",
       "origin": "pv1-decision",
-      "milestone": "PV1",
-      "component": "media-web library settings",
+      "milestone": "PV2",
+      "component": "media-web upload settings",
       "target": "apps/media-web/src/components/config/CustomSelect.vue",
-      "testId": "libraries/settings",
+      "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
     },
@@ -385,12 +385,12 @@
       "repo": "Sanyue-ImgHub",
       "source": "src/components/config/FileFormatSettings.vue",
       "decision": "adapt",
-      "reason": "library settings screen (storage and domain tabs land in PV7/PV8)",
+      "reason": "output-format and select controls belong to the upload page (moved from PV1 in PV-6)",
       "origin": "pv1-decision",
-      "milestone": "PV1",
-      "component": "media-web library settings",
+      "milestone": "PV2",
+      "component": "media-web upload settings",
       "target": "apps/media-web/src/components/config/FileFormatSettings.vue",
-      "testId": "libraries/settings",
+      "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
     },
@@ -419,8 +419,8 @@
       "component": "media-web library settings",
       "target": "apps/media-web/src/components/config/SysCogOthers.vue",
       "testId": "libraries/settings",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "in-progress"
     },
     {
       "id": "IH-031",
@@ -433,7 +433,7 @@
       "component": "—",
       "target": null,
       "testId": null,
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -447,20 +447,20 @@
       "component": "media-web library settings",
       "target": "apps/media-web/src/components/config/SysCogSecurity.vue",
       "testId": "libraries/settings",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "in-progress"
     },
     {
       "id": "IH-033",
       "repo": "Sanyue-ImgHub",
       "source": "src/components/config/SysCogStatus.vue",
       "decision": "adapt",
-      "reason": "library settings screen (storage and domain tabs land in PV7/PV8)",
+      "reason": "the status panel becomes the usage page (moved from PV1 in PV-6)",
       "origin": "pv1-decision",
-      "milestone": "PV1",
-      "component": "media-web library settings",
+      "milestone": "PV11",
+      "component": "media-web usage",
       "target": "apps/media-web/src/components/config/SysCogStatus.vue",
-      "testId": "libraries/settings",
+      "testId": "app/usage",
       "taskKey": null,
       "status": "planned"
     },
@@ -475,8 +475,8 @@
       "component": "media-web library settings",
       "target": "apps/media-web/src/components/config/SysCogUpload.vue",
       "testId": "libraries/settings",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "in-progress"
     },
     {
       "id": "IH-035",
@@ -489,8 +489,8 @@
       "component": "media-web library settings",
       "target": "apps/media-web/src/components/config/SysConfigTabs.vue",
       "testId": "libraries/settings",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "in-progress"
     },
     {
       "id": "IH-036",
@@ -755,7 +755,7 @@
       "component": "—",
       "target": null,
       "testId": null,
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -818,29 +818,29 @@
       "id": "IH-059",
       "repo": "Sanyue-ImgHub",
       "source": "src/entry/entry-loader.css",
-      "decision": "adapt",
-      "reason": "app shell, router, store, i18n and themes, rebranded, with org/library switcher",
+      "decision": "drop",
+      "reason": "the upstream entry animation is replaced by a plain mount (PV-6)",
       "origin": "pv1-decision",
       "milestone": "PV1",
-      "component": "media-web shell",
-      "target": "apps/media-web/src/entry/entry-loader.css",
-      "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "component": "—",
+      "target": null,
+      "testId": null,
+      "taskKey": "PV-6",
+      "status": "dropped"
     },
     {
       "id": "IH-060",
       "repo": "Sanyue-ImgHub",
       "source": "src/entry/entry-loader.js",
-      "decision": "adapt",
-      "reason": "app shell, router, store, i18n and themes, rebranded, with org/library switcher",
+      "decision": "drop",
+      "reason": "the upstream entry animation is replaced by a plain mount (PV-6)",
       "origin": "pv1-decision",
       "milestone": "PV1",
-      "component": "media-web shell",
-      "target": "apps/media-web/src/entry-loader.ts",
-      "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "component": "—",
+      "target": null,
+      "testId": null,
+      "taskKey": "PV-6",
+      "status": "dropped"
     },
     {
       "id": "IH-061",
@@ -853,8 +853,8 @@
       "component": "media-web shell",
       "target": "apps/media-web/src/locales/en.json",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-062",
@@ -865,10 +865,10 @@
       "origin": "pv1-decision",
       "milestone": "PV1",
       "component": "media-web shell",
-      "target": "apps/media-web/src/index.ts",
+      "target": "apps/media-web/src/locales/index.js",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-063",
@@ -881,8 +881,8 @@
       "component": "media-web shell",
       "target": "apps/media-web/src/locales/zh-CN.json",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-064",
@@ -893,10 +893,10 @@
       "origin": "pv1-decision",
       "milestone": "PV1",
       "component": "media-web shell",
-      "target": "apps/media-web/src/main.ts",
+      "target": "apps/media-web/src/main.js",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-065",
@@ -909,7 +909,7 @@
       "component": "—",
       "target": null,
       "testId": null,
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -917,12 +917,12 @@
       "repo": "Sanyue-ImgHub",
       "source": "src/mixins/unsavedSettings.js",
       "decision": "adapt",
-      "reason": "app shell, router, store, i18n and themes, rebranded, with org/library switcher",
+      "reason": "dashboard chrome and dialogs arrive with the library browser (moved from PV1 in PV-6)",
       "origin": "pv1-decision",
-      "milestone": "PV1",
-      "component": "media-web shell",
-      "target": "apps/media-web/src/unsaved-settings.ts",
-      "testId": "app/shell",
+      "milestone": "PV5",
+      "component": "media-web library browser",
+      "target": "apps/media-web/src/mixins/unsavedSettings.js",
+      "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
     },
@@ -935,10 +935,10 @@
       "origin": "pv1-decision",
       "milestone": "PV1",
       "component": "media-web shell",
-      "target": "apps/media-web/src/index.ts",
+      "target": "apps/media-web/src/router/index.js",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-068",
@@ -949,22 +949,22 @@
       "origin": "pv1-decision",
       "milestone": "PV1",
       "component": "media-web shell",
-      "target": "apps/media-web/src/index.ts",
+      "target": "apps/media-web/src/store/index.js",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-069",
       "repo": "Sanyue-ImgHub",
       "source": "src/styles/admin-common.css",
       "decision": "adapt",
-      "reason": "app shell, router, store, i18n and themes, rebranded, with org/library switcher",
+      "reason": "dashboard chrome and dialogs arrive with the library browser (moved from PV1 in PV-6)",
       "origin": "pv1-decision",
-      "milestone": "PV1",
-      "component": "media-web shell",
+      "milestone": "PV5",
+      "component": "media-web library browser",
       "target": "apps/media-web/src/styles/admin-common.css",
-      "testId": "app/shell",
+      "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
     },
@@ -979,7 +979,7 @@
       "component": "—",
       "target": null,
       "testId": null,
-      "taskKey": null,
+      "taskKey": "PV-6",
       "status": "dropped"
     },
     {
@@ -993,20 +993,20 @@
       "component": "media-web shell",
       "target": "apps/media-web/src/styles/global.css",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-072",
       "repo": "Sanyue-ImgHub",
       "source": "src/styles/settings-dialog.css",
       "decision": "adapt",
-      "reason": "app shell, router, store, i18n and themes, rebranded, with org/library switcher",
+      "reason": "dashboard chrome and dialogs arrive with the library browser (moved from PV1 in PV-6)",
       "origin": "pv1-decision",
-      "milestone": "PV1",
-      "component": "media-web shell",
+      "milestone": "PV5",
+      "component": "media-web library browser",
       "target": "apps/media-web/src/styles/settings-dialog.css",
-      "testId": "app/shell",
+      "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
     },
@@ -1015,12 +1015,12 @@
       "repo": "Sanyue-ImgHub",
       "source": "src/styles/tag-dialog.css",
       "decision": "adapt",
-      "reason": "app shell, router, store, i18n and themes, rebranded, with org/library switcher",
+      "reason": "dashboard chrome and dialogs arrive with the library browser (moved from PV1 in PV-6)",
       "origin": "pv1-decision",
-      "milestone": "PV1",
-      "component": "media-web shell",
+      "milestone": "PV5",
+      "component": "media-web library browser",
       "target": "apps/media-web/src/styles/tag-dialog.css",
-      "testId": "app/shell",
+      "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
     },
@@ -1033,7 +1033,7 @@
       "origin": "pv1-decision",
       "milestone": "PV4",
       "component": "media-web AI tags",
-      "target": "apps/media-web/src/ai-tags.ts",
+      "target": "apps/media-web/src/utils/aiTags.js",
       "testId": "app/ai-tags",
       "taskKey": null,
       "status": "planned"
@@ -1047,10 +1047,10 @@
       "origin": "pv1-decision",
       "milestone": "PV1",
       "component": "media-web Cirrus client",
-      "target": "apps/media-web/src/api/axios.ts",
+      "target": "apps/media-web/src/utils/axios.js",
       "testId": "app/auth",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-076",
@@ -1075,7 +1075,7 @@
       "origin": "pv1-decision",
       "milestone": "PV5",
       "component": "media-web library browser",
-      "target": "apps/media-web/src/batch-processor.ts",
+      "target": "apps/media-web/src/utils/batchProcessor.js",
       "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
@@ -1089,7 +1089,7 @@
       "origin": "pv1-decision",
       "milestone": "PV5",
       "component": "media-web library browser",
-      "target": "apps/media-web/src/detail-preview-motion.ts",
+      "target": "apps/media-web/src/utils/dashboard/detailPreviewMotion.js",
       "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
@@ -1103,7 +1103,7 @@
       "origin": "pv1-decision",
       "milestone": "PV3",
       "component": "media-web links + transforms",
-      "target": "apps/media-web/src/file-links.ts",
+      "target": "apps/media-web/src/utils/dashboard/fileLinks.js",
       "testId": "app/links",
       "taskKey": null,
       "status": "planned"
@@ -1117,7 +1117,7 @@
       "origin": "pv1-decision",
       "milestone": "PV5",
       "component": "media-web library browser",
-      "target": "apps/media-web/src/rect-intersects.ts",
+      "target": "apps/media-web/src/utils/dashboard/rectIntersects.js",
       "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
@@ -1131,7 +1131,7 @@
       "origin": "pv1-decision",
       "milestone": "PV5",
       "component": "media-web library browser",
-      "target": "apps/media-web/src/use-drag-select.ts",
+      "target": "apps/media-web/src/utils/dashboard/useDragSelect.js",
       "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
@@ -1145,7 +1145,7 @@
       "origin": "pv1-decision",
       "milestone": "PV5",
       "component": "media-web library browser",
-      "target": "apps/media-web/src/use-expiry-clock.ts",
+      "target": "apps/media-web/src/utils/dashboard/useExpiryClock.js",
       "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
@@ -1159,10 +1159,10 @@
       "origin": "pv1-decision",
       "milestone": "PV1",
       "component": "media-web Cirrus client",
-      "target": "apps/media-web/src/api/fetch-with-auth.ts",
+      "target": "apps/media-web/src/utils/fetchWithAuth.js",
       "testId": "app/auth",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-084",
@@ -1173,7 +1173,7 @@
       "origin": "pv1-decision",
       "milestone": "PV4",
       "component": "media-web expiry",
-      "target": "apps/media-web/src/file-expiry.ts",
+      "target": "apps/media-web/src/utils/fileExpiry.js",
       "testId": "pipeline/expiry",
       "taskKey": null,
       "status": "planned"
@@ -1187,7 +1187,7 @@
       "origin": "pv1-decision",
       "milestone": "PV2",
       "component": "media-web upload page",
-      "target": "apps/media-web/src/file-id-validator.ts",
+      "target": "apps/media-web/src/utils/fileIdValidator.js",
       "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
@@ -1201,7 +1201,7 @@
       "origin": "pv1-decision",
       "milestone": "PV5",
       "component": "media-web library browser",
-      "target": "apps/media-web/src/file-manager.ts",
+      "target": "apps/media-web/src/utils/fileManager.js",
       "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
@@ -1210,15 +1210,15 @@
       "id": "IH-087",
       "repo": "Sanyue-ImgHub",
       "source": "src/utils/fontawesomeIcons.js",
-      "decision": "adapt",
-      "reason": "app shell, router, store, i18n and themes, rebranded, with org/library switcher",
+      "decision": "drop",
+      "reason": "Font Awesome is replaced by Element Plus icons, one icon set (PV-6)",
       "origin": "pv1-decision",
       "milestone": "PV1",
-      "component": "media-web shell",
-      "target": "apps/media-web/src/fontawesome-icons.ts",
-      "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "component": "—",
+      "target": null,
+      "testId": null,
+      "taskKey": "PV-6",
+      "status": "dropped"
     },
     {
       "id": "IH-088",
@@ -1243,7 +1243,7 @@
       "origin": "pv1-decision",
       "milestone": "PV5",
       "component": "media-web library browser",
-      "target": "apps/media-web/src/media-manager.ts",
+      "target": "apps/media-web/src/utils/mediaManager.js",
       "testId": "app/browse",
       "taskKey": null,
       "status": "planned"
@@ -1257,7 +1257,7 @@
       "origin": "pv1-decision",
       "milestone": "PV2",
       "component": "media-web upload page",
-      "target": "apps/media-web/src/mime-types.ts",
+      "target": "apps/media-web/src/utils/mimeTypes.js",
       "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
@@ -1271,7 +1271,7 @@
       "origin": "pv1-decision",
       "milestone": "PV2",
       "component": "media-web upload page",
-      "target": "apps/media-web/src/path-validator.ts",
+      "target": "apps/media-web/src/utils/pathValidator.js",
       "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
@@ -1299,10 +1299,10 @@
       "origin": "pv1-decision",
       "milestone": "PV1",
       "component": "media-web Cirrus client",
-      "target": "apps/media-web/src/api/token-expiration.ts",
+      "target": "apps/media-web/src/utils/tokenExpiration.js",
       "testId": "app/auth",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-094",
@@ -1313,7 +1313,7 @@
       "origin": "pv1-decision",
       "milestone": "PV2",
       "component": "media-web upload page",
-      "target": "apps/media-web/src/animated-image.ts",
+      "target": "apps/media-web/src/utils/upload/animatedImage.js",
       "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
@@ -1327,7 +1327,7 @@
       "origin": "pv1-decision",
       "milestone": "PV2",
       "component": "media-web upload page",
-      "target": "apps/media-web/src/directory-traversal.ts",
+      "target": "apps/media-web/src/utils/upload/directoryTraversal.js",
       "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
@@ -1341,7 +1341,7 @@
       "origin": "pv1-decision",
       "milestone": "PV2",
       "component": "media-web upload page",
-      "target": "apps/media-web/src/file-format.ts",
+      "target": "apps/media-web/src/utils/upload/fileFormat.js",
       "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
@@ -1355,7 +1355,7 @@
       "origin": "pv1-decision",
       "milestone": "PV2",
       "component": "media-web upload page",
-      "target": "apps/media-web/src/sha256.ts",
+      "target": "apps/media-web/src/utils/upload/sha256.js",
       "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
@@ -1369,7 +1369,7 @@
       "origin": "pv1-decision",
       "milestone": "PV2",
       "component": "media-web upload page",
-      "target": "apps/media-web/src/url-builder.ts",
+      "target": "apps/media-web/src/utils/upload/urlBuilder.js",
       "testId": "app/upload",
       "taskKey": null,
       "status": "planned"
@@ -1399,8 +1399,8 @@
       "component": "Cirrus identity sign-in",
       "target": null,
       "testId": "app/auth",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-101",
@@ -1441,8 +1441,8 @@
       "component": "Cirrus identity sign-in",
       "target": null,
       "testId": "app/auth",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-104",
@@ -1455,8 +1455,8 @@
       "component": "media-web shell",
       "target": "apps/media-web/src/views/NotFound.vue",
       "testId": "app/shell",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-105",
@@ -1483,8 +1483,8 @@
       "component": "media-web library settings",
       "target": "apps/media-web/src/views/SystemConfig.vue",
       "testId": "libraries/settings",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-6",
+      "status": "verified"
     },
     {
       "id": "IH-107",

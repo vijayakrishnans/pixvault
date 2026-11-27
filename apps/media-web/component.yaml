@@ -1,0 +1,65 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: media-web
+  description: The Pixvault media app — Vue 3 + Element Plus, ported from Sanyue-ImgHub (MIT), on Workers Static Assets (per environment)
+spec:
+  type: cloudflare-workers-assets-turbo
+  lifecycle: production
+  owner: platform
+  docs:
+    overview: docs/overview.md
+    pages:
+      - { path: docs/architecture.md, role: architecture, title: Architecture }
+      - { path: docs/runbook.md, role: runbook, title: Runbook }
+  domain: media
+  path: apps/media-web
+  lane: isolated
+  dependsOn:
+    # Runtime calls only (the browser talks to api-edge); advisory, not deploy order.
+    - component: api-edge
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        dependencyRules:
+          - mode: advisory
+            when:
+              triggerRef: github-pull-request
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        dependencyRules:
+          - mode: advisory
+            when:
+              triggerRef: github-pull-request
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+    workspaceDir: ../..
+    appDir: .
+    turboFilter: "@saas/media-web"
+    wranglerConfig: wrangler.jsonc
+    workerEntrypoint: worker/index.js
+    assetsDir: dist
+    workerName: pixvault-media-web
+    environmentAwareWorkerName: true
+    workersDevSubdomain: vijayakrishnan12994
+    installCommand: pnpm install --frozen-lockfile
+    buildCommand: pnpm exec turbo run build --filter=@saas/media-web
+    # No pipe into `grep -q` (it can SIGPIPE curl on a large page): match the captured page with `case`.
+    smokeCommand: "html=$(curl -sfL \"${DEPLOYED_URL}/\") && case \"$html\" in *'<title>Pixvault</title>'*) true ;; *) echo 'media-web: title not found'; false ;; esac && deep=$(curl -sfL \"${DEPLOYED_URL}/o/x/l/y/settings\") && case \"$deep\" in *'<div id=\"app\">'*) true ;; *) echo 'media-web: SPA fallback missing'; false ;; esac"
+  labels:
+    team: platform
+    layer: delivery
+    surface: media-web
+    runtime: cloudflare

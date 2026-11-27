@@ -1,5 +1,5 @@
 import { handlePreflight, applyCorsHeaders, isAllowedOrigin } from "@api-edge/cors";
-import { consoleWorkersDevOrigin } from "@api-edge/app-config";
+import { consoleWorkersDevOrigin, mediaWebWorkersDevOrigin } from "@api-edge/app-config";
 import type { Env } from "@api-edge/env";
 
 const stageEnv: Env = { ENVIRONMENT: "stage", CONSOLE_CUSTOM_DOMAIN: "stage.pixvault.example.com" };
@@ -308,6 +308,23 @@ describe("api-edge cors", () => {
       const json = await res.json();
       expect(json).toEqual(body);
       expect(res.headers.get("access-control-allow-origin")).toBe("http://localhost:5173");
+    });
+  });
+
+  describe("isAllowedOrigin — the Pixvault media app (PV-6)", () => {
+    it("allows the media app of the same environment", () => {
+      expect(mediaWebWorkersDevOrigin("stage")).toBe("https://pixvault-media-web-stage.vijayakrishnan12994.workers.dev");
+      expect(isAllowedOrigin(mediaWebWorkersDevOrigin("stage"), stageEnv)).toBe(true);
+      expect(isAllowedOrigin(mediaWebWorkersDevOrigin("prod"), prodEnv)).toBe(true);
+    });
+    it("rejects the media app of the other environment", () => {
+      expect(isAllowedOrigin(mediaWebWorkersDevOrigin("prod"), stageEnv)).toBe(false);
+      expect(isAllowedOrigin(mediaWebWorkersDevOrigin("stage"), prodEnv)).toBe(false);
+    });
+    it("rejects look-alike hosts", () => {
+      expect(isAllowedOrigin("https://pixvault-media-web-stage.vijayakrishnan12994.workers.dev.evil.example", stageEnv)).toBe(false);
+      expect(isAllowedOrigin("https://evil-pixvault-media-web-stage.vijayakrishnan12994.workers.dev", stageEnv)).toBe(false);
+      expect(isAllowedOrigin("http://pixvault-media-web-stage.vijayakrishnan12994.workers.dev", stageEnv)).toBe(false);
     });
   });
 });

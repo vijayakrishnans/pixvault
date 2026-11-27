@@ -21,7 +21,7 @@ non-affiliation line, topics, secret scanning, push protection, branch protectio
 - every ImgBed and ImgHub source has a decision in `port/*.json`
 - `gh repo view --json visibility` reads `PUBLIC`
 
-## PV1: libraries and access
+## PV1: libraries and access ✅
 
 This milestone adds migration `200_media_control` (every D1 table in design §1.2), creates a library on a Cirrus
 project, adds library roles and guests to `policy-engine`, and adds the `media-worker` skeleton with its `api-edge`

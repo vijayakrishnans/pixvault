@@ -1,0 +1,10 @@
+{
+  "name": "@saas/media-web-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"src/*.test.mjs\"",
+    "build": "node --test \"src/*.test.mjs\""
+  }
+}

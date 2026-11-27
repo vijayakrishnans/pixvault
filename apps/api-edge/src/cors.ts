@@ -1,5 +1,5 @@
 import type { Env } from "./env";
-import { consoleWorkersDevOrigin } from "./app-config";
+import { consoleWorkersDevOrigin, mediaWebWorkersDevOrigin } from "./app-config";
 
 // Deploy hostnames for `apps/web-console-next` (Next.js + opennextjs/cloudflare)
 // under the cloudflare-workers-assets-turbo composition. Per-env naming via
@@ -46,12 +46,17 @@ export function isAllowedOrigin(origin: string | null, env: Env): boolean {
   if (environment === "stage" || environment === "prod") {
     if (customDomain && origin === `https://${customDomain}`) return true;
     if (origin === WORKERS_ORIGINS[environment]) return true;
+    // The Pixvault media app (apps/media-web) of the same environment, and only that one.
+    if (origin === mediaWebWorkersDevOrigin(environment)) return true;
     return false;
   }
 
   if (customDomain && origin === `https://${customDomain}`) return true;
   for (const workerOrigin of Object.values(WORKERS_ORIGINS)) {
     if (origin === workerOrigin) return true;
+  }
+  for (const env of ["dev", "stage", "prod"]) {
+    if (origin === mediaWebWorkersDevOrigin(env)) return true;
   }
 
   return false;

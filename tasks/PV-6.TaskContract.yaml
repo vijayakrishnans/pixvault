@@ -1,0 +1,29 @@
+# PV-6: PV1, the media-web app shell and rebrand. Minted in Orunbase under milestone PV1; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-6
+spec:
+  goal: "apps/media-web, the Vue 3 + Element Plus app ported from Sanyue-ImgHub, is live on stage and prod with Cirrus sign-in, an org and library switcher, library creation, settings, members and guest invitations, rebranded, with a CI check that no upstream brand marks ship."
+  affects:
+    - default/pixvault/media-web
+    - default/pixvault/media-web-tests
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - apps/media-web/**
+    - tests/media-web/**
+    - tools/port-inventory/**
+    - apps/api-edge/src/cors.ts
+    - apps/api-edge/src/app-config.ts
+    - apps/api-edge/component.yaml
+    - tests/api-edge/src/cors.test.ts
+    - pnpm-lock.yaml
+    - specs/epics/pixvault-team-media/**
+    - ai/context/pixvault-ledger.md
+    - tasks/**
+  doneWhen:
+    - pixvault-media-web-stage and -prod serve the app; sign-in, create org, create library, settings and guest invitation work on stage
+    - a CI test finds no ImgBed, Sanyue or MarSeventh marks, logos or upstream links in apps/media-web outside derivation headers
+    - every derived file carries its Derived-from header
+    - PV1 is marked done in implementation-plan.md and IMPLEMENTATION-STATUS.md
+  gates: []
