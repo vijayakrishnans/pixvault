@@ -85,6 +85,10 @@ export default {
       return m ? `https://pixvault-web-console-next-${m[1]}.${m[2]}` : null;
     },
   },
+  mounted() {
+    // A deep link or reload lands here without the home page having loaded the team's libraries.
+    if (!this.libraries.length && this.orgId) this.$store.dispatch("loadLibraries").catch(() => {});
+  },
   methods: {
     async switchOrg(id) {
       this.$store.commit("setOrgId", id);

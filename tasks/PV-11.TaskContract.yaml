@@ -12,6 +12,7 @@ spec:
     - tests/media-web/**
     - specs/epics/pixvault-team-media/**
     - ai/context/pixvault-ledger.md
+    - WAITING.md
     - tasks/**
   doneWhen:
     - "the browser SHA-256 matches Node's for inputs across chunk boundaries (test)"

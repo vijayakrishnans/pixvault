@@ -6,7 +6,7 @@ As-built ≠ intent. This file records what actually shipped and every place the
 |---|---|---|
 | PV0: the spec | ✅ done 2026-11-27: PV-1 doc set + port inventory; PV-2 public, listing-ready repo; PV-3 WAITING.md | #3 (`0ca8a26`), #4 (`213d751`), PV-3 (this PR) |
 | PV1: libraries and access | ✅ done 2026-11-27: PV-4 backend (libraries, roles, guests, media-worker, facade; 1,200-case matrix; isolation sweep); PV-5 multi-tenant profile; PV-6 media-web app shell and brand check. Verified live on stage | #6 (`dc41aa6`), #7 (`df92dc9`), #8 (`e34ecfc`), #9 (`d932ebf`), PV-8 CSP fix (this PR) |
-| PV2: index, storage, uploads | in progress: PV-9 R2 bucket landed; PV-10 index, storage, uploads | #11, PV-10 (this PR) |
+| PV2: index, storage, uploads | ✅ done 2026-11-27: PV-9 R2 bucket; PV-10 LibraryIndex DO, streamed multipart uploads, dedup, versions, trash, quotas; PV-12 Workers Logs; PV-13 streamed commit hash; PV-11 upload page. Stage acceptance 14/14 incl. 2 GB | #11, #12 (`74c78e5`), #13, #14 (`c4de4c4`), PV-11 (this PR) |
 | PV3: serving | | |
 | PV4: pipeline and safety | | |
 | PV5: browser and live collaboration | | |
@@ -89,6 +89,15 @@ As-built ≠ intent. This file records what actually shipped and every place the
   (owner/admin), which an editor's or guest's upload doesn't have. Mirroring usage into metering needs a service
   path in metering-worker; it's a follow-up, recorded in risks (PV-L). Defaults: 10 GiB stored, 2,000
   uploads/month, 2 GiB per file.
+- **Measured on stage (2026-11-27, from WSL in India, ~3.3 MB/s uplink):**
+  - 2 GB in 60 parts uploads in about 600 s and takes **87 s to verify and index** (risk PV-M: within limits; watch
+    it as sizes grow);
+  - 200 MB: 7 parts, 11.7 s commit;
+  - DO commit throughput: **5.4 commits/s** at concurrency 10 (p50 1.7 s, p95 2.4 s end to end).
+
+  Most of each request's latency is D1. A single D1 query costs about 250 ms from this edge; Cirrus's own
+  `GET projects` shows `db;dur=251`. Listing through the index is about 350 ms total. Follow-ups: record usage off
+  the response path, merge index lookups, D1 read replication.
 - **The first stage run failed every commit above about 128 MB** with "Memory limit would be exceeded before EOF".
   The streaming digest was looked up as a global, but workerd exposes it as `crypto.DigestStream`, so commits
   took a buffered fallback meant for tests. A 70 MB file fit, and local workerd doesn't enforce the memory limit,

@@ -9,7 +9,7 @@ continues meanwhile (local `wrangler dev`, Miniflare, MinIO).
 | W-1 | Grievance officer details (India IT Rules) | PV11 launch; public sharing in prod | ⛔ open |
 | W-2 | Legal review of terms, privacy and abuse pages | PV11 launch | ⛔ open |
 | W-3 | Cloudflare scopes Orunbase can't mint yet: Queues, custom hostnames, zone settings | PV4 (Queues), PV8 (domains), PV3 transforms on a custom zone | ⛔ open |
-| W-4 | Confirm the Cloudflare account is on Workers Paid | PV4 (Queues need Paid) | ⛔ open |
+| W-4 | Confirm the Cloudflare account is on Workers Paid | PV4 (Queues need Paid) | ✅ confirmed by measurement (PV2) |
 | W-5 | Turn on CSAM scanning for the serving hostnames | PV4 done; public sharing in prod | ⛔ open |
 | W-6 | Register `pixvault.app` and add its zone | PV8 on our domain; `i.`/`app.` hosts | ⛔ open |
 | W-7 | A throwaway S3-compatible bucket for BYO tests | PV7 end to end (MinIO covers local) | ⛔ open |

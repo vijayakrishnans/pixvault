@@ -44,6 +44,14 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - 2026-11-27: **No `orun/compliance` check is posted on this repo** (bootstrap PRs #1 and #2 had none either). The
   pen is still kept (branch, trailer, manifest, contract) and `orun task check` runs locally before every push.
 
+## Decisions (PV2)
+
+- 2026-11-27: **Managed uploads stream through media-worker** into R2 multipart over the binding (no presigned
+  URLs; no S3 keys in a Worker; no bucket CORS). Presigning arrives with BYO in PV7.
+- 2026-11-27: **Quotas live in media tables**, because metering's routes are owner/admin-only (PV-L follow-up).
+- 2026-11-27: **Workers Logs on media-worker** (PV-12), ids and sizes only. They found the PV-13 memory bug in
+  minutes.
+
 ## Decisions (PV1)
 
 - 2026-11-27: **Solo profile off (PV-5).** The baseline shipped single-user, and teams need orgs, members,
@@ -59,6 +67,12 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - `/health` right after the bootstrap: stage 0.65 s, prod 0.54 s (cold, from WSL in India).
 - PV1 tests: policy matrix 1,200 cases (suite 1,434); media-worker 31 over real SQLite; media facade 14; media-web 24.
 - PV1 live smoke on stage (2026-11-27): 17/17 checks, including 6 cross-org probes returning 404.
+- PV2 stage acceptance (2026-11-27): 14/14. 1 KB, 10 MB, 200 MB and 2 GB commit with matching SHA-256; 2 GB =
+  60 parts, ~600 s upload at ~3.3 MB/s, 87 s verify and index. Resume, dedup, trash/restore/purge and quota all
+  pass. DO commit throughput is 5.4 commits/s at concurrency 10 (p50 1.7 s, p95 2.4 s).
+- Latency: a D1 query is ~250 ms from the stage edge (Cirrus `GET projects` db;dur=251); `/health` 454 ms; index
+  list 354 ms downstream.
+- Workers Paid confirmed (W-4): a 200 MB commit hashes in one request, far beyond the free plan's 10 ms of CPU.
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

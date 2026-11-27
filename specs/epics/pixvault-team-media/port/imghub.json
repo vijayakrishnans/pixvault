@@ -769,8 +769,8 @@
       "component": "media-web upload page",
       "target": "apps/media-web/src/components/upload/UploadFileItem.vue",
       "testId": "app/upload",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-11",
+      "status": "in-progress"
     },
     {
       "id": "IH-056",
@@ -783,8 +783,8 @@
       "component": "media-web upload page",
       "target": "apps/media-web/src/components/upload/UploadForm.vue",
       "testId": "app/upload",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-11",
+      "status": "in-progress"
     },
     {
       "id": "IH-057",
@@ -1357,8 +1357,8 @@
       "component": "media-web upload page",
       "target": "apps/media-web/src/utils/upload/sha256.js",
       "testId": "app/upload",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-11",
+      "status": "verified"
     },
     {
       "id": "IH-098",
@@ -1497,8 +1497,8 @@
       "component": "media-web upload page",
       "target": "apps/media-web/src/views/UploadHome.vue",
       "testId": "app/upload",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-11",
+      "status": "verified"
     },
     {
       "id": "IH-108",
