@@ -41,7 +41,7 @@ describe("uploads, dedup, versions, trash and quotas", () => {
   });
 
   async function upload(user: User, name: string, bytes: Uint8Array, extra: Record<string, unknown> = {}) {
-    const created = await w.call(user, "POST", `${base}/uploads`, { name, size: bytes.length, sha256: sha256hex(bytes), mime: "image/png", ...extra });
+    const created = await w.call(user, "POST", `${base}/uploads`, { name, size: bytes.length, sha256: sha256hex(bytes), mime: "application/octet-stream", ...extra }); // random bytes: not an image, so no pipeline
     if (created.status !== 201) return { created, commit: null as null | { status: number; json: any } };
     const s = created.json.data.session;
     for (let n = 1; n <= s.partCount; n++) {

@@ -45,6 +45,13 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - 2026-11-27: **No `orun/compliance` check is posted on this repo** (bootstrap PRs #1 and #2 had none either). The
   pen is still kept (branch, trailer, manifest, contract) and `orun task check` runs locally before every push.
 
+## Decisions (PV4)
+
+- 2026-11-27, the user: **build PV4 on Workflows**, not Queues (W-3 can't mint a Queues scope). GAPS G56.
+- Moderation model `@cf/mistralai/mistral-small-3.1-24b-instruct` (vision, no licence prompt); tags
+  `@cf/microsoft/resnet-50`. Both are vars (`MODERATION_MODEL`, `TAGS_MODEL`). Upstream sent images to third-party
+  services (moderatecontent.com, an nsfwjs endpoint); Pixvault keeps them inside the account.
+
 ## Decisions (PV2)
 
 - 2026-11-27: **Managed uploads stream through media-worker** into R2 multipart over the binding (no presigned
@@ -80,6 +87,8 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - PV3 latency: worker time (Server-Timing) for a cached public file p50 6 ms, **p95 9 ms**, p99 587 ms over 150
   requests (148 cache hits); preset p95 6 ms. Client TTFB from the build box: p50 50 ms, p95 224–339 ms, with
   `/health` alone at p95 321–352 ms and some connect timeouts, so the tail is this client's network (G53).
+- PV3 propagation (PV-21, 2026-11-27): a switch to public served after 51 s with KV `cacheTtl` 60; with 30 (KV's
+  minimum) 21.6 s, 20.8 s, 20.5 s over three runs. Headless Links flow on the stage app: 11/11.
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

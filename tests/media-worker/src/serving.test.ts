@@ -35,7 +35,10 @@ describe("serving data plane", () => {
   async function upload(name: string, bytes: Uint8Array, extra: Record<string, unknown> = {}) {
     const s = (await w.call(owner, "POST", `${base}/uploads`, { name, size: bytes.length, sha256: sha256hex(bytes), mime: "image/png", ...extra })).json.data.session;
     await w.put(owner, `${base}/uploads/${s.id}/parts/1`, bytes);
-    return (await w.call(owner, "POST", `${base}/uploads/${s.id}/commit`)).json.data.file;
+    const committed = (await w.call(owner, "POST", `${base}/uploads/${s.id}/commit`)).json.data.file;
+    // Images (and public files on a free plan) are served once the pipeline has run (PV4).
+    await w.runPipelines();
+    return (await w.call(owner, "GET", `${base}/files/${committed.id}`)).json.data.file;
   }
 
   const map = () => JSON.parse(w.kv.get(`lib:${A.slug}/${lib.slug}`) ?? "null");
@@ -62,7 +65,7 @@ describe("serving data plane", () => {
     const f = await upload("logo.png", bytes, { folder: "/brand", visibility: "public" });
     expect(f.url).toBe(`https://serve.test/${A.slug}/${lib.slug}/brand/logo.png`);
     expect(route("/brand/logo.png")).toBeNull(); // not until the outbox drains
-    expect(await w.drain()).toBe(1);
+    expect(await w.drain()).toBe(2); // the route while processing, then once public (PV4)
     expect(route("/brand/logo.png")).toMatchObject({ e: sha256hex(bytes), v: "public", st: "public", m: "image/png", s: 500, n: "logo.png", f: uuidOf(f.id) });
 
     await w.call(owner, "DELETE", `${base}/files/${f.id}`);

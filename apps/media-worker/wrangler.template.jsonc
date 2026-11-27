@@ -32,7 +32,9 @@
       "observability": { "enabled": true, "head_sampling_rate": 1 },
       "vars": {
         "ENVIRONMENT": "stage",
-        "SERVE_BASE": "https://pixvault-serve-worker-stage.vijayakrishnan12994.workers.dev"
+        "SERVE_BASE": "https://pixvault-serve-worker-stage.vijayakrishnan12994.workers.dev",
+        "MODERATION_MODEL": "@cf/mistralai/mistral-small-3.1-24b-instruct",
+        "TAGS_MODEL": "@cf/microsoft/resnet-50"
       },
       "d1_databases": [
         {
@@ -53,6 +55,10 @@
           "id": "@@wiring(cloudflare-kv-media/stage:media_routes_kv_id)@@"
         }
       ],
+      // ProcessFileWorkflow (PV4): Workflows instead of a queue (GAPS G56).
+      "workflows": [{ "name": "pixvault-process-file-stage", "binding": "PROCESS_FILE", "class_name": "ProcessFileWorkflow" }],
+      "images": { "binding": "IMAGES" },
+      "ai": { "binding": "AI" },
       "durable_objects": {
         "bindings": [{ "name": "LIBRARY_INDEX", "class_name": "LibraryIndex" }]
       },
@@ -78,7 +84,9 @@
       "observability": { "enabled": true, "head_sampling_rate": 1 },
       "vars": {
         "ENVIRONMENT": "prod",
-        "SERVE_BASE": "https://pixvault-serve-worker-prod.vijayakrishnan12994.workers.dev"
+        "SERVE_BASE": "https://pixvault-serve-worker-prod.vijayakrishnan12994.workers.dev",
+        "MODERATION_MODEL": "@cf/mistralai/mistral-small-3.1-24b-instruct",
+        "TAGS_MODEL": "@cf/microsoft/resnet-50"
       },
       "d1_databases": [
         {
@@ -99,6 +107,10 @@
           "id": "@@wiring(cloudflare-kv-media/prod:media_routes_kv_id)@@"
         }
       ],
+      // ProcessFileWorkflow (PV4): Workflows instead of a queue (GAPS G56).
+      "workflows": [{ "name": "pixvault-process-file-prod", "binding": "PROCESS_FILE", "class_name": "ProcessFileWorkflow" }],
+      "images": { "binding": "IMAGES" },
+      "ai": { "binding": "AI" },
       "durable_objects": {
         "bindings": [{ "name": "LIBRARY_INDEX", "class_name": "LibraryIndex" }]
       },

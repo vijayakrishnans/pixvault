@@ -210,5 +210,14 @@ export const manifest: MigrationManifest = {
       description:
         "Pixvault media serving (PV3) — each library's org slug (paths /<orgSlug>/<libSlug>/<path>) and its versioned HMAC signing key for private-file URLs",
     },
+    {
+      id: "230_media_pipeline",
+      context: "media",
+      path: "230_media_pipeline/up.sql",
+      checksum:
+        "8901e4c93bb22d2bdaed7807444ee9a59f0239af4ac5c1388cd1bbcacac27c0e",
+      description:
+        "Pixvault file pipeline (PV4) — runs of ProcessFileWorkflow that failed after their retries (the held file's replay list)",
+    },
   ],
 };

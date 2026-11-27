@@ -175,7 +175,7 @@ export const UPLOAD_PART_SIZE = 32 * 1024 * 1024;
 /** Upload sessions expire (and their parts are aborted) this long after creation. */
 export const UPLOAD_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
-export type FileStatus = "processing" | "held" | "public" | "private" | "flagged" | "trashed";
+export type FileStatus = "processing" | "held" | "public" | "private" | "flagged" | "removed" | "trashed";
 
 export interface PublicFile {
   id: string; // fil_…
@@ -195,6 +195,13 @@ export interface PublicFile {
   trashedAt: string | null;
   /** Public URL (public files only); private files get a signed URL from POST …/signed-url. */
   url: string | null;
+  /** Pipeline results (PV4): pixel size, tags, and the moderation outcome; null until processed. */
+  width: number | null;
+  height: number | null;
+  tags: string[];
+  moderation: string | null;
+  /** Why the file is held, when it is. */
+  pipelineNote: string | null;
 }
 
 export interface SignedUrlRequest {

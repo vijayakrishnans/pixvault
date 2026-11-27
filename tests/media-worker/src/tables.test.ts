@@ -14,7 +14,7 @@ describe("media control tables", () => {
     (t) => t.name,
   );
 
-  it("are all created by the media migrations (200, 210)", () => {
+  it("are all created by the media migrations (200, 210, 230)", () => {
     expect(tables).toEqual([
       "media_abuse_cases",
       "media_dav_credentials",
@@ -24,6 +24,7 @@ describe("media control tables", () => {
       "media_library_invitations",
       "media_library_members",
       "media_org_limits",
+      "media_pipeline_failures",
       "media_serve_routes",
       "media_share_links",
       "media_storage_backends",

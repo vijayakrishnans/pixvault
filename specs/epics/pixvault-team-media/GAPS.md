@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-27, PV-21._
+_Last updated: 2026-11-27, PV-22._
 
 ## Blocked
 
@@ -95,6 +95,11 @@ _Last updated: 2026-11-27, PV-21._
 | G53 | **No latency measurement from a well-connected client** | From the build box, `/health` alone has p95 over 300 ms and some connections time out, so client TTFB says nothing about the worker. | Every response carries `Server-Timing: worker;dur=…` (the worker's own I/O time), and the PV3 latency criterion is measured from it. | A synthetic check from a cloud runner near an edge (Cloudflare Health Checks or a scheduled CI probe), PV11 |
 | G54 | **No `serve_routes` D1 mirror** | Design §2.5 keeps a D1 copy of every route so KV can be rebuilt. | Each library's index is already the source: `requeueAllRoutes` re-publishes every live file's route (used for pre-PV3 libraries). A D1 mirror would be a third copy and cost ~250 ms per write (G34). | Add an admin "rebuild routes" action that walks libraries and calls `requeueAllRoutes`, PV11 |
 | G55 | **No blocked list (451)** | Serving has no per-file block that answers 451 Unavailable For Legal Reasons. | Held and flagged files already return 404; the 451 path belongs with moderation and takedown. | PV4 |
+| G56 | **Workflows instead of Queues (decided by the user, 2026-11-27)** | Design §4.3 has Queues with a dead-letter queue. Orunbase can't mint a Queues scope (W-3). | `ProcessFileWorkflow`: each step retries on its own (3 times, exponential); a run that still fails **holds** the file and writes a row to `media_pipeline_failures` (the dead-letter list); `POST …/files/{fil}/reprocess` replays it; the index sweeps files still processing after 10 minutes and starts a new run. | No platform-wide failure view yet (per-library only), PV-24 with the admin tools. Queues stay possible once W-3 is decided |
+| G57 | **Location removal covers JPEG, PNG and WebP only** | HEIC, AVIF, TIFF and GIF keep any location metadata. IPTC location fields (city or country names) and XMP that doesn't mention GPS are kept in JPEGs. Images over 64 MiB are held for a person instead of being cleaned. | JPEG: the GPS IFD is emptied in place (orientation and camera data stay) and XMP mentioning GPS is dropped, and unreadable EXIF is dropped whole; PNG: eXIf and XMP chunks dropped; WebP: EXIF and XMP chunks dropped. Fail closed. | HEIC/AVIF via a decoder or the Images binding's metadata stripping, IPTC, and streaming large JPEGs: PV9 |
+| G58 | **No blurhash or stored thumbnails** | The design's pipeline makes a thumbnail and a blurhash. | Thumbnails are served on demand by the preset transforms (PV3), and nothing reads a blurhash until the library browser. | PV5 (library browser) |
+| G59 | **"Free plan" means no active or trialing subscription to a priced plan** | Orgs with per-org overrides or a zero-price paid plan count as free. If the plan can't be read, the org is treated as free (the safer side). | `orgIsOnFreePlan` reads `billing_subscriptions` and `billing_plans`. | A plan feature flag for "trusted uploads", PV11 |
+| G60 | **Files wait for the pipeline before they are served** | An image is `processing` (404 on its link) for the seconds a run takes, or up to 10 minutes if the run is lost and the sweep restarts it. | Deliberate: an image is never served before its location data is removed. | Measure on stage; a progress indicator in the app, PV5 |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed

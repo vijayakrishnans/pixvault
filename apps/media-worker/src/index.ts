@@ -8,3 +8,4 @@ export default {
 } satisfies ExportedHandler<Env>;
 
 export { LibraryIndex } from "./index-do/library-index.js";
+export { ProcessFileWorkflow } from "./pipeline/workflow.js";
