@@ -103,18 +103,11 @@ locals {
   # (10014). Workers resolve this KV by ID via the wiring secret, so the title is
   # free to change.
   idempotency_namespace_title = "${var.namespacePrefix}${var.repo}-api-edge-idempotency-${var.environment}"
-  # Pixvault serving (PV3): library maps and file routes, written by media-worker and read by serve-worker.
-  media_routes_namespace_title = "${var.namespacePrefix}${var.repo}-media-routes-${var.environment}"
 }
 
 resource "cloudflare_workers_kv_namespace" "api_edge_idempotency" {
   account_id = var.cloudflare_account_id
   title      = local.idempotency_namespace_title
-}
-
-resource "cloudflare_workers_kv_namespace" "media_routes" {
-  account_id = var.cloudflare_account_id
-  title      = local.media_routes_namespace_title
 }
 
 # --- Wiring manifest (BF5, via orun secrets) ---
@@ -128,8 +121,6 @@ output "wiring" {
   value = jsonencode({
     api_edge_idempotency_kv_id    = cloudflare_workers_kv_namespace.api_edge_idempotency.id
     api_edge_idempotency_kv_title = cloudflare_workers_kv_namespace.api_edge_idempotency.title
-    media_routes_kv_id            = cloudflare_workers_kv_namespace.media_routes.id
-    media_routes_kv_title         = cloudflare_workers_kv_namespace.media_routes.title
   })
 }
 
@@ -143,9 +134,4 @@ output "api_edge_idempotency_kv_id" {
 output "api_edge_idempotency_kv_title" {
   description = "Cloudflare Workers KV namespace title (human-readable identifier)"
   value       = cloudflare_workers_kv_namespace.api_edge_idempotency.title
-}
-
-output "media_routes_kv_id" {
-  description = "Cloudflare Workers KV namespace ID for Pixvault serving routes (library maps, file routes)"
-  value       = cloudflare_workers_kv_namespace.media_routes.id
 }

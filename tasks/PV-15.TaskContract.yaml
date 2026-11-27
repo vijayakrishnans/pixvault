@@ -4,13 +4,14 @@ kind: TaskContract
 metadata:
   name: PV-15
 spec:
-  goal: "Each environment has a media routes KV namespace, created by the cloudflare-kv root and published in WIRING_CLOUDFLARE_KV as media_routes_kv_id, for serve-worker and media-worker to bind."
+  goal: "Each environment has a media routes KV namespace, created by a new cloudflare-kv-media root and published as WIRING_CLOUDFLARE_KV_MEDIA (media_routes_kv_id), for serve-worker and media-worker to bind."
   affects:
-    - default/pixvault/cloudflare-kv
-    - infra/terraform/cloudflare-kv/**
+    - default/pixvault/cloudflare-kv-media
+    - infra/terraform/cloudflare-kv-media/**
     - specs/epics/pixvault-team-media/**
     - tasks/**
+    - WAITING.md
   doneWhen:
-    - the convergence of this merge applies cloudflare-kv on stage and prod with one namespace added and nothing changed or destroyed
-    - WIRING_CLOUDFLARE_KV for stage and prod carries media_routes_kv_id
+    - the convergence of this merge applies cloudflare-kv-media on stage and prod, adding one namespace
+    - WIRING_CLOUDFLARE_KV_MEDIA exists for stage and prod
   gates: []

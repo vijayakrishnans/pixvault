@@ -10,5 +10,4 @@ Terraform-managed infrastructure for pixvault, per environment (`stage`, `prod`;
 
 ## Depended on by
 
-- **api-edge** — Cloudflare Worker for the API edge Runtime (idempotency namespace)
-- **media-worker**, **serve-worker** (PV3) — the `media-routes` namespace: library maps and file routes
+- **api-edge** — Cloudflare Worker for the API edge Runtime
