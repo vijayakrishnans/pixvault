@@ -1,0 +1,18 @@
+# PV-9: PV2, the managed R2 bucket (Terraform root). Minted under milestone PV2; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-9
+spec:
+  goal: "Each environment has a managed R2 bucket (pixvault-stage, pixvault-prod) created by an infra/terraform/cloudflare-r2 root, with its name published as the WIRING_CLOUDFLARE_R2 secret for the workers that bind it."
+  affects:
+    - default/pixvault/cloudflare-r2
+    - infra/terraform/cloudflare-r2/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/pixvault-ledger.md
+    - tasks/**
+  doneWhen:
+    - the convergence of this merge applies cloudflare-r2 on stage and prod
+    - WIRING_CLOUDFLARE_R2 exists for stage and prod
+    - buckets pixvault-stage and pixvault-prod exist on the account
+  gates: []
