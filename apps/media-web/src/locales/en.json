@@ -167,5 +167,31 @@
       "bbcode": "BBCode"
     },
     "propagation": "Changes can take up to a minute to reach every location."
+  },
+  "status": {
+    "processing": "Processing",
+    "held": "Held",
+    "flagged": "Flagged",
+    "removed": "Removed",
+    "private": "Private",
+    "public": "Public",
+    "trashed": "Deleted"
+  },
+  "review": {
+    "tab": "Review",
+    "hint": "Files waiting for a decision: moderation flagged them, or they couldn't be checked. Approved files are served as their visibility says; rejected files go to the trash.",
+    "empty": "Nothing to review.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "reprocess": "Process again",
+    "approved": "Approved",
+    "rejected": "Moved to trash",
+    "reprocessing": "Processing again",
+    "reason": {
+      "flagged": "Flagged by moderation: {categories}",
+      "failed": "Processing failed: process it again",
+      "unavailable": "Moderation couldn't decide",
+      "tooLarge": "Too large to check for location data"
+    }
   }
 }

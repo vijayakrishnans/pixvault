@@ -68,12 +68,20 @@
 
       <el-tabs v-model="tab" class="tabs" @tab-change="loadFiles">
         <el-tab-pane :label="$t('upload.files')" name="files" />
+        <el-tab-pane v-if="canTrash" :label="$t('review.tab')" name="review" />
         <el-tab-pane v-if="canTrash" :label="$t('upload.trash')" name="trash" />
       </el-tabs>
-      <el-table v-loading="filesLoading" :data="files" :empty-text="tab === 'trash' ? $t('upload.trashEmpty') : $t('upload.empty')">
+      <el-alert v-if="tab === 'review'" type="info" :closable="false" show-icon :title="$t('review.hint')" class="review-hint" />
+      <el-table v-loading="filesLoading" :data="files" :empty-text="tab === 'trash' ? $t('upload.trashEmpty') : tab === 'review' ? $t('review.empty') : $t('upload.empty')">
         <el-table-column :label="$t('upload.name')" min-width="220">
           <template #default="{ row }">
-            <div class="fname">{{ row.name }} <el-tag v-if="row.visibility === 'public'" size="small" type="success">{{ $t("links.public") }}</el-tag></div>
+            <div class="fname">
+              {{ row.name }}
+              <el-tag v-if="row.status === 'public'" size="small" type="success">{{ $t("links.public") }}</el-tag>
+              <el-tag v-else-if="statusTag(row)" size="small" :type="statusTag(row).type" :data-test="`status-${row.status}`">{{ $t(`status.${row.status}`) }}</el-tag>
+            </div>
+            <div v-if="tab === 'review' && row.pipelineNote" class="pv-muted small">{{ reasonText(row) }}</div>
+            <div v-else-if="row.tags && row.tags.length" class="pv-muted small tags">{{ row.tags.join(" · ") }}</div>
             <div class="pv-muted small">{{ row.folder }}</div>
           </template>
         </el-table-column>
@@ -85,8 +93,13 @@
         </el-table-column>
         <el-table-column width="250" align="right">
           <template #default="{ row }">
-            <template v-if="tab === 'files'">
-              <el-button size="small" text type="primary" data-test="links" @click="linkFile = row">{{ $t("links.open") }}</el-button>
+            <template v-if="tab === 'review'">
+              <el-button v-if="isFailed(row)" size="small" text type="primary" data-test="reprocess" @click="reprocess(row)">{{ $t("review.reprocess") }}</el-button>
+              <el-button v-else size="small" text type="primary" data-test="approve" @click="decide(row, 'approve')">{{ $t("review.approve") }}</el-button>
+              <el-button size="small" text type="danger" data-test="reject" @click="decide(row, 'reject')">{{ $t("review.reject") }}</el-button>
+            </template>
+            <template v-else-if="tab === 'files'">
+              <el-button v-if="row.status === 'public' || row.status === 'private'" size="small" text type="primary" data-test="links" @click="linkFile = row">{{ $t("links.open") }}</el-button>
               <el-button size="small" text @click="download(row)">{{ $t("upload.download") }}</el-button>
               <el-button v-if="canTrash" size="small" text type="danger" @click="trash(row)">{{ $t("upload.delete") }}</el-button>
             </template>
@@ -130,6 +143,8 @@ export default {
     nextCursor: null,
     filesLoading: false,
     linkFile: null,
+    pollTimer: null,
+    pollUntil: 0,
   }),
   computed: {
     canUpload() {
@@ -154,6 +169,7 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener("paste", this.onPaste);
+    clearTimeout(this.pollTimer);
   },
   methods: {
     fmt(n) {
@@ -185,9 +201,10 @@ export default {
       if (more !== true) more = false;
       this.filesLoading = true;
       try {
-        const r = await api.libraries.files(this.org, this.lib, { trash: this.tab === "trash", cursor: more ? this.nextCursor : undefined });
+        const r = await api.libraries.files(this.org, this.lib, { trash: this.tab === "trash", review: this.tab === "review", cursor: more ? this.nextCursor : undefined });
         this.files = more ? [...this.files, ...r.files] : r.files;
         this.nextCursor = r.nextCursor;
+        this.schedulePoll();
       } catch (e) {
         if (e?.status !== 404) ElMessage.error(e.message || this.$t("errors.generic"));
         this.files = [];
@@ -221,6 +238,7 @@ export default {
         q.resumed = r.resumed;
         q.dedup = r.deduplicated;
         q.progress = 1;
+        this.pollUntil = 0; // a new upload gets its own two minutes of refreshes while it processes
         await Promise.all([this.loadFiles(), this.loadUsage()]);
       } catch (e) {
         q.conflict = e?.status === 409 && e?.code === "conflict";
@@ -246,6 +264,35 @@ export default {
     onFileUpdated(file) {
       this.files = this.files.map((f) => (f.id === file.id ? file : f));
       this.linkFile = file;
+    },
+    statusTag(row) {
+      return { processing: { type: "info" }, held: { type: "warning" }, flagged: { type: "danger" }, removed: { type: "danger" } }[row.status] ?? null;
+    },
+    isFailed(row) {
+      return (row.pipelineNote ?? "").startsWith("failed:");
+    },
+    reasonText(row) {
+      const n = row.pipelineNote ?? "";
+      if (n.startsWith("flagged:")) return this.$t("review.reason.flagged", { categories: n.slice(8).split(",").join(", ") });
+      if (n.startsWith("failed:")) return this.$t("review.reason.failed");
+      if (n === "moderation_unavailable") return this.$t("review.reason.unavailable");
+      if (n === "too_large_to_check_location") return this.$t("review.reason.tooLarge");
+      return "";
+    },
+    // While files are processing, refresh the list every few seconds (for up to two minutes).
+    schedulePoll() {
+      clearTimeout(this.pollTimer);
+      if (this.tab !== "files" || !this.files.some((f) => f.status === "processing")) return;
+      if (!this.pollUntil) this.pollUntil = Date.now() + 120_000;
+      if (Date.now() > this.pollUntil) return;
+      this.pollTimer = setTimeout(() => this.loadFiles(), 3000);
+    },
+    decide(row, decision) {
+      return this.run(() => api.libraries.review(this.org, this.lib, row.id, decision), this.$t(decision === "approve" ? "review.approved" : "review.rejected"));
+    },
+    reprocess(row) {
+      this.pollUntil = 0;
+      return this.run(() => api.libraries.reprocess(this.org, this.lib, row.id), this.$t("review.reprocessing"));
     },
     async download(row) {
       try {
@@ -299,6 +346,12 @@ export default {
 h1 {
   font-size: 1.5rem;
   margin: 0;
+}
+.review-hint {
+  margin-bottom: 8px;
+}
+.tags {
+  font-size: 12px;
 }
 .usage {
   display: grid;

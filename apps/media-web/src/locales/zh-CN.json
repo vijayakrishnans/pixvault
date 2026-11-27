@@ -167,5 +167,31 @@
       "bbcode": "BBCode"
     },
     "propagation": "更改可能需要最多一分钟才能在所有地点生效。"
+  },
+  "status": {
+    "processing": "处理中",
+    "held": "待审核",
+    "flagged": "已标记",
+    "removed": "已移除",
+    "private": "私有",
+    "public": "公开",
+    "trashed": "已删除"
+  },
+  "review": {
+    "tab": "审核",
+    "hint": "等待决定的文件：被审核标记，或无法完成检查。批准后按其可见性提供；拒绝的文件进入回收站。",
+    "empty": "没有待审核的文件。",
+    "approve": "批准",
+    "reject": "拒绝",
+    "reprocess": "重新处理",
+    "approved": "已批准",
+    "rejected": "已移入回收站",
+    "reprocessing": "正在重新处理",
+    "reason": {
+      "flagged": "被审核标记：{categories}",
+      "failed": "处理失败：请重新处理",
+      "unavailable": "审核无法判断",
+      "tooLarge": "文件过大，无法检查位置信息"
+    }
   }
 }

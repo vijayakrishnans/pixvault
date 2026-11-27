@@ -1,0 +1,20 @@
+# PV-26: PV4, the app's review tab and PV4 done. Minted under milestone PV4; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-26
+spec:
+  goal: "The app shows each file's pipeline state (processing, held, flagged, removed) and refreshes while files process; editors and managers get a Review tab to approve, reject or reprocess; tags appear under names. PV4 is marked done with its stage measurements."
+  affects:
+    - default/pixvault/media-web
+    - default/pixvault/media-web-tests
+    - apps/media-web/**
+    - tests/media-web/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "the client calls review, reprocess and the review list correctly (test)"
+    - "on stage, an uploaded public image shows Processing and then Public in the app"
+    - "implementation-plan marks PV4 done with its stage measurements"
+  gates: []
