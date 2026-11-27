@@ -1,0 +1,15 @@
+export interface Env {
+  ENVIRONMENT?: string;
+  /** Library maps and file routes (cloudflare-kv-media). */
+  ROUTES_KV?: KVNamespace;
+  /** The managed bucket (cloudflare-r2), read-only here. */
+  MEDIA_BUCKET?: R2Bucket;
+  /** Cloudflare Images binding, for preset transforms. */
+  IMAGES?: ImagesBinding;
+  /** One data point per serve. */
+  SERVE_AE?: AnalyticsEngineDataset;
+  /** Per-IP rate limit. */
+  SERVE_RL?: RateLimit;
+  /** media-worker's LibraryIndex (random-image API). */
+  LIBRARY_INDEX?: DurableObjectNamespace;
+}

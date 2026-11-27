@@ -8,7 +8,7 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 | PV0: the spec | ✅ done 2026-11-27: PV-1 doc set + port inventory; PV-2 public, listing-ready repo; PV-3 WAITING.md | #3 (`0ca8a26`), #4 (`213d751`), PV-3 (this PR) |
 | PV1: libraries and access | ✅ done 2026-11-27: PV-4 backend (libraries, roles, guests, media-worker, facade; 1,200-case matrix; isolation sweep); PV-5 multi-tenant profile; PV-6 media-web app shell and brand check. Verified live on stage | #6 (`dc41aa6`), #7 (`df92dc9`), #8 (`e34ecfc`), #9 (`d932ebf`), PV-8 CSP fix (this PR) |
 | PV2: index, storage, uploads | ✅ done 2026-11-27: PV-9 R2 bucket; PV-10 LibraryIndex DO, streamed multipart uploads, dedup, versions, trash, quotas; PV-12 Workers Logs; PV-13 streamed commit hash; PV-11 upload page. Stage acceptance 14/14 incl. 2 GB | #11, #12 (`74c78e5`), #13, #14 (`c4de4c4`), PV-11 (this PR) |
-| PV3: serving | in progress: PV-14 gaps register and path correction; PV-15 routes KV (own root); PV-16 serving data plane | #16, #17, PV-16 (this PR) |
+| PV3: serving | in progress: PV-14 gaps register and path correction; PV-15 routes KV (own root); PV-16 serving data plane; PV-17 serve-worker | #16, #17, #18, PV-17 (this PR) |
 | PV4: pipeline and safety | | |
 | PV5: browser and live collaboration | | |
 | PV6: sharing | | |
@@ -113,3 +113,5 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 - **Signing keys are per-library random keys in D1, published with the library map**, not derived from a
   secret-store root (GAPS G45).
 - **Serving paths carry the org slug** (`/<orgSlug>/<libSlug>/<path>`), captured at library creation (G13, G46).
+- **Presets instead of arbitrary sizes** for transforms (GAPS G49), and **workers.dev** as the serving host until a
+  custom domain is possible (G48).

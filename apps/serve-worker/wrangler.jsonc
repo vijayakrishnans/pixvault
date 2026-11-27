@@ -1,0 +1,43 @@
+// Rendered to wrangler.jsonc by tooling/wire/render.mjs (BF6 deploy-time wiring).
+// Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are resolved at deploy time.
+{
+  "name": "pixvault-serve-worker",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/index.ts",
+  "minify": false,
+  "vars": { "ENVIRONMENT": "local" },
+  "env": {
+    "dev": { "vars": { "ENVIRONMENT": "dev" } },
+    "stage": {
+      // Public file URLs: served on workers.dev until a custom domain is attached (GAPS G27).
+      "workers_dev": true,
+      "observability": { "enabled": true, "head_sampling_rate": 1 },
+      "vars": { "ENVIRONMENT": "stage" },
+      "r2_buckets": [{ "binding": "MEDIA_BUCKET", "bucket_name": "pixvault-stage" }],
+      "kv_namespaces": [{ "binding": "ROUTES_KV", "id": "00000000000000000000000000000005" }],
+      "images": { "binding": "IMAGES" },
+      "analytics_engine_datasets": [{ "binding": "SERVE_AE", "dataset": "pixvault_serve_stage" }],
+      "ratelimits": [{ "name": "SERVE_RL", "namespace_id": "7301", "simple": { "limit": 600, "period": 60 } }],
+      // media-worker's per-library index, for the random-image API (read-only op).
+      "durable_objects": {
+        "bindings": [{ "name": "LIBRARY_INDEX", "class_name": "LibraryIndex", "script_name": "pixvault-media-worker-stage" }]
+      }
+    },
+    "prod": {
+      // Public file URLs: served on workers.dev until a custom domain is attached (GAPS G27).
+      "workers_dev": true,
+      "observability": { "enabled": true, "head_sampling_rate": 1 },
+      "vars": { "ENVIRONMENT": "prod" },
+      "r2_buckets": [{ "binding": "MEDIA_BUCKET", "bucket_name": "pixvault-prod" }],
+      "kv_namespaces": [{ "binding": "ROUTES_KV", "id": "00000000000000000000000000000006" }],
+      "images": { "binding": "IMAGES" },
+      "analytics_engine_datasets": [{ "binding": "SERVE_AE", "dataset": "pixvault_serve_prod" }],
+      "ratelimits": [{ "name": "SERVE_RL", "namespace_id": "7302", "simple": { "limit": 600, "period": 60 } }],
+      // media-worker's per-library index, for the random-image API (read-only op).
+      "durable_objects": {
+        "bindings": [{ "name": "LIBRARY_INDEX", "class_name": "LibraryIndex", "script_name": "pixvault-media-worker-prod" }]
+      }
+    }
+  }
+}
