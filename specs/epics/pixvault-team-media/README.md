@@ -20,7 +20,7 @@ Built from [CloudFlare-ImgBed](https://github.com/MarSeventh/CloudFlare-ImgBed) 
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | In progress (PV0) |
 | Cluster | **PV** (PV0–PV11) |
 | Owner(s) | `apps/media-worker` (libraries, files, uploads) · `apps/storage-worker` (R2 + BYO S3) · `apps/serve-worker` (public and signed serving) · `apps/dav-worker` (WebDAV) · `packages/contracts` + `packages/sdk` (the wire) · `apps/media-web` (the app, ported from Sanyue-ImgHub) · `apps/web-console-next` (org admin) |
 | Builds on | `cirrus-baseline baseline-v29`, the successor to `cirrus`. It extends identity, membership, policy, projects (a library is a project), audit/events, config, metering, billing, notifications, webhooks and `api-edge`. Port sources: `MarSeventh/CloudFlare-ImgBed@611153e`, `MarSeventh/Sanyue-ImgHub@1621525` |

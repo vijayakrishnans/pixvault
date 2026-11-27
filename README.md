@@ -1,12 +1,34 @@
 # Pixvault
 
+**Pixvault**: free image and file hosting for teams, with shared libraries, your own bucket or ours, and an upload API that works with PicGo and ShareX.
+
+- **Teams and libraries.** Invite teammates and guests, and give each library (a shared drive) its own roles, visibility, rules and domain.
+- **Your bucket or ours.** Managed Cloudflare R2 storage, or bring any S3-compatible bucket.
+- **Fast uploads.** Direct-to-storage, resumable multipart uploads, with per-library deduplication, versions and trash.
+- **Serving.** Public files on a CDN, private files by signed URL, on-the-fly transforms, and a custom domain per library.
+- **Working together.** A live library view with presence, comments, collections, share links and upload links.
+- **For developers.** A REST API with OpenAPI, an ImgBed-compatible `/upload` endpoint (PicGo, ShareX, uPic, satellite), WebDAV, webhooks and an MCP server.
+- **Safe to host for strangers.** Safety holds, moderation, CSAM scanning, abuse reports and fast takedown.
+
+Pixvault runs on Cloudflare Workers. It was built from [CloudFlare-ImgBed](https://github.com/MarSeventh/CloudFlare-ImgBed)
+and [Sanyue-ImgHub](https://github.com/MarSeventh/Sanyue-ImgHub) (MIT); not affiliated with MarSeventh or Cloudflare.
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Status
+
+Live on stage and prod as the Cirrus foundation (orgs, members, roles, API keys, billing, audit); the media
+product is being built milestone by milestone. The design of record is [`specs/epics/pixvault-team-media/`](specs/epics/pixvault-team-media/README.md),
+and [`IMPLEMENTATION-STATUS.md`](specs/epics/pixvault-team-media/IMPLEMENTATION-STATUS.md) says what has shipped.
+
+## Platform
+
 A multi-tenant SaaS on Cloudflare alone, kept as an
 [Orun](https://github.com/sourceplane/orun) desired-state repository:
 twelve bounded-context Workers behind one public edge API, a Next.js console
 on Workers + Static Assets, and Cloudflare D1 and KV as the data plane.
 Merges to `main` deploy it to `stage` and `prod`.
 
-## Live deployment
+### Live deployment
 
 <!-- 08-docs:begin -->
 This product is **live**. Verified URLs, identity, and the secrets it
@@ -16,7 +38,7 @@ docs flow — command in the operating contract); how it deploys and how to
 operate it: [ai/context/operations.md](ai/context/operations.md).
 <!-- 08-docs:end -->
 
-## What is here
+### What is here
 
 | Surface | Where |
 |---|---|
@@ -34,7 +56,7 @@ operate it: [ai/context/operations.md](ai/context/operations.md).
 
 Working with a coding agent? Start it at [AGENTS.md](AGENTS.md).
 
-## Getting started
+### Getting started
 
 Node.js 20 or later and pnpm 10 or later.
 
@@ -53,7 +75,7 @@ orun validate --intent intent.yaml
 orun plan --changed --intent intent.yaml --output plan.json
 ```
 
-## How it deploys
+### How it deploys
 
 `.github/workflows/ci.yml` runs `orun plan --changed`, then one lane per
 group of planned jobs with `orun run --remote-state` against the workspace
@@ -73,7 +95,7 @@ every component in that environment, with nothing changed: after rotating a
 secret, say. A component with nothing to run in that environment (a test
 suite in `prod`) is left out with a notice.
 
-## Working with D1
+### Working with D1
 
 D1 is SQLite, and the code is explicit about what that costs:
 
@@ -86,7 +108,7 @@ D1 is SQLite, and the code is explicit about what that costs:
   (`identity_users`, `membership_organizations`), enforced by the
   repositories.
 
-## What needs your credentials
+### What needs your credentials
 
 Sign-in with GitHub or Google needs OAuth client secrets; billing needs a
 Polar access token, a webhook secret and `POLAR_PRODUCT_MAP` pointed at your
@@ -97,8 +119,12 @@ verified sending domain. The header comments of
 and `orun secrets set <KEY> --org <workspace> --env <env>` sets a runtime
 secret in the workspace.
 
-## Custom domain
+### Custom domain
 
 The product answers on workers.dev from its first deploy. To serve it on
 your own domain, follow "Setting the domain later" in
 [ai/context/operations.md](ai/context/operations.md).
+
+## Licence
+
+MIT. See [LICENSE](LICENSE). Report abuse as described in [ABUSE.md](ABUSE.md), and security issues as described in [SECURITY.md](SECURITY.md).

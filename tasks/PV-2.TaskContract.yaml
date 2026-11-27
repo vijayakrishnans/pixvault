@@ -1,0 +1,26 @@
+# PV-2: public, listing-ready repository. Minted in Orunbase under milestone PV0; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-2
+spec:
+  goal: "vijayakrishnans/pixvault is public and ready to list as an OpenProduct: licence, notices, security, contributing and abuse policy, a README with the non-affiliation statement, topics, secret scanning, push protection and branch protection."
+  affects:
+    - LICENSE
+    - THIRD_PARTY_NOTICES.md
+    - SECURITY.md
+    - CONTRIBUTING.md
+    - ABUSE.md
+    - README.md
+    - .gitignore
+    - ai/context/pixvault-ledger.md
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - gh repo view --json visibility reads PUBLIC
+    - LICENSE (MIT), THIRD_PARTY_NOTICES.md (CloudFlare-ImgBed, Sanyue-ImgHub, Telegraph-Image), SECURITY.md, CONTRIBUTING.md and ABUSE.md are on main
+    - "README opens with the Pixvault line and states built from CloudFlare-ImgBed and Sanyue-ImgHub (MIT); not affiliated with MarSeventh or Cloudflare"
+    - topics include openproduct, image-hosting, r2, cloudflare-workers, webdav
+    - secret scanning, push protection and branch protection on main are on
+    - .gitignore covers .env*, .dev.vars, .wrangler/, plan.json, values files and keys
+  gates: []
