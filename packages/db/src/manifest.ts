@@ -219,5 +219,14 @@ export const manifest: MigrationManifest = {
       description:
         "Pixvault file pipeline (PV4) — runs of ProcessFileWorkflow that failed after their retries (the held file's replay list)",
     },
+    {
+      id: "240_media_abuse",
+      context: "media",
+      path: "240_media_abuse/up.sql",
+      checksum:
+        "b285cc02793d0fbd653aed759e7691306e8973849b619b740436b5718c83be79",
+      description:
+        "Pixvault abuse handling (PV4) — extends media_abuse_cases (one open case per reported file), platform operators, and org suspension",
+    },
   ],
 };

@@ -2,6 +2,7 @@ import type { SqlExecutor, SqlStatement } from "../d1/executor.js";
 import { executeBatch } from "../d1/executor.js";
 import { isUniqueViolation } from "../d1/errors.js";
 import type {
+  AbuseCase,
   PipelineFailure,
   CreateInvitationInput,
   CreateLibraryInput,
@@ -560,6 +561,96 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
       }
     },
 
+    async reportAbuse(input) {
+      try {
+        const open = await executor.execute<Row>(
+          `SELECT id FROM media_abuse_cases WHERE org_id = $1 AND library_id = $2 AND file_ref = $3 AND status = 'open' LIMIT 1`,
+          [input.orgId, input.libraryId, input.fileId],
+        );
+        if (open.rowCount > 0) {
+          const id = String(open.rows[0]!.id);
+          await executor.execute(`UPDATE media_abuse_cases SET report_count = report_count + 1, updated_at = $2 WHERE id = $1`, [id, input.at.toISOString()]);
+          return { ok: true, value: { caseId: id, created: false } };
+        }
+        const id = crypto.randomUUID();
+        await executor.execute(
+          `INSERT INTO media_abuse_cases (id, org_id, library_id, file_ref, sha256, reason, details, reporter_email, report_count, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, $9)`,
+          [id, input.orgId, input.libraryId, input.fileId, input.sha256, input.category, input.details, input.reporterEmail, input.at.toISOString()],
+        );
+        return { ok: true, value: { caseId: id, created: true } };
+      } catch {
+        return internal("Failed to record the report");
+      }
+    },
+
+    async listAbuseCases(filter) {
+      try {
+        const r = filter.status
+          ? await executor.execute<Row>(`SELECT * FROM media_abuse_cases WHERE status = $1 ORDER BY created_at DESC LIMIT $2`, [filter.status, Math.min(200, Math.max(1, filter.limit))])
+          : await executor.execute<Row>(`SELECT * FROM media_abuse_cases ORDER BY created_at DESC LIMIT $1`, [Math.min(200, Math.max(1, filter.limit))]);
+        return { ok: true, value: r.rows.map(toAbuseCase) };
+      } catch {
+        return internal("Failed to list abuse cases");
+      }
+    },
+
+    async getAbuseCase(id) {
+      try {
+        const r = await executor.execute<Row>(`SELECT * FROM media_abuse_cases WHERE id = $1`, [id]);
+        return r.rowCount === 0 ? notFound() : { ok: true, value: toAbuseCase(r.rows[0]!) };
+      } catch {
+        return internal("Failed to read the abuse case");
+      }
+    },
+
+    async decideAbuseCase(id, status, decidedBy, note, at) {
+      try {
+        await executor.execute(
+          `UPDATE media_abuse_cases SET status = $2, handled_by = $3, decision_note = $4, action = $6, handled_at = $5, updated_at = $5 WHERE id = $1`,
+          [id, status, decidedBy, note, at.toISOString(), status === "actioned" ? "takedown" : "dismiss"],
+        );
+        const r = await executor.execute<Row>(`SELECT * FROM media_abuse_cases WHERE id = $1`, [id]);
+        return r.rowCount === 0 ? notFound() : { ok: true, value: toAbuseCase(r.rows[0]!) };
+      } catch {
+        return internal("Failed to decide the abuse case");
+      }
+    },
+
+    async isPlatformOperator(subjectId) {
+      try {
+        const r = await executor.execute<Row>(`SELECT 1 AS ok FROM platform_media_operators WHERE subject_id = $1`, [subjectId]);
+        return { ok: true, value: r.rowCount > 0 };
+      } catch {
+        return internal("Failed to read operators");
+      }
+    },
+
+    async getOrgSuspension(orgId) {
+      try {
+        const r = await executor.execute<Row>(`SELECT suspended_at, reason FROM media_org_status WHERE org_id = $1 AND suspended_at IS NOT NULL`, [orgId]);
+        if (r.rowCount === 0) return { ok: true, value: null };
+        const row = r.rows[0]!;
+        return { ok: true, value: { suspendedAt: String(row.suspended_at), reason: row.reason == null ? null : String(row.reason) } };
+      } catch {
+        return internal("Failed to read the org's status");
+      }
+    },
+
+    async setOrgSuspension(orgId, suspended, reason, decidedBy, at) {
+      try {
+        await executor.execute(
+          `INSERT INTO media_org_status (org_id, suspended_at, reason, decided_by, updated_at) VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (org_id) DO UPDATE SET suspended_at = excluded.suspended_at, reason = excluded.reason,
+             decided_by = excluded.decided_by, updated_at = excluded.updated_at`,
+          [orgId, suspended ? at.toISOString() : null, reason, decidedBy, at.toISOString()],
+        );
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to update the org's status");
+      }
+    },
+
     async getStorageBackend(orgId, libraryId) {
       try {
         const r = await executor.execute<Row>(
@@ -582,5 +673,25 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
         return internal("Failed to get storage backend");
       }
     },
+  };
+}
+
+function toAbuseCase(row: Record<string, unknown>): AbuseCase {
+  const str = (v: unknown) => (v == null ? null : String(v));
+  return {
+    id: String(row.id),
+    orgId: String(row.org_id),
+    libraryId: String(row.library_id),
+    fileId: String(row.file_ref),
+    sha256: String(row.sha256 ?? ""),
+    category: row.reason as AbuseCase["category"],
+    details: str(row.details),
+    reporterEmail: str(row.reporter_email),
+    reportCount: Number(row.report_count ?? 1),
+    status: row.status as AbuseCase["status"],
+    decidedBy: str(row.handled_by),
+    decisionNote: str(row.decision_note),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
   };
 }

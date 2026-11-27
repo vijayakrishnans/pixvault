@@ -13,6 +13,7 @@ import {
 } from "@saas/contracts/media";
 import { authorizeOnLibrary } from "../access.js";
 import { kickPipeline, pipelineFor } from "./pipeline.js";
+import { orgSuspended } from "../serving.js";
 import type { Ctx } from "../ctx.js";
 import { errorResponse, successResponse, validationError } from "../http.js";
 import { logError, logInfo } from "../log.js";
@@ -120,6 +121,9 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
 
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.upload");
   if (!a.ok) return a.response;
+  if (await orgSuspended(ctx, orgId)) {
+    return errorResponse("suspended", "This team is suspended and can't upload", 423, ctx.requestId);
+  }
   if (body.replace === true && !(await authorizeOnLibrary(ctx.env, ctx.actor, "file.update", a.lib, a.facts, ctx.requestId))) {
     return errorResponse("not_found", "Not found", 404, ctx.requestId);
   }

@@ -32,6 +32,13 @@ const ORG_LIBRARY_FILE_VERSION_RESTORE_RE = new RegExp(`${L}\\/files\\/[^/]+\\/v
 const ORG_MEDIA_USAGE_RE = /^\/v1\/organizations\/[^/]+\/media-usage$/;
 const MEDIA_LIBRARIES = "/v1/media/libraries";
 const MEDIA_ACCEPT = "/v1/media/invitations/accept";
+// Platform operators (media-worker checks media_platform_operators; anyone else gets 404). The abuse intake
+// (/v1/media/abuse-reports) is deliberately absent: only serve-worker reaches it.
+const MEDIA_ADMIN_CASES = "/v1/media/admin/abuse-cases";
+const MEDIA_ADMIN_CASE_RE = /^\/v1\/media\/admin\/abuse-cases\/[^/]+\/(takedown|dismiss)$/;
+const MEDIA_ADMIN_FILE_RE = /^\/v1\/media\/admin\/organizations\/[^/]+\/libraries\/[^/]+\/files\/[^/]+\/(takedown|reinstate)$/;
+const MEDIA_ADMIN_ORG_RE = /^\/v1\/media\/admin\/organizations\/[^/]+\/(suspend|unsuspend)$/;
+const MEDIA_ADMIN_FAILURES = "/v1/media/admin/pipeline-failures";
 
 const ALLOWED: ReadonlyArray<[RegExp | string, ReadonlySet<string>]> = [
   [ORG_LIBRARIES_RE, new Set(["GET", "POST"])],
@@ -57,6 +64,11 @@ const ALLOWED: ReadonlyArray<[RegExp | string, ReadonlySet<string>]> = [
   [ORG_MEDIA_USAGE_RE, new Set(["GET"])],
   [MEDIA_LIBRARIES, new Set(["GET"])],
   [MEDIA_ACCEPT, new Set(["POST"])],
+  [MEDIA_ADMIN_CASES, new Set(["GET"])],
+  [MEDIA_ADMIN_CASE_RE, new Set(["POST"])],
+  [MEDIA_ADMIN_FILE_RE, new Set(["POST"])],
+  [MEDIA_ADMIN_ORG_RE, new Set(["POST"])],
+  [MEDIA_ADMIN_FAILURES, new Set(["GET"])],
 ];
 
 const FORWARDED_HEADERS = ["content-type", "traceparent", "idempotency-key"];

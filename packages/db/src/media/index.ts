@@ -16,5 +16,9 @@ export type {
   OrgLimitOverrides,
   PipelineFailure,
   PipelineFailureInput,
+  AbuseCase,
+  AbuseCategory,
+  AbuseReportInput,
 } from "./types.js";
+export { ABUSE_CATEGORIES } from "./types.js";
 export { createMediaRepository, managedPrefix } from "./repository.js";

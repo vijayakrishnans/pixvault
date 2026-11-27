@@ -163,3 +163,20 @@ describe("api-edge media facade", () => {
     }
   });
 });
+
+describe("media admin and abuse intake routing (PV-25)", () => {
+  it("forwards the operator routes and never the abuse intake", async () => {
+    const { isMediaRoute } = await import("../../../apps/api-edge/src/media-facade.js");
+    for (const p of [
+      "/v1/media/admin/abuse-cases",
+      "/v1/media/admin/abuse-cases/abc_0123/takedown",
+      "/v1/media/admin/abuse-cases/abc_0123/dismiss",
+      "/v1/media/admin/organizations/org_1/libraries/lib_2/files/fil_3/takedown",
+      "/v1/media/admin/organizations/org_1/libraries/lib_2/files/fil_3/reinstate",
+      "/v1/media/admin/organizations/org_1/suspend",
+      "/v1/media/admin/pipeline-failures",
+    ]) expect(isMediaRoute(p)).toBe(true);
+    expect(isMediaRoute("/v1/media/abuse-reports")).toBe(false);
+    expect(isMediaRoute("/v1/media/admin/organizations/org_1/delete")).toBe(false);
+  });
+});

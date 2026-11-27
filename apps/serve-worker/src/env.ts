@@ -10,6 +10,10 @@ export interface Env {
   SERVE_AE?: AnalyticsEngineDataset;
   /** Per-IP rate limit. */
   SERVE_RL?: RateLimit;
+  /** media-worker (service binding): abuse reports from the report form. */
+  MEDIA_WORKER?: Fetcher;
+  /** Per-IP limit on abuse reports. */
+  SERVE_REPORT_RL?: RateLimit;
   /** media-worker's LibraryIndex (random-image API). */
   LIBRARY_INDEX?: DurableObjectNamespace;
 }

@@ -23,11 +23,12 @@ export interface LibraryMap {
   /** IP block list */ ib: string[];
   /** random-image API enabled */ rnd: boolean;
   /** allowed transform presets */ p: string[];
+  /** "suspended" when an operator suspended the org (serving answers 451); absent otherwise */ s?: "suspended";
 }
 
 export const libraryMapKey = (orgSlug: string, libSlug: string) => `lib:${orgSlug}/${libSlug}`;
 
-export function toLibraryMap(lib: Library): LibraryMap | null {
+export function toLibraryMap(lib: Library, suspended = false): LibraryMap | null {
   if (!lib.signingKey) return null;
   const s = parseSettings(lib.settingsJson);
   return {
@@ -40,11 +41,12 @@ export function toLibraryMap(lib: Library): LibraryMap | null {
     ib: s.ipBlockList,
     rnd: s.randomApiEnabled,
     p: s.transformPresets,
+    ...(suspended ? { s: "suspended" as const } : {}),
   };
 }
 
-export async function publishLibraryMap(env: Env, lib: Library): Promise<void> {
-  const map = toLibraryMap(lib);
+export async function publishLibraryMap(env: Env, lib: Library, suspended = false): Promise<void> {
+  const map = toLibraryMap(lib, suspended);
   if (!env.ROUTES_KV || !lib.orgSlug || !map || lib.status !== "active") return;
   await env.ROUTES_KV.put(libraryMapKey(lib.orgSlug, lib.slug), JSON.stringify(map));
 }
@@ -87,7 +89,7 @@ export async function ensureServing(ctx: Ctx, lib: Library): Promise<Library> {
     if (!slug) return lib; // a guest can't read the org; a member will fill it in
     const updated = await ctx.repo.setServingIdentity(lib.orgId, lib.id, slug, newSigningKey(), ctx.now());
     if (!updated.ok) return lib;
-    await publishLibraryMap(ctx.env, updated.value);
+    await publishLibraryMap(ctx.env, updated.value, await orgSuspended(ctx, lib.orgId));
     if (ctx.env.LIBRARY_INDEX) {
       await indexFor(ctx.env, { orgId: lib.orgId, libraryId: lib.id }).call({ op: "requeueAllRoutes", nowIso: ctx.now().toISOString() });
     }
@@ -113,4 +115,10 @@ export async function signedFileUrl(env: Env, lib: Library, path: string, expire
   const exp = Math.floor(now.getTime() / 1000) + expiresInSeconds;
   const sig = await signPath(lib.signingKey, lib.signingKeyVersion, lib.id, path, exp);
   return { url: `${base}?exp=${exp}&sig=${encodeURIComponent(sig)}`, expiresAt: new Date(exp * 1000).toISOString() };
+}
+
+/** Is the org suspended? (A read failure counts as not suspended here; serving keeps its last published map.) */
+export async function orgSuspended(ctx: Ctx, orgId: string): Promise<boolean> {
+  const r = await ctx.repo.getOrgSuspension(orgId);
+  return r.ok && r.value !== null;
 }

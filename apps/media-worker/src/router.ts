@@ -39,6 +39,15 @@ import {
   handleReviewFile,
 } from "./handlers/files.js";
 import { handleListPipelineFailures, handleReprocess } from "./handlers/pipeline.js";
+import {
+  handleAbuseIntake,
+  handleAdminFile,
+  handleAdminPipelineFailures,
+  handleDecideCase,
+  handleListAbuseCases,
+  handleSuspendOrg,
+  parseCaseId,
+} from "./handlers/abuse.js";
 import { errorResponse, methodNotAllowed, notFound } from "./http.js";
 import { logError, routeTemplate } from "./log.js";
 import {
@@ -83,6 +92,12 @@ const FILE_VERSION_RESTORE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/versions\
 const MEDIA_USAGE_RE = /^\/v1\/organizations\/([^/]+)\/media-usage$/;
 const GUEST_LIBRARIES = "/v1/media/libraries";
 const ACCEPT_INVITATIONS = "/v1/media/invitations/accept";
+const ABUSE_INTAKE = "/v1/media/abuse-reports";
+const ADMIN_CASES = "/v1/media/admin/abuse-cases";
+const ADMIN_CASE_RE = /^\/v1\/media\/admin\/abuse-cases\/([^/]+)\/(takedown|dismiss)$/;
+const ADMIN_FILE_RE = /^\/v1\/media\/admin\/organizations\/([^/]+)\/libraries\/([^/]+)\/files\/([^/]+)\/(takedown|reinstate)$/;
+const ADMIN_ORG_RE = /^\/v1\/media\/admin\/organizations\/([^/]+)\/(suspend|unsuspend)$/;
+const ADMIN_FAILURES = "/v1/media/admin/pipeline-failures";
 
 /** Every route media-worker serves, for the edge's matcher and the tests. */
 export const MEDIA_ROUTE_PATTERNS = [
@@ -119,6 +134,12 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
 
   if (path === "/health" && method === "GET") return handleHealth(env, requestId);
 
+  // Abuse reports come from serve-worker's report form, without an actor (media-worker has no public route,
+  // and api-edge doesn't forward this path).
+  if (path === ABUSE_INTAKE) {
+    return method === "POST" ? await handleAbuseIntake(env, request, requestId, (deps?.now ?? (() => new Date()))()) : methodNotAllowed(requestId);
+  }
+
   if (!env.PLATFORM_DB || !env.MEMBERSHIP_WORKER || !env.POLICY_WORKER || !env.PROJECTS_WORKER) {
     return errorResponse("internal_error", "Service unavailable", 503, requestId);
   }
@@ -145,6 +166,27 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     let m: RegExpMatchArray | null;
+
+    // Platform operators only (anyone else: 404).
+    if (path === ADMIN_CASES) return method === "GET" ? await handleListAbuseCases(ctx, url) : methodNotAllowed(requestId);
+    if (path === ADMIN_FAILURES) return method === "GET" ? await handleAdminPipelineFailures(ctx, url) : methodNotAllowed(requestId);
+    if ((m = path.match(ADMIN_CASE_RE))) {
+      const caseId = parseCaseId(m[1]!);
+      if (!caseId) return nf();
+      return method === "POST" ? await handleDecideCase(ctx, request, caseId, m[2] as "takedown" | "dismiss") : methodNotAllowed(requestId);
+    }
+    if ((m = path.match(ADMIN_FILE_RE))) {
+      const orgId = parseOrgPublicId(m[1]!);
+      const libId = parseLibraryPublicId(m[2]!);
+      const fid = parseFilePublicId(m[3]!);
+      if (!orgId || !libId || !fid) return nf();
+      return method === "POST" ? await handleAdminFile(ctx, request, orgId, libId, fid, m[4] as "takedown" | "reinstate") : methodNotAllowed(requestId);
+    }
+    if ((m = path.match(ADMIN_ORG_RE))) {
+      const orgId = parseOrgPublicId(m[1]!);
+      if (!orgId) return nf();
+      return method === "POST" ? await handleSuspendOrg(ctx, request, orgId, m[2] === "suspend") : methodNotAllowed(requestId);
+    }
 
     if ((m = path.match(MEDIA_USAGE_RE))) {
       const orgId = parseOrgPublicId(m[1]!);

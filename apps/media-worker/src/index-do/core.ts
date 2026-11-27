@@ -362,6 +362,37 @@ export class LibraryIndexCore {
     });
   }
 
+  /** Take a file down (an operator's decision): serving answers 451 for it from the next route read. */
+  takedown(id: string, note: string, nowIso: string): FileRow {
+    return this.sql.transaction(() => {
+      const f = this.getFile(id);
+      if (!f) throw new IndexError("not_found", "File not found");
+      if (f.status === "removed") return f;
+      // A trashed file keeps its trash state but remembers the takedown for a restore.
+      if (f.status === "trashed") {
+        this.sql.exec(`UPDATE files SET prev_status = 'removed', pipeline_note = ?, updated_at = ? WHERE id = ?`, note, nowIso, id);
+        return this.getFile(id)!;
+      }
+      this.sql.exec(`UPDATE files SET prev_status = status, status = 'removed', pipeline_note = ?, updated_at = ? WHERE id = ?`, note, nowIso, id);
+      const after = this.getFile(id)!;
+      this.enqueueRoute(after, nowIso);
+      return after;
+    });
+  }
+
+  /** Undo a takedown. A file that was mid-pipeline comes back as its visibility; the next replay can recheck it. */
+  reinstate(id: string, nowIso: string): FileRow {
+    return this.sql.transaction(() => {
+      const f = this.getFile(id);
+      if (!f || f.status !== "removed") throw new IndexError("invalid_state", "This file isn't taken down");
+      const prev = f.prev_status && f.prev_status !== "processing" && f.prev_status !== "removed" ? f.prev_status : f.visibility;
+      this.sql.exec(`UPDATE files SET status = ?, prev_status = NULL, pipeline_note = NULL, updated_at = ? WHERE id = ?`, prev, nowIso, id);
+      const after = this.getFile(id)!;
+      this.enqueueRoute(after, nowIso);
+      return after;
+    });
+  }
+
   /** Put a held or flagged file back through the pipeline (a replay). */
   reprocess(id: string, nowIso: string): FileRow {
     return this.sql.transaction(() => {
