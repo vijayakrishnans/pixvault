@@ -1,0 +1,25 @@
+# PV-5: PV1, run the multi-tenant profile (Solo off). Minted in Orunbase under milestone PV1; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-5
+spec:
+  goal: "Pixvault runs Cirrus's full multi-tenant profile: users can create team orgs and use org members, invitations and API keys, which the Solo profile hid."
+  affects:
+    - default/pixvault/api-edge
+    - default/pixvault/identity-worker
+    - default/pixvault/membership-worker
+    - default/pixvault/web-console-next
+    - apps/api-edge/wrangler.template.jsonc
+    - apps/identity-worker/wrangler.template.jsonc
+    - apps/membership-worker/wrangler.template.jsonc
+    - apps/web-console-next/next.config.mjs
+    - apps/web-console-next/src/lib/solo-mode.ts
+    - specs/epics/pixvault-team-media/**
+    - ai/context/pixvault-ledger.md
+    - tasks/**
+  doneWhen:
+    - SOLO_MODE is false in the api-edge, identity-worker and membership-worker templates for every environment, and the console builds with NEXT_PUBLIC_SOLO_MODE=false
+    - on stage, a second org can be created by one account and GET /v1/organizations/{org}/members answers
+    - the PV1 stage smoke (libraries, isolation, guest invitation) passes
+  gates: []
