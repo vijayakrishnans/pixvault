@@ -199,14 +199,17 @@ mapped to the user's library role on each request.
 ### 2.5 Serving (`serve-worker`)
 
 ```
-GET i.<domain>/<libSlug>/<path>[?w=&h=&fit=&f=&q=&blur=&preset=]     public files
-GET i.<domain>/<libSlug>/<path>?sig=&exp=                             private files (HMAC-SHA256, per-library key)
-GET <customHost>/<path>                                               custom domain → one library
-GET i.<domain>/<libSlug>/random[?folder=&type=&form=]                 random-image API (if enabled)
+GET i.<domain>/<orgSlug>/<libSlug>/<path>[?w=&h=&fit=&f=&q=&preset=]  public files
+GET i.<domain>/<orgSlug>/<libSlug>/<path>?sig=&exp=                    private files (HMAC-SHA256, per-library key)
+GET <customHost>/<path>                                                custom domain → one library
+GET i.<domain>/<orgSlug>/<libSlug>/_random[?folder=&type=]             random-image API (if enabled)
 GET s.<domain>/<token>                                                share-link landing (password prompt)
 ```
 
-Public serving is one KV read (`route:…`) plus one storage read, with `Cache-Control: public, max-age=31536000,
+Paths carry the **org slug**, because library slugs are unique only within an org; org slugs are unique across the
+service (a correction made in PV-14; see GAPS G13). Names beginning with `_` at a library's root are reserved
+(`_random`, and later system paths). Until the product domain exists, `i.<domain>` is the
+serve-worker's workers.dev host. Public serving is one KV read (`route:…`) plus one storage read, with `Cache-Control: public, max-age=31536000,
 immutable` on content-addressed paths and an ETag of the SHA-256. Access rules run before the storage read:
 allowed referrers, IP block and allow lists, the blocked-file list (451) and a per-IP rate limit. Transforms use
 Cloudflare Image Transformations (`cf.image`) limited to the library's presets. Where that isn't available,

@@ -1,0 +1,14 @@
+# PV-14: PV3 spec, the gaps register, and serving paths that are unique across orgs. Minted under milestone PV3.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-14
+spec:
+  goal: "GAPS.md records every deferred, partial, blocked or differently-done item with why, what is missing, what was done instead and where it lands; design.md serves files at /<orgSlug>/<libSlug>/<path> so paths are unique across orgs."
+  affects:
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - specs/epics/pixvault-team-media/GAPS.md is on main and linked from the epic README
+    - design.md section 2.5 serves /<orgSlug>/<libSlug>/<path>
+  gates: []

@@ -1,6 +1,7 @@
 # pixvault-team-media (PV): implementation status
 
 As-built ≠ intent. This file records what actually shipped and every place the code departed from `design.md`.
+What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.md).
 
 | Milestone | State | PR |
 |---|---|---|
