@@ -4,8 +4,10 @@ import type { Env } from "@serve-worker/env";
 export class FakeKv {
   readonly data = new Map<string, string>();
   reads = 0;
-  async get(key: string): Promise<string | null> {
+  ttls: (number | undefined)[] = [];
+  async get(key: string, opts?: { cacheTtl?: number }): Promise<string | null> {
     this.reads++;
+    this.ttls.push(opts?.cacheTtl);
     return this.data.get(key) ?? null;
   }
 }

@@ -1,0 +1,21 @@
+# PV-21: PV3, faster propagation. Minted under milestone PV3; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-21
+spec:
+  goal: "A visibility change or trash reaches serving within about 30 s instead of 60 (KV reads at the 30 s minimum cacheTtl), and the Links dialog tells people a change can take up to a minute everywhere."
+  affects:
+    - default/pixvault/serve-worker
+    - default/pixvault/serve-worker-tests
+    - default/pixvault/media-web
+    - apps/serve-worker/**
+    - tests/serve-worker/**
+    - apps/media-web/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "serve-worker reads routes and maps with cacheTtl 30 (test)"
+    - "on stage, a switch to public serves within 45 s, measured and recorded"
+  gates: []

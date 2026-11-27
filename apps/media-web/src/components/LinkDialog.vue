@@ -15,6 +15,7 @@
         />
       </div>
       <p class="pv-muted small">{{ $t(isPublic ? "links.publicHint" : "links.privateHint") }}</p>
+      <el-alert v-if="changed" type="info" :closable="false" show-icon :title="$t('links.propagation')" class="note" />
 
       <div v-if="!isPublic" class="row">
         <el-select v-model="ttl" size="small" style="width: 160px" data-test="ttl">
@@ -51,7 +52,7 @@ export default {
     canEdit: { type: Boolean, default: false },
   },
   emits: ["close", "updated"],
-  data: () => ({ format: "url", ttl: 3600, signed: null, expiresAt: null, signing: false, saving: false, formats: LINK_FORMATS, ttls: SIGNED_TTLS }),
+  data: () => ({ format: "url", ttl: 3600, signed: null, expiresAt: null, signing: false, saving: false, changed: false, formats: LINK_FORMATS, ttls: SIGNED_TTLS }),
   computed: {
     isPublic() {
       return this.file?.visibility === "public" && this.file?.status === "public";
@@ -64,6 +65,9 @@ export default {
     },
   },
   watch: {
+    "file.id"() {
+      this.changed = false;
+    },
     file() {
       this.signed = null;
       this.expiresAt = null;
@@ -88,6 +92,7 @@ export default {
         const r = await api.libraries.setVisibility(this.org, this.lib, this.file.id, on ? "public" : "private");
         this.signed = null;
         this.expiresAt = null;
+        this.changed = true;
         this.$emit("updated", r.file);
       } catch (e) {
         ElMessage.error(e.message);
@@ -113,6 +118,9 @@ export default {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.note {
   margin-bottom: 8px;
 }
 .formats {

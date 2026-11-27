@@ -291,6 +291,13 @@ describe("ranges, conditional requests and cache", () => {
     await get(w, "/acme/brand/x.png");
     expect(w.kv.reads).toBe(3); // one map read, two route reads
   });
+
+  it("every KV read uses the 30 s minimum cache TTL, so changes reach serving within about 30 s", async () => {
+    const A = addLibrary(w, "acme", "brand");
+    addFile(w, A, "/x.png");
+    await (await get(w, "/acme/brand/x.png")).arrayBuffer();
+    expect(w.kv.ttls).toEqual([30, 30]);
+  });
 });
 
 describe("random image API", () => {
