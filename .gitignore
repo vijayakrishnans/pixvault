@@ -38,6 +38,7 @@ apps/notifications-worker/wrangler.jsonc
 apps/admin-worker/wrangler.jsonc
 apps/integrations-worker/wrangler.jsonc
 apps/webhooks-worker/wrangler.jsonc
+apps/media-worker/wrangler.jsonc
 
 # Secrets and local config: never committed (the repo is public)
 .env*

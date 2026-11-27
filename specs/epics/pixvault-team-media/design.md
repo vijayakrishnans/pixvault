@@ -59,11 +59,15 @@ events, settings, flags, metering, quotas, Polar billing, email, webhooks, API k
 - **Org = team** (Cirrus `org_…`). Org roles: owner, admin, member, viewer.
 - **Library = Cirrus project** (`prj_…`) with a `libraries` row (`lib_…`) carrying media settings. One default
   library ("Library") is created with each org.
+- **Org roles, in Cirrus's names:** `owner`, `admin`, `builder` (the brief's "member"), `viewer` and
+  `billing_admin`. Billing admins get no library access.
 - **Library roles:** `manager` (settings, storage, domain, library members), `editor` (upload, organise, rename,
   move, trash, share), `uploader` (upload, see own uploads), `viewer` (browse, download). Org owners and admins are
-  managers of every library. Members see libraries they are added to, or those marked `everyone_in_org`. **Guests**
-  are outside the org and hold exactly one library role (`uploader` or `viewer`) in one library. Every check goes
-  through `policy-worker` (`access_explain` names the rule).
+  managers of every library. Members see libraries they are added to, or those marked `everyone_in_org`, which
+  grants org builders `editor` and org viewers `viewer`. **Guests** are outside the org and hold exactly one
+  library role (`uploader` or `viewer`) in one library. They join by **email invitation** (`lbi_…`, 14 days),
+  accepted by a signed-in user whose verified email matches. Every check goes through `policy-worker`: media-worker
+  sends `library_role` facts beside the org role facts, and `packages/policy-engine/src/library.ts` decides.
 - **Scope invariant:** every D1 row, R2 key, KV key, Queue message, DO, Workflow instance, API key, WebDAV
   credential, share link and domain names exactly one org, and usually one library. Managed R2 keys always begin
   `org/<orgId>/lib/<libraryId>/`; BYO keys begin with the library's configured prefix. A file id or path from
@@ -71,7 +75,14 @@ events, settings, flags, metering, quotas, Polar billing, email, webhooks, API k
 
 ### 1.2 D1 control tables (`packages/db` migration `200_media_control`)
 
-Every table has `org_id`, `created_at`, `updated_at`.
+Every table has `org_id`, `created_at`, `updated_at`. As built, each name carries the `media_` context prefix
+(`media_libraries`, `media_library_members`, …), as Cirrus names its tables, and guest invitations have their own
+table:
+
+```
+library_invitations  id lbi_…  library_id  email_lower  role(uploader|viewer)  expires_at  accepted_at
+                     accepted_by  revoked_at   UNIQUE open (org_id, library_id, email_lower)
+```
 
 ```
 libraries          id lib_…  project_id prj_…  slug  name  visibility_default(public|private)

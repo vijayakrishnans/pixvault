@@ -66,4 +66,4 @@ spec:
     surface: policy
     runtime: cloudflare
 # ci: trigger full-component verification (orun v2.12.0 upgrade — PR #183)
-# orun: redeploy 01-product 20261127T080734Z
+# orun: redeploy PV-4 library policy 20261127
