@@ -5,7 +5,7 @@ As-built ≠ intent. This file records what actually shipped and every place the
 | Milestone | State | PR |
 |---|---|---|
 | PV0: the spec | ✅ done 2026-11-27: PV-1 doc set + port inventory; PV-2 public, listing-ready repo; PV-3 WAITING.md | #3 (`0ca8a26`), #4 (`213d751`), PV-3 (this PR) |
-| PV1: libraries and access | in progress: PV-4 backend landed; PV-5 multi-tenant profile | #6 (`dc41aa6`), PV-5 (this PR) |
+| PV1: libraries and access | ✅ done 2026-11-27: PV-4 backend (libraries, roles, guests, media-worker, facade; 1,200-case matrix; isolation sweep); PV-5 multi-tenant profile; PV-6 media-web app shell and brand check. Verified live on stage | #6 (`dc41aa6`), #7 (`df92dc9`), PV-6 (this PR) |
 | PV2: index, storage, uploads | | |
 | PV3: serving | | |
 | PV4: pipeline and safety | | |
@@ -50,3 +50,14 @@ As-built ≠ intent. This file records what actually shipped and every place the
   either way.
 - **Listing** asks policy-worker once per library (parallel). That's fine at tens of libraries per org; a batch
   endpoint is a later optimisation.
+- **The app is built with Vite**, not ImgHub's Vue CLI, and uses Element Plus icons only (Font Awesome dropped).
+  Ported files keep their upstream names and derivation headers. `tests/media-web` checks both against the port
+  inventory.
+- **A separate session from the console.** The console keeps its bearer token in its own origin's storage (and
+  ships as a prebuilt artifact), so the app signs in with the same Cirrus identity (email code) and holds its own
+  token. Same account, same orgs, two sign-ins. A shared-session handoff is a later improvement.
+- **Team onboarding** retries with a suffixed slug when the name's slug is taken; org slugs are unique across the
+  service. The headless browser run found this.
+- **At 390 px**, the members and invitations tables scroll sideways inside their cards. Every control is reachable.
+- **Accessibility in CI (axe) is not in PV1.** Forms use labels, buttons are buttons, focus is visible, and
+  keyboard flow works in the browser run. axe joins the CI lanes with the browse UI (PV5) and is required by PV11.

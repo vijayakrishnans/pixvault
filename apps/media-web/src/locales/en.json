@@ -1,0 +1,111 @@
+{
+  "app": {
+    "name": "Pixvault",
+    "tagline": "Image and file hosting for teams"
+  },
+  "language": {
+    "switchTo": "切换到中文"
+  },
+  "theme": {
+    "toggle": "Light, dark or follow the system"
+  },
+  "login": {
+    "title": "Sign in to Pixvault",
+    "subtitle": "We'll email you a code. No password needed.",
+    "email": "Email",
+    "sendCode": "Send code",
+    "code": "Verification code",
+    "verify": "Sign in",
+    "back": "Use a different email",
+    "codeSent": "Code sent to {hint}",
+    "debugCode": "Test environment code: {code}",
+    "failed": "That code didn't work. Check it and try again."
+  },
+  "nav": {
+    "libraries": "Libraries",
+    "settings": "Settings",
+    "orgAdmin": "Org admin",
+    "signOut": "Sign out",
+    "guestOf": "Shared with you",
+    "team": "Team"
+  },
+  "onboarding": {
+    "title": "Create your team",
+    "subtitle": "A team holds your libraries, members and billing.",
+    "name": "Team name",
+    "create": "Create team"
+  },
+  "home": {
+    "title": "Libraries",
+    "empty": "No libraries yet.",
+    "emptyViewer": "You haven't been added to a library in this team yet. Ask a team admin.",
+    "new": "New library",
+    "open": "Open",
+    "role": "Your role",
+    "visibility": "Default visibility",
+    "uploadsSoon": "Uploads and browsing arrive with the next release."
+  },
+  "library": {
+    "name": "Name",
+    "slug": "Address",
+    "slugHint": "Used in file links: i.<domain>/{slug}/…",
+    "everyone": "Everyone in the team can open it",
+    "public": "Public",
+    "private": "Private",
+    "create": "Create",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saved": "Saved",
+    "archive": "Archive library",
+    "archiveConfirm": "Archive \"{name}\"? It disappears for everyone. Its files stay until retention ends.",
+    "archived": "Library archived"
+  },
+  "settings": {
+    "general": "General",
+    "rules": "Upload rules",
+    "access": "Access rules",
+    "members": "Members",
+    "moderation": "Moderation",
+    "moderationOff": "Off",
+    "moderationStandard": "Standard",
+    "moderationStrict": "Strict",
+    "retention": "Trash retention (days)",
+    "maxUpload": "Max upload size (MB, empty = plan default)",
+    "allowedTypes": "Allowed types (e.g. image/*), one per line",
+    "referrers": "Allowed referrers (hotlinking), one per line",
+    "ipAllow": "IP allow list, one per line",
+    "ipBlock": "IP block list, one per line",
+    "random": "Random-image API",
+    "presets": "Transform presets, one per line"
+  },
+  "members": {
+    "title": "Members",
+    "add": "Add a team member",
+    "pickMember": "Team member",
+    "role": "Role",
+    "remove": "Remove",
+    "inviteGuest": "Invite a guest",
+    "guestEmail": "Guest email",
+    "invite": "Invite",
+    "invited": "Invitation created. Ask them to sign in to Pixvault with {email}.",
+    "pending": "Pending invitations",
+    "revoke": "Revoke",
+    "guest": "Guest",
+    "member": "Member",
+    "roles": {
+      "manager": "Manager",
+      "editor": "Editor",
+      "uploader": "Uploader",
+      "viewer": "Viewer"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "This page doesn't exist, or you don't have access to it.",
+    "home": "Back to libraries"
+  },
+  "errors": {
+    "generic": "Something went wrong. Try again.",
+    "limit": "Your plan's library limit is reached."
+  }
+}

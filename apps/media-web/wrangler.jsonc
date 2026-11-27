@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The Pixvault media app: static assets (Vite build in dist/) behind a small Worker that adds security
+  // headers and serves index.html for app routes. The composition appends -<env> to the name.
+  "name": "pixvault-media-web",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-05-01",
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  }
+}

@@ -125,6 +125,12 @@ export const IMGHUB_RULES: Rule[] = [
   r(/^src\/components\/(Logo|Footer)\.vue$/, "replace", "PV1", "media-web brand", null, "brand/grep", "upstream logo and footer links are brand marks", "pv1-decision"),
   r(/^src\/components\/icons\/ChannelIcon\.vue$/, "drop", "PV1", "—", null, null, "storage channels are gone (Telegram/Discord/HF)", "pv1-decision"),
   r(/^src\/(utils\/(axios|fetchWithAuth|tokenExpiration)\.js)$/, "replace", "PV1", "media-web Cirrus client", "apps/media-web/src/api", "app/auth", "auth-code fetch helpers → Cirrus session + facades", "pv1-decision"),
+  r(/^src\/entry\//, "drop", "PV1", "—", null, null, "the upstream entry animation is replaced by a plain mount (PV-6)", "pv1-decision"),
+  r(/^src\/utils\/fontawesomeIcons\.js$/, "drop", "PV1", "—", null, null, "Font Awesome is replaced by Element Plus icons, one icon set (PV-6)", "pv1-decision"),
+  r(/^src\/(components\/(DashboardTabs|FloatingSaveButton)\.vue|mixins\/unsavedSettings\.js|styles\/(admin-common|settings-dialog|tag-dialog)\.css)$/, "adapt", "PV5", "media-web library browser", "apps/media-web/src", "app/browse", "dashboard chrome and dialogs arrive with the library browser (moved from PV1 in PV-6)", "pv1-decision"),
+  r(/^src\/components\/config\/(CustomSelect|FileFormatSettings)\.vue$/, "adapt", "PV2", "media-web upload settings", "apps/media-web/src", "app/upload", "output-format and select controls belong to the upload page (moved from PV1 in PV-6)", "pv1-decision"),
+  r(/^src\/components\/config\/SysCogStatus\.vue$/, "adapt", "PV11", "media-web usage", "apps/media-web/src", "app/usage", "the status panel becomes the usage page (moved from PV1 in PV-6)", "pv1-decision"),
+  r(/^public\/_headers$/, "replace", "PV1", "media-web Worker", null, "app/headers", "static _headers become the media-web Worker's security headers (PV-6)", "pv1-decision"),
   r(/^src\/(App\.vue|main\.js|router\/|store\/|locales\/|styles\/|entry\/|components\/(LanguageSwitcher|ToggleDark|DashboardTabs|FloatingSaveButton|LanguageSwitcher)\.vue|utils\/fontawesomeIcons\.js|views\/NotFound\.vue|mixins\/unsavedSettings\.js)/, "adapt", "PV1", "media-web shell", "apps/media-web/src", "app/shell", "app shell, router, store, i18n and themes, rebranded, with org/library switcher", "pv1-decision"),
   r(/^src\/(views\/UploadHome\.vue|components\/upload\/|utils\/upload\/|utils\/(fileIdValidator|pathValidator|mimeTypes)\.js)/, "adapt", "PV2", "media-web upload page", "apps/media-web/src", "app/upload", "upload page with presigned/multipart sessions and SHA-256 in the browser", "pv1-decision"),
   r(/^src\/(components\/browse\/TransformMedia\.vue|utils\/dashboard\/fileLinks\.js)$/, "adapt", "PV3", "media-web links + transforms", "apps/media-web/src", "app/links", "links (public or signed) with transform presets", "pv1-decision"),
@@ -157,6 +163,11 @@ const kebab = (s: string): string => s.replace(/([a-z0-9])([A-Z])/g, "$1-$2").re
 
 function targetFor(rule: Rule, source: string): string | null {
   if (!rule.targetDir) return null;
+  // The Vue app keeps Sanyue-ImgHub's file names, so a reader can diff a file against its upstream.
+  if (rule.targetDir.startsWith("apps/media-web")) {
+    if (source === "public/index.html") return "apps/media-web/index.html";
+    return `apps/media-web/${source}`;
+  }
   const base = source.split("/").pop() ?? source;
   if (base.endsWith(".vue") || base.endsWith(".css") || base.endsWith(".json") || base.endsWith(".html") || base === "_headers") {
     return `${rule.targetDir}/${source.replace(/^(src|public)\//, "")}`.replace(/\/\/+/g, "/");

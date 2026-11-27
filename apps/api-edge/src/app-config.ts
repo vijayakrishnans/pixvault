@@ -15,3 +15,11 @@ export const CONSOLE_WORKER_PREFIX = "pixvault-web-console-next";
 export function consoleWorkersDevOrigin(environment: string): string {
   return `https://${CONSOLE_WORKER_PREFIX}-${environment}.${WORKERS_DEV_SUBDOMAIN}.workers.dev`;
 }
+
+/** Worker name prefix of the Pixvault media app (apps/media-web; per-env: `${prefix}-${env}`). */
+export const MEDIA_WEB_WORKER_PREFIX = "pixvault-media-web";
+
+/** workers.dev origin of the media app for a given environment name. */
+export function mediaWebWorkersDevOrigin(environment: string): string {
+  return `https://${MEDIA_WEB_WORKER_PREFIX}-${environment}.${WORKERS_DEV_SUBDOMAIN}.workers.dev`;
+}

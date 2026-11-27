@@ -1,0 +1,111 @@
+{
+  "app": {
+    "name": "Pixvault",
+    "tagline": "面向团队的图片与文件托管"
+  },
+  "language": {
+    "switchTo": "Switch to English"
+  },
+  "theme": {
+    "toggle": "浅色、深色或跟随系统"
+  },
+  "login": {
+    "title": "登录 Pixvault",
+    "subtitle": "我们会把验证码发到你的邮箱，无需密码。",
+    "email": "邮箱",
+    "sendCode": "发送验证码",
+    "code": "验证码",
+    "verify": "登录",
+    "back": "换一个邮箱",
+    "codeSent": "验证码已发送至 {hint}",
+    "debugCode": "测试环境验证码：{code}",
+    "failed": "验证码无效，请检查后重试。"
+  },
+  "nav": {
+    "libraries": "图库",
+    "settings": "设置",
+    "orgAdmin": "团队管理",
+    "signOut": "退出登录",
+    "guestOf": "共享给你的",
+    "team": "团队"
+  },
+  "onboarding": {
+    "title": "创建你的团队",
+    "subtitle": "团队包含你的图库、成员和账单。",
+    "name": "团队名称",
+    "create": "创建团队"
+  },
+  "home": {
+    "title": "图库",
+    "empty": "还没有图库。",
+    "emptyViewer": "你还没有被加入这个团队的任何图库，请联系团队管理员。",
+    "new": "新建图库",
+    "open": "打开",
+    "role": "你的角色",
+    "visibility": "默认可见性",
+    "uploadsSoon": "上传和浏览将在下一个版本推出。"
+  },
+  "library": {
+    "name": "名称",
+    "slug": "地址",
+    "slugHint": "用于文件链接：i.<domain>/{slug}/…",
+    "everyone": "团队所有人都可以打开",
+    "public": "公开",
+    "private": "私有",
+    "create": "创建",
+    "cancel": "取消",
+    "save": "保存",
+    "saved": "已保存",
+    "archive": "归档图库",
+    "archiveConfirm": "归档“{name}”？所有人都将看不到它。文件会保留到保留期结束。",
+    "archived": "图库已归档"
+  },
+  "settings": {
+    "general": "常规",
+    "rules": "上传规则",
+    "access": "访问规则",
+    "members": "成员",
+    "moderation": "内容审核",
+    "moderationOff": "关闭",
+    "moderationStandard": "标准",
+    "moderationStrict": "严格",
+    "retention": "回收站保留天数",
+    "maxUpload": "最大上传大小（MB，留空为套餐默认）",
+    "allowedTypes": "允许的类型（如 image/*），每行一个",
+    "referrers": "允许的来源（防盗链），每行一个",
+    "ipAllow": "IP 白名单，每行一个",
+    "ipBlock": "IP 黑名单，每行一个",
+    "random": "随机图 API",
+    "presets": "图片处理预设，每行一个"
+  },
+  "members": {
+    "title": "成员",
+    "add": "添加团队成员",
+    "pickMember": "团队成员",
+    "role": "角色",
+    "remove": "移除",
+    "inviteGuest": "邀请访客",
+    "guestEmail": "访客邮箱",
+    "invite": "邀请",
+    "invited": "邀请已创建。请让对方用 {email} 登录 Pixvault。",
+    "pending": "待接受的邀请",
+    "revoke": "撤销",
+    "guest": "访客",
+    "member": "成员",
+    "roles": {
+      "manager": "管理者",
+      "editor": "编辑者",
+      "uploader": "上传者",
+      "viewer": "查看者"
+    }
+  },
+  "notFound": {
+    "title": "页面不存在",
+    "body": "这个页面不存在，或者你没有访问权限。",
+    "home": "返回图库"
+  },
+  "errors": {
+    "generic": "出了点问题，请重试。",
+    "limit": "已达到套餐的图库数量上限。"
+  }
+}
