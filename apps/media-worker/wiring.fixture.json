@@ -10,5 +10,11 @@
   },
   "cloudflare-r2/prod": {
     "r2_bucket_name": "pixvault-prod"
+  },
+  "cloudflare-kv-media/stage": {
+    "media_routes_kv_id": "00000000000000000000000000000005"
+  },
+  "cloudflare-kv-media/prod": {
+    "media_routes_kv_id": "00000000000000000000000000000006"
   }
 }

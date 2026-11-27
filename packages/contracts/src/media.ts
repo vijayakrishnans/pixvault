@@ -193,6 +193,18 @@ export interface PublicFile {
   createdAt: string;
   updatedAt: string;
   trashedAt: string | null;
+  /** Public URL (public files only); private files get a signed URL from POST …/signed-url. */
+  url: string | null;
+}
+
+export interface SignedUrlRequest {
+  /** Seconds, 60 to 604800 (7 days). Default 3600. */
+  expiresIn?: number;
+}
+
+export interface SignedUrlResponse {
+  url: string;
+  expiresAt: string;
 }
 
 export interface CreateUploadSessionRequest {

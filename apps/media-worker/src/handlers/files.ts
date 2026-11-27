@@ -11,12 +11,15 @@ import { indexFor, IndexCallError } from "../index-do/client.js";
 import type { FileRow } from "../index-do/core.js";
 import { filePublicId, libraryPublicId } from "../ids.js";
 import { loadAuthorized } from "./libraries.js";
+import type { Library } from "@saas/db/media";
+import type { Env } from "../env.js";
+import { fileUrl, signedFileUrl } from "../serving.js";
 import { monthOf, normalizeFolder } from "./uploads.js";
 
-export function toPublicFile(f: FileRow, libraryId: string): PublicFile {
+export function toPublicFile(f: FileRow, lib: Library, env: Env): PublicFile {
   return {
     id: filePublicId(f.id),
-    libraryId: libraryPublicId(libraryId),
+    libraryId: libraryPublicId(lib.id),
     path: f.path,
     name: f.name,
     folder: f.folder,
@@ -30,6 +33,8 @@ export function toPublicFile(f: FileRow, libraryId: string): PublicFile {
     createdAt: f.created_at,
     updatedAt: f.updated_at,
     trashedAt: f.trashed_at,
+    // A plain URL only for public files; private ones get a signed URL on request.
+    url: f.status === "public" && f.visibility === "public" ? fileUrl(env, lib, f.path) : null,
   };
 }
 
@@ -67,7 +72,7 @@ export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, library
     ...(cursor ? { cursor } : {}),
     limit,
   });
-  return successResponse({ files: r.files.map((f) => toPublicFile(f, libraryId)), nextCursor: r.nextCursor }, ctx.requestId);
+  return successResponse({ files: r.files.map((f) => toPublicFile(f, a.lib, ctx.env)), nextCursor: r.nextCursor }, ctx.requestId);
 }
 
 async function loadFile(ctx: Ctx, orgId: string, libraryId: string, fileId: string) {
@@ -85,7 +90,7 @@ export async function handleGetFile(ctx: Ctx, orgId: string, libraryId: string, 
   if (!l.ok) return l.response;
   if (l.file.status === "trashed" && !(await authorizeOnLibrary(ctx.env, ctx.actor, "file.restore", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
   if (!(await canRead(ctx, l.a, l.file))) return nf(ctx);
-  return successResponse({ file: toPublicFile(l.file, libraryId) }, ctx.requestId);
+  return successResponse({ file: toPublicFile(l.file, l.a.lib, ctx.env) }, ctx.requestId);
 }
 
 /** GET …/files/{fil}/content: the bytes, for signed-in members. Public serving is serve-worker's (PV3). */
@@ -123,7 +128,7 @@ export async function handleDeleteFile(ctx: Ctx, url: URL, orgId: string, librar
       return successResponse({ purged: true, releasedBytes: r.releasedBytes }, ctx.requestId);
     }
     const f = await l.idx.call<FileRow>({ op: "trash", id: fileId, nowIso: now.toISOString() });
-    return successResponse({ file: toPublicFile(f, libraryId) }, ctx.requestId);
+    return successResponse({ file: toPublicFile(f, l.a.lib, ctx.env) }, ctx.requestId);
   } catch (e) {
     if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
     throw e;
@@ -137,7 +142,7 @@ export async function handleRestoreFile(ctx: Ctx, orgId: string, libraryId: stri
   if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.restore", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
   try {
     const f = await l.idx.call<FileRow>({ op: "restore", id: fileId, nowIso: ctx.now().toISOString() });
-    return successResponse({ file: toPublicFile(f, libraryId) }, ctx.requestId);
+    return successResponse({ file: toPublicFile(f, l.a.lib, ctx.env) }, ctx.requestId);
   } catch (e) {
     if (e instanceof IndexCallError && e.code === "conflict") return errorResponse("conflict", "Another file now uses this path", 409, ctx.requestId);
     if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
@@ -169,7 +174,7 @@ export async function handleRestoreVersion(ctx: Ctx, orgId: string, libraryId: s
   if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.update", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
   try {
     const f = await l.idx.call<FileRow>({ op: "restoreVersion", id: fileId, version, actor: ctx.actor.subjectId, nowIso: ctx.now().toISOString() });
-    return successResponse({ file: toPublicFile(f, libraryId) }, ctx.requestId);
+    return successResponse({ file: toPublicFile(f, l.a.lib, ctx.env) }, ctx.requestId);
   } catch (e) {
     if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
     throw e;
@@ -195,4 +200,52 @@ export async function handleMediaUsage(ctx: Ctx, orgId: string): Promise<Respons
     },
     ctx.requestId,
   );
+}
+
+/** PATCH …/files/{fil} { visibility } */
+export async function handleUpdateFile(ctx: Ctx, request: Request, orgId: string, libraryId: string, fileId: string): Promise<Response> {
+  let body: { visibility?: unknown } | undefined;
+  try {
+    body = (await request.json()) as { visibility?: unknown };
+  } catch {
+    body = undefined;
+  }
+  if (!body || (body.visibility !== "public" && body.visibility !== "private") || Object.keys(body).some((k) => k !== "visibility")) {
+    return validationError(ctx.requestId, { visibility: ["Must be public or private"] });
+  }
+  const l = await loadFile(ctx, orgId, libraryId, fileId);
+  if (!l.ok) return l.response;
+  if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.update", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
+  try {
+    const f = await l.idx.call<FileRow>({ op: "setVisibility", id: fileId, visibility: body.visibility, nowIso: ctx.now().toISOString() });
+    return successResponse({ file: toPublicFile(f, l.a.lib, ctx.env) }, ctx.requestId);
+  } catch (e) {
+    if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
+    throw e;
+  }
+}
+
+const MIN_SIGNED_TTL = 60;
+const MAX_SIGNED_TTL = 7 * 24 * 3600;
+
+/** POST …/files/{fil}/signed-url { expiresIn? }: a time-limited URL, for private files (works for public ones too). */
+export async function handleSignedUrl(ctx: Ctx, request: Request, orgId: string, libraryId: string, fileId: string): Promise<Response> {
+  let expiresIn = 3600;
+  try {
+    const b = (await request.json()) as { expiresIn?: unknown };
+    if (b && b.expiresIn !== undefined) {
+      if (typeof b.expiresIn !== "number" || !Number.isInteger(b.expiresIn) || b.expiresIn < MIN_SIGNED_TTL || b.expiresIn > MAX_SIGNED_TTL) {
+        return validationError(ctx.requestId, { expiresIn: [`Must be whole seconds from ${MIN_SIGNED_TTL} to ${MAX_SIGNED_TTL}`] });
+      }
+      expiresIn = b.expiresIn;
+    }
+  } catch {
+    /* no body: default lifetime */
+  }
+  const l = await loadFile(ctx, orgId, libraryId, fileId);
+  if (!l.ok) return l.response;
+  if (l.file.status === "trashed" || !(await canRead(ctx, l.a, l.file))) return nf(ctx);
+  const signed = await signedFileUrl(ctx.env, l.a.lib, l.file.path, expiresIn, ctx.now());
+  if (!signed) return errorResponse("unavailable", "Links aren't available for this library yet", 409, ctx.requestId);
+  return successResponse(signed, ctx.requestId);
 }

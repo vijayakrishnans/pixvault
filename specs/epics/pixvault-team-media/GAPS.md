@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-27, PV-15 (PR #17)._
+_Last updated: 2026-11-27, PV-16._
 
 ## Blocked
 
@@ -46,7 +46,7 @@ _Last updated: 2026-11-27, PV-15 (PR #17)._
 
 | # | Item | Design | Why not yet | What's missing | Lands |
 |---|---|---|---|---|---|
-| G16 | **Index outbox** (DO → KV routes, queue jobs, events) | §1.3 | PV2 had no consumer: serving (PV3) is the first. | Nothing reads committed files outside the index yet. | **PV3** (serving needs the KV routes) |
+| G16 | **Index outbox** (DO → KV routes, queue jobs, events) | §1.3 | Built in PV-16 for **KV routes** (put on commit, replace, restore, version restore and visibility; delete on trash). Queue jobs and events aren't produced yet. | Nothing outside the index learns about file changes except serving. | Queue jobs PV4; events PV5 |
 | G17 | **Nightly index export to R2, and a restore drill** | §1.3, risk PV-C | Not needed for function. Deferred to keep PV2 to its acceptance list. | **No backup of a library's metadata beyond the Durable Object's own durability.** | PV5 (with the restore drill) |
 | G18 | **DO size alarm at 70%** | §1.3 | Libraries are far from 10 GB of metadata. | No early warning. | PV10 (imports are the first big writers) |
 | G19 | **URL upload** (`functions/api/fetchRes.js`, IB-032) | §6 screen 2 | Needs an SSRF guard (no private ranges, a size cap); not on PV2's acceptance list. | You can't paste a URL to upload. | PV5 |
@@ -84,6 +84,9 @@ _Last updated: 2026-11-27, PV-15 (PR #17)._
 | G41 | **Baseline test failures**: `tests/integrations-worker` (5 drain tests, also failing on clean `main`); an api-edge rate-limit DO test flaky under full parallel load | Noise in local full runs. CI's PR lanes don't run them. | Verified both against clean `main` and in isolation. | Report upstream to cirrus-baseline |
 | G42 | **No `orun/compliance` check is posted on this repo** | Lineage isn't enforced by CI. | Branch, trailer, manifest and contract are kept by hand; `orun task check` runs before every push. | Check the repo link's compliance mode in the console |
 | G44 | **The `workers-deploy` token can create KV namespaces but not read them** | Changing an existing KV root fails on refresh with "Authentication error (10000)" (found by PV-15's plan on `cloudflare-kv`). The template grants Workers KV Storage *Write* only; Cloudflare's permission-group API doesn't imply Read. Every product from this baseline is affected. | PV3's routes namespace went into a **new root**, `cloudflare-kv-media` (a fresh root only creates). The same root will hit this on its first later change. | Add Workers KV Storage Read to `workers-deploy` in orun-cloud: added to the W-3 platform decision |
+| G45 | **Signing keys live in D1 and the routes KV, not a secret store** | Anyone with read access to the stage/prod D1 or the routes namespace could forge signed URLs for that library. Both are reachable only by bound Workers and Cloudflare account admins. | Per-library random 32-byte keys (migration 220), never in API responses (tested); versioned so they can rotate. Writing keys through the Orunbase secret store is a secret-store write, which agents are blocked from. | Wrap them with a root key from the secret store (the user sets one value), PV11 |
+| G46 | **An org slug captured at library creation won't follow an org rename** | Renaming an org would leave its libraries serving under the old slug, and new links would differ from old ones. | Captured once (`media_libraries.org_slug`). Cirrus has no org-rename UI in this product yet. | Re-publish maps on rename and keep the old slug as a redirect, PV11 |
+| G47 | **No key-rotation API** | Signing keys can't be rotated yet. | The signature format carries the key version (`<v>.<mac>`), and maps hold keys by version, so rotation is additive. | PV6 (sharing) |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed

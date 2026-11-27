@@ -33,6 +33,9 @@ function mapLibrary(row: Row): Library {
     retentionDays: Number(row.retention_days),
     settingsJson: (row.settings_json as string) || "{}",
     status: row.status as Library["status"],
+    orgSlug: (row.org_slug as string | null) ?? null,
+    signingKey: (row.signing_key as string | null) ?? null,
+    signingKeyVersion: Number(row.signing_key_version ?? 1),
     createdBy: row.created_by as string,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
@@ -85,8 +88,8 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
         {
           text: `INSERT INTO media_libraries
                    (id, org_id, project_id, slug, name, visibility_default, everyone_in_org, settings_json,
-                    created_by, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)`,
+                    created_by, created_at, updated_at, org_slug, signing_key)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, $12)`,
           params: [
             input.id,
             input.orgId,
@@ -98,6 +101,8 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
             input.settingsJson,
             input.createdBy,
             at,
+            input.orgSlug ?? null,
+            input.signingKey ?? null,
           ],
         },
         {
@@ -375,6 +380,19 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
         return r.rowCount === 0 ? notFound() : { ok: true, value: mapMember(r.rows[0]!) };
       } catch {
         return internal("Failed to accept invitation");
+      }
+    },
+
+    async setServingIdentity(orgId, libraryId, orgSlug, signingKey, at) {
+      try {
+        const r = await executor.execute<Row>(
+          `UPDATE media_libraries SET org_slug = COALESCE(org_slug, $3), signing_key = COALESCE(signing_key, $4), updated_at = $5
+           WHERE org_id = $1 AND id = $2 RETURNING *`,
+          [orgId, libraryId, orgSlug, signingKey, at.toISOString()],
+        );
+        return r.rowCount === 0 ? notFound() : { ok: true, value: mapLibrary(r.rows[0]!) };
+      } catch {
+        return internal("Failed to set serving identity");
       }
     },
 

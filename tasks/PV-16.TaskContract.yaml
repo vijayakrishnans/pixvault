@@ -1,0 +1,36 @@
+# PV-16: PV3, the serving data plane. Minted under milestone PV3; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-16
+spec:
+  goal: "Every file change in a library's index reaches the media routes KV through an outbox; each library has an org-scoped serving map and a rotatable signing key; files have a public URL or a signed one, and their visibility can be changed."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/contracts
+    - default/pixvault/shared
+    - default/pixvault/db
+    - default/pixvault/db-tests
+    - default/pixvault/db-migrate
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/api-edge/src/media-facade.ts
+    - tests/api-edge/src/media-facade.test.ts
+    - packages/contracts/src/media.ts
+    - packages/shared/**
+    - packages/db/src/migrations/220_media_serving/**
+    - packages/db/src/manifest.ts
+    - packages/db/src/media/**
+    - tests/db/**
+    - pnpm-lock.yaml
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "commit, replace, trash, restore, purge and visibility changes put or delete the file's route in KV through the index outbox (test)"
+    - "creating, updating and archiving a library writes or removes its map at lib:<orgSlug>/<libSlug> (test)"
+    - "a signed URL verifies with the shared verifier, and an altered path, expiry or signature doesn't (test)"
+    - "on stage, a committed file's route and its library map are readable in the routes namespace"
+  gates: []

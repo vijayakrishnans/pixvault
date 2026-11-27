@@ -12,6 +12,8 @@ import { errorResponse, successResponse, validationError } from "../http.js";
 import { logError } from "../log.js";
 import { actorUuid, libraryPublicId, orgPublicId, parseProjectPublicId, projectPublicId } from "../ids.js";
 import { archiveProject, createProject } from "../projects-client.js";
+import { newSigningKey } from "@saas/shared/media-signing";
+import { ensureServing, fetchOrgSlug, publishLibraryMap, unpublishLibraryMap } from "../serving.js";
 
 const NAME_MAX = 100;
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -160,6 +162,7 @@ export async function handleCreateLibrary(ctx: Ctx, request: Request, orgId: str
   if (!projectId) return errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
 
   const libraryId = crypto.randomUUID();
+  const orgSlug = await fetchOrgSlug(ctx.env, ctx.actor, orgId, ctx.requestId);
   const created = await ctx.repo.createLibrary({
     id: libraryId,
     orgId,
@@ -172,6 +175,8 @@ export async function handleCreateLibrary(ctx: Ctx, request: Request, orgId: str
     createdBy: actorUuid(ctx.actor.subjectId),
     creator: ctx.actor.subjectType === "user" ? { principalId: ctx.actor.subjectId, email: ctx.actor.email || null } : undefined,
     storageBackendId: crypto.randomUUID(),
+    orgSlug,
+    signingKey: newSigningKey(),
     createdAt: ctx.now(),
   });
   if (!created.ok) {
@@ -183,6 +188,7 @@ export async function handleCreateLibrary(ctx: Ctx, request: Request, orgId: str
     return errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
   }
   const lib = created.value;
+  await publishLibraryMap(ctx.env, lib);
   await audit(ctx, lib, "library.created", `Created library "${lib.name}"`, { slug: lib.slug });
   const after = await loadFacts(ctx.env, ctx.repo, ctx.actor, orgId, ctx.requestId);
   return successResponse({ library: toPublicLibrary(lib, after.ok ? after.facts : facts.facts) }, ctx.requestId, 201);
@@ -213,7 +219,9 @@ export async function loadAuthorized(
   if (!(await authorizeOnLibrary(ctx.env, ctx.actor, action, lib.value, facts.facts, ctx.requestId))) {
     return { ok: false, response: errorResponse("not_found", "Not found", 404, ctx.requestId) };
   }
-  return { ok: true, lib: lib.value, facts: facts.facts };
+  // Libraries created before serving (PV3) get their org slug and signing key the first time a member reads them.
+  const served = lib.value.orgSlug && lib.value.signingKey ? lib.value : await ensureServing(ctx, lib.value);
+  return { ok: true, lib: served, facts: facts.facts };
 }
 
 /** GET /v1/organizations/{org}/libraries/{lib} */
@@ -271,6 +279,7 @@ export async function handleUpdateLibrary(ctx: Ctx, request: Request, orgId: str
       ? errorResponse("not_found", "Not found", 404, ctx.requestId)
       : errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
   }
+  await publishLibraryMap(ctx.env, updated.value);
   await audit(ctx, updated.value, "library.updated", `Updated library "${updated.value.name}"`, {
     fields: Object.keys(b),
   });
@@ -287,6 +296,7 @@ export async function handleArchiveLibrary(ctx: Ctx, orgId: string, libraryId: s
       ? errorResponse("not_found", "Not found", 404, ctx.requestId)
       : errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
   }
+  await unpublishLibraryMap(ctx.env, archived.value);
   await archiveProject(ctx.env.PROJECTS_WORKER!, ctx.actor, orgPublicId(orgId), projectPublicId(a.lib.projectId), ctx.requestId);
   await audit(ctx, archived.value, "library.archived", `Archived library "${archived.value.name}"`, {});
   return successResponse({ library: toPublicLibrary(archived.value, a.facts) }, ctx.requestId);

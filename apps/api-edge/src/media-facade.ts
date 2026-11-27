@@ -23,6 +23,7 @@ const ORG_LIBRARY_FILES_RE = new RegExp(`${L}\\/files$`);
 const ORG_LIBRARY_FILE_RE = new RegExp(`${L}\\/files\\/[^/]+$`);
 const ORG_LIBRARY_FILE_CONTENT_RE = new RegExp(`${L}\\/files\\/[^/]+\\/content$`);
 const ORG_LIBRARY_FILE_RESTORE_RE = new RegExp(`${L}\\/files\\/[^/]+\\/restore$`);
+const ORG_LIBRARY_FILE_SIGNED_URL_RE = new RegExp(`${L}\\/files\\/[^/]+\\/signed-url$`);
 const ORG_LIBRARY_FILE_VERSIONS_RE = new RegExp(`${L}\\/files\\/[^/]+\\/versions$`);
 const ORG_LIBRARY_FILE_VERSION_RESTORE_RE = new RegExp(`${L}\\/files\\/[^/]+\\/versions\\/\\d{1,6}\\/restore$`);
 const ORG_MEDIA_USAGE_RE = /^\/v1\/organizations\/[^/]+\/media-usage$/;
@@ -41,7 +42,8 @@ const ALLOWED: ReadonlyArray<[RegExp | string, ReadonlySet<string>]> = [
   [ORG_LIBRARY_UPLOAD_PART_RE, new Set(["PUT"])],
   [ORG_LIBRARY_UPLOAD_COMMIT_RE, new Set(["POST"])],
   [ORG_LIBRARY_FILES_RE, new Set(["GET"])],
-  [ORG_LIBRARY_FILE_RE, new Set(["GET", "DELETE"])],
+  [ORG_LIBRARY_FILE_RE, new Set(["GET", "DELETE", "PATCH"])],
+  [ORG_LIBRARY_FILE_SIGNED_URL_RE, new Set(["POST"])],
   [ORG_LIBRARY_FILE_CONTENT_RE, new Set(["GET"])],
   [ORG_LIBRARY_FILE_RESTORE_RE, new Set(["POST"])],
   [ORG_LIBRARY_FILE_VERSIONS_RE, new Set(["GET"])],

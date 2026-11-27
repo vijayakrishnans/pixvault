@@ -58,6 +58,7 @@ describe("api-edge media facade", () => {
     [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1`],
     [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/content`],
     [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/restore`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/signed-url`],
     [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/versions`],
     [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/versions/3/restore`],
     [`/v1/organizations/${ORG}/media-usage`],

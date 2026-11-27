@@ -201,5 +201,14 @@ export const manifest: MigrationManifest = {
       description:
         "Pixvault media usage (PV2) — per-org stored bytes and monthly uploads (upsert-only counters) and per-org limit overrides",
     },
+    {
+      id: "220_media_serving",
+      context: "media",
+      path: "220_media_serving/up.sql",
+      checksum:
+        "84745c8b8f5648603ab0a159f951f71004ce7ada43b2498f4dcbf418d20b5886",
+      description:
+        "Pixvault media serving (PV3) — each library's org slug (paths /<orgSlug>/<libSlug>/<path>) and its versioned HMAC signing key for private-file URLs",
+    },
   ],
 };
