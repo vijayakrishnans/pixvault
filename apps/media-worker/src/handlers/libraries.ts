@@ -13,7 +13,7 @@ import { logError } from "../log.js";
 import { actorUuid, libraryPublicId, orgPublicId, parseProjectPublicId, projectPublicId } from "../ids.js";
 import { archiveProject, createProject } from "../projects-client.js";
 import { newSigningKey } from "@saas/shared/media-signing";
-import { ensureServing, fetchOrgSlug, publishLibraryMap, unpublishLibraryMap } from "../serving.js";
+import { ensureServing, fetchOrgSlug, orgSuspended, publishLibraryMap, unpublishLibraryMap } from "../serving.js";
 
 const NAME_MAX = 100;
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -188,7 +188,7 @@ export async function handleCreateLibrary(ctx: Ctx, request: Request, orgId: str
     return errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
   }
   const lib = created.value;
-  await publishLibraryMap(ctx.env, lib);
+  await publishLibraryMap(ctx.env, lib, await orgSuspended(ctx, orgId));
   await audit(ctx, lib, "library.created", `Created library "${lib.name}"`, { slug: lib.slug });
   const after = await loadFacts(ctx.env, ctx.repo, ctx.actor, orgId, ctx.requestId);
   return successResponse({ library: toPublicLibrary(lib, after.ok ? after.facts : facts.facts) }, ctx.requestId, 201);
@@ -279,7 +279,7 @@ export async function handleUpdateLibrary(ctx: Ctx, request: Request, orgId: str
       ? errorResponse("not_found", "Not found", 404, ctx.requestId)
       : errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
   }
-  await publishLibraryMap(ctx.env, updated.value);
+  await publishLibraryMap(ctx.env, updated.value, await orgSuspended(ctx, orgId));
   await audit(ctx, updated.value, "library.updated", `Updated library "${updated.value.name}"`, {
     fields: Object.keys(b),
   });

@@ -9,6 +9,7 @@ import { verifyPath } from "@saas/shared/media-signing";
 import type { Env } from "./env.js";
 import { negotiateFormat, presetOptions, transformImage } from "./transform.js";
 import { ipAllowed, referrerAllowed } from "./rules.js";
+import { REPORT_PATH, reportForm, reportLink, reportReceived, submitReport, unavailable } from "./report.js";
 
 interface LibraryMap {
   o: string;
@@ -20,6 +21,8 @@ interface LibraryMap {
   ib: string[];
   rnd: boolean;
   p: string[];
+  /** "suspended": the team is suspended; everything answers 451. */
+  s?: string;
 }
 
 interface RouteValue {
@@ -142,6 +145,7 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
   const now = deps.now?.() ?? Date.now();
   const url = new URL(request.url);
   if (url.pathname === "/health") return Response.json({ status: "ok", service: "serve-worker", environment: env.ENVIRONMENT ?? "local" });
+  if (url.pathname === REPORT_PATH) return handleReport(request, env, url, now);
   if (request.method !== "GET" && request.method !== "HEAD") return text(405, "Method not allowed", { allow: "GET, HEAD" });
   if (!env.ROUTES_KV || !env.MEDIA_BUCKET) return text(503, "Unavailable");
 
@@ -156,6 +160,7 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
 
   const map = await loadMap(env, p.org, p.lib, now);
   if (!map) return notFound();
+  if (map.s === "suspended") return unavailable();
 
   if (!ipAllowed(ip, map.ia, map.ib)) return text(403, "Forbidden");
   if (!referrerAllowed(request.headers.get("referer"), map.r, url.hostname)) return text(403, "Hotlinking from this site isn't allowed");
@@ -180,6 +185,7 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
   const raw = await env.ROUTES_KV.get(`route:${map.l}:${await sha256Hex(p.path)}`, { cacheTtl: KV_CACHE_TTL });
   if (!raw) return notFound();
   const route = JSON.parse(raw) as RouteValue;
+  if (route.st === "removed") return unavailable(); // taken down by an operator
   if (route.st !== "public" && route.st !== "private") return notFound(); // processing, held, flagged: not served (PV4)
 
   const isPrivate = route.v === "private" || route.st === "private";
@@ -207,6 +213,8 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
     "cross-origin-resource-policy": "cross-origin",
     vary: "Accept",
     ...(isPrivate ? {} : { "access-control-allow-origin": "*" }),
+    // Where to report this file (design §4.9: "link plus header").
+    link: `<${reportLink(url.origin, url.pathname)}>; rel="report"`,
   };
 
   const inm = request.headers.get("if-none-match");
@@ -277,4 +285,42 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
     return new Response(a, { status, headers });
   }
   return new Response(body, { status, headers });
+}
+
+const REPORT_CATEGORIES = new Set(["csam", "sexual", "violence", "hate", "harassment", "copyright", "malware", "spam", "other"]);
+
+/** GET /_report?u=<path>: the form. POST /_report: send it (rate-limited per IP). */
+async function handleReport(request: Request, env: Env, url: URL, now: number): Promise<Response> {
+  if (request.method === "GET") {
+    const u = url.searchParams.get("u") ?? "";
+    return parsePath(u) ? reportForm(u) : notFound();
+  }
+  if (request.method !== "POST") return text(405, "Method not allowed", { allow: "GET, POST" });
+  const ip = request.headers.get("cf-connecting-ip") ?? "";
+  if (env.SERVE_REPORT_RL && ip) {
+    const { success } = await env.SERVE_REPORT_RL.limit({ key: `report:${ip}` });
+    if (!success) return text(429, "Too many reports from your address; try again in a minute", { "retry-after": "60" });
+  }
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return text(400, "Invalid form");
+  }
+  const u = String(form.get("u") ?? "");
+  const category = String(form.get("category") ?? "");
+  const details = String(form.get("details") ?? "").slice(0, 2000);
+  const email = String(form.get("email") ?? "").trim().slice(0, 254);
+  const p = parsePath(u);
+  if (!p) return notFound();
+  if (!REPORT_CATEGORIES.has(category)) return reportForm(u, "Choose what's wrong with the file.");
+  if (!env.ROUTES_KV) return text(503, "Unavailable");
+  const map = await loadMap(env, p.org, p.lib, now);
+  if (!map) return notFound();
+  const raw = await env.ROUTES_KV.get(`route:${map.l}:${await sha256Hex(p.path)}`, { cacheTtl: KV_CACHE_TTL });
+  if (!raw) return notFound();
+  const route = JSON.parse(raw) as RouteValue;
+  if (route.st === "removed") return reportReceived(); // already taken down
+  const ok = await submitReport(env, { orgId: map.o, libraryId: map.l, fileId: route.f, sha256: route.e }, { category, details, email });
+  return ok ? reportReceived() : text(503, "We couldn't record your report; please try again");
 }

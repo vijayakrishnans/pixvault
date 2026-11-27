@@ -168,6 +168,14 @@ export interface MediaRepository {
   orgIsOnFreePlan(orgId: string): Promise<MediaResult<boolean>>;
   recordPipelineFailure(input: PipelineFailureInput): Promise<MediaResult<true>>;
   listPipelineFailures(filter: { orgId?: string; libraryId?: string; status?: "open" | "replayed" | "resolved"; limit: number }): Promise<MediaResult<PipelineFailure[]>>;
+  /** Record a report; a file with an open case gets its report count raised instead of a new case. */
+  reportAbuse(input: AbuseReportInput): Promise<MediaResult<{ caseId: string; created: boolean }>>;
+  listAbuseCases(filter: { status?: AbuseCase["status"]; limit: number }): Promise<MediaResult<AbuseCase[]>>;
+  getAbuseCase(id: string): Promise<MediaResult<AbuseCase>>;
+  decideAbuseCase(id: string, status: "actioned" | "dismissed", decidedBy: string, note: string | null, at: Date): Promise<MediaResult<AbuseCase>>;
+  isPlatformOperator(subjectId: string): Promise<MediaResult<boolean>>;
+  getOrgSuspension(orgId: string): Promise<MediaResult<{ suspendedAt: string; reason: string | null } | null>>;
+  setOrgSuspension(orgId: string, suspended: boolean, reason: string | null, decidedBy: string, at: Date): Promise<MediaResult<true>>;
   /** Mark a file's open failures replayed or resolved. */
   settlePipelineFailures(orgId: string, libraryId: string, fileId: string, status: "replayed" | "resolved", at: Date): Promise<MediaResult<true>>;
 }
@@ -193,4 +201,35 @@ export interface PipelineFailure {
   status: "open" | "replayed" | "resolved";
   createdAt: string;
   resolvedAt: string | null;
+}
+
+export const ABUSE_CATEGORIES = ["csam", "sexual", "violence", "hate", "harassment", "copyright", "malware", "spam", "other"] as const;
+export type AbuseCategory = (typeof ABUSE_CATEGORIES)[number];
+
+export interface AbuseReportInput {
+  orgId: string;
+  libraryId: string;
+  fileId: string;
+  sha256: string;
+  category: AbuseCategory;
+  details: string | null;
+  reporterEmail: string | null;
+  at: Date;
+}
+
+export interface AbuseCase {
+  id: string;
+  orgId: string;
+  libraryId: string;
+  fileId: string;
+  sha256: string;
+  category: AbuseCategory;
+  details: string | null;
+  reporterEmail: string | null;
+  reportCount: number;
+  status: "open" | "actioned" | "dismissed";
+  decidedBy: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

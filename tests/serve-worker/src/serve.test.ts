@@ -350,3 +350,72 @@ describe("analytics", () => {
     expect(JSON.stringify(w.ae)).not.toContain("secret-post");
   });
 });
+
+describe("takedown, suspension and abuse reports (PV-25)", () => {
+  it("a taken-down file answers 451 with a notice that says nothing about it, before any storage read", async () => {
+    const A = addLibrary(w, "acme", "brand");
+    addFile(w, A, "/gone.png", { st: "removed" });
+    const r = await get(w, "/acme/brand/gone.png");
+    expect(r.status).toBe(451);
+    expect(r.headers.get("content-type")).toMatch(/^text\/html/);
+    expect(r.headers.get("content-security-policy")).toContain("default-src 'none'");
+    const body = await r.text();
+    expect(body).not.toContain("gone.png");
+    expect(w.r2.gets).toEqual([]);
+  });
+
+  it("every file of a suspended team answers 451, signed or not", async () => {
+    const A = addLibrary(w, "acme", "brand", { s: "suspended" });
+    addFile(w, A, "/x.png");
+    addFile(w, A, "/p.png", { v: "private" });
+    const exp = NOW / 1000 + 600;
+    const sig = await signPath(A.key, 1, A.id, "/p.png", exp);
+    expect((await get(w, "/acme/brand/x.png")).status).toBe(451);
+    expect((await get(w, `/acme/brand/p.png?exp=${exp}&sig=${encodeURIComponent(sig)}`)).status).toBe(451);
+  });
+
+  it("served files carry a link to report them", async () => {
+    const A = addLibrary(w, "acme", "brand");
+    addFile(w, A, "/my file.png");
+    const r = await get(w, "/acme/brand/my%20file.png");
+    expect(r.headers.get("link")).toBe(`<${H}/_report?u=${encodeURIComponent("/acme/brand/my%20file.png")}>; rel="report"`);
+  });
+
+  it("the report form escapes what it shows and refuses paths that aren't files", async () => {
+    const f = await get(w, `/_report?u=${encodeURIComponent('/acme/brand/"><script>x</script>.png')}`);
+    expect(f.status).toBe(200);
+    const html = await f.text();
+    expect(html).not.toContain("<script>x");
+    expect(html).toContain("&lt;script&gt;");
+    expect(f.headers.get("content-security-policy")).toContain("form-action 'self'");
+    expect((await get(w, `/_report?u=${encodeURIComponent("/../etc")}`)).status).toBe(404);
+  });
+
+  const post = (fields: Record<string, string>, ip = "192.0.2.7") =>
+    serve(new Request(`${H}/_report`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": ip }, body: new URLSearchParams(fields) }), w.env, { now: () => NOW });
+
+  it("a report is forwarded with the file's ids and bytes, resolved from this library only", async () => {
+    const A = addLibrary(w, "acme", "brand");
+    const B = addLibrary(w, "acme", "other");
+    const f = addFile(w, A, "/x.png");
+    const r = await post({ u: "/acme/brand/x.png", category: "copyright", details: "mine", email: "a@b.test" });
+    expect(r.status).toBe(202);
+    const route = JSON.parse(w.kv.data.get(`route:${A.id}:${sha("/x.png")}`)!);
+    expect(w.reports).toEqual([{ orgId: A.orgId, libraryId: A.id, fileId: route.f, sha256: f.e, category: "copyright", details: "mine", email: "a@b.test" }]);
+    expect((await post({ u: "/acme/other/x.png", category: "spam" })).status).toBe(404); // not in library B
+    void B;
+  });
+
+  it("a report needs a known category, is rate-limited per address, and a taken-down file needs no new report", async () => {
+    const A = addLibrary(w, "acme", "brand");
+    addFile(w, A, "/x.png");
+    addFile(w, A, "/gone.png", { st: "removed" });
+    const bad = await post({ u: "/acme/brand/x.png", category: "boring" });
+    expect(bad.status).toBe(200); // the form again, with a message
+    expect(await bad.text()).toContain("Choose what");
+    w.reportLimited.add("report:192.0.2.66");
+    expect((await post({ u: "/acme/brand/x.png", category: "spam" }, "192.0.2.66")).status).toBe(429);
+    expect((await post({ u: "/acme/brand/gone.png", category: "spam" })).status).toBe(202);
+    expect(w.reports).toEqual([]);
+  });
+});

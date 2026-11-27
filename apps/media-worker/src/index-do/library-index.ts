@@ -34,6 +34,8 @@ export type IndexOp =
   | { op: "finishProcessing"; id: string; sha256: string; result: ProcessingResult; nowIso: string }
   | { op: "reprocess"; id: string; nowIso: string }
   | { op: "review"; id: string; decision: "approve" | "reject"; nowIso: string }
+  | { op: "takedown"; id: string; note: string; nowIso: string }
+  | { op: "reinstate"; id: string; nowIso: string }
   | { op: "requeueAllRoutes"; nowIso: string }
   | { op: "randomPublic"; folder: string; mimePrefix: string };
 
@@ -87,6 +89,10 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
         return { ok: true, value: core.swapBlob(req.input) };
       case "finishProcessing":
         return { ok: true, value: core.finishProcessing(req.id, req.sha256, req.result, req.nowIso) };
+      case "takedown":
+        return { ok: true, value: core.takedown(req.id, req.note, req.nowIso) };
+      case "reinstate":
+        return { ok: true, value: core.reinstate(req.id, req.nowIso) };
       case "review":
         return { ok: true, value: core.review(req.id, req.decision, req.nowIso) };
       case "reprocess":

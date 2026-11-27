@@ -65,6 +65,9 @@ export interface World {
   limited: Set<string>;
   randomCalls: unknown[];
   randomResult: { path: string } | null;
+  /** Reports forwarded to media-worker. */
+  reports: Record<string, unknown>[];
+  reportLimited: Set<string>;
 }
 
 export function world(): World {
@@ -73,7 +76,7 @@ export function world(): World {
   const images = new FakeImages();
   const ae: World["ae"] = [];
   const limited = new Set<string>();
-  const w: World = { env: {} as Env, kv, r2, images, ae, limited, randomCalls: [], randomResult: null };
+  const w: World = { env: {} as Env, kv, r2, images, ae, limited, randomCalls: [], randomResult: null, reports: [], reportLimited: new Set() };
   w.env = {
     ENVIRONMENT: "test",
     ROUTES_KV: kv as unknown as KVNamespace,
@@ -81,6 +84,14 @@ export function world(): World {
     IMAGES: images as unknown as ImagesBinding,
     SERVE_AE: { writeDataPoint: (p: { blobs: unknown[]; doubles: unknown[] }) => void ae.push(p) } as unknown as AnalyticsEngineDataset,
     SERVE_RL: { limit: async ({ key }: { key: string }) => ({ success: !limited.has(key) }) } as unknown as RateLimit,
+    SERVE_REPORT_RL: { limit: async ({ key }: { key: string }) => ({ success: !w.reportLimited.has(key) }) } as unknown as RateLimit,
+    MEDIA_WORKER: {
+      fetch: async (url: string, init: RequestInit) => {
+        if (!String(url).endsWith("/v1/media/abuse-reports") || init.method !== "POST") return new Response(null, { status: 404 });
+        w.reports.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ data: { received: true } }), { status: 202 });
+      },
+    } as unknown as Fetcher,
     LIBRARY_INDEX: {
       idFromName: (n: string) => n,
       get: (id: string) => ({
