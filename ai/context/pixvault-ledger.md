@@ -50,8 +50,7 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 
 ## Open risks and deferred items
 
-See `specs/epics/pixvault-team-media/risks-and-open-questions.md` and the operator's `pixvault-WAITING.md`
-(W3 Docker, W5 nexo revoked, W6 domain, plus the PV-3 entries once landed).
+See `specs/epics/pixvault-team-media/risks-and-open-questions.md` and [`WAITING.md`](../../WAITING.md) (W-1 … W-9).
 
 ## Pointers
 
