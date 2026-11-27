@@ -17,7 +17,7 @@
         <router-link
           v-for="l in libraries"
           :key="l.id"
-          :to="{ name: 'librarySettings', params: { org: l.orgId, lib: l.id } }"
+          :to="{ name: 'library', params: { org: l.orgId, lib: l.id } }"
           class="lib"
           :class="{ active: $route.params.lib === l.id }"
           @click="menuOpen = false"
@@ -33,7 +33,7 @@
         <router-link
           v-for="l in guestLibraries"
           :key="l.id"
-          :to="{ name: 'librarySettings', params: { org: l.orgId, lib: l.id } }"
+          :to="{ name: 'library', params: { org: l.orgId, lib: l.id } }"
           class="lib"
           @click="menuOpen = false"
         >

@@ -42,8 +42,7 @@
     "new": "新建图库",
     "open": "打开",
     "role": "你的角色",
-    "visibility": "默认可见性",
-    "uploadsSoon": "上传和浏览将在下一个版本推出。"
+    "visibility": "默认可见性"
   },
   "library": {
     "name": "名称",
@@ -107,5 +106,41 @@
   "errors": {
     "generic": "出了点问题，请重试。",
     "limit": "已达到套餐的图库数量上限。"
+  },
+  "upload": {
+    "usage": "已用 {used} / {limit}",
+    "drop": "拖放文件到这里，或点击选择",
+    "hint": "也可以直接粘贴图片。大文件分片上传，中断后可续传。",
+    "folder": "文件夹，例如 /campaigns/2026",
+    "files": "文件",
+    "trash": "回收站",
+    "empty": "还没有文件。",
+    "trashEmpty": "回收站是空的。",
+    "name": "名称",
+    "size": "大小",
+    "uploaded": "上传时间",
+    "trashed": "删除时间",
+    "download": "下载",
+    "delete": "删除",
+    "restore": "恢复",
+    "purge": "永久删除",
+    "more": "加载更多",
+    "resumed": "已续传",
+    "dedup": "图库中已有相同文件，不占用空间",
+    "replace": "替换",
+    "retry": "重试",
+    "exists": "这个文件夹里已有同名文件。",
+    "trashedMsg": "已移到回收站",
+    "restoredMsg": "已恢复",
+    "purgedMsg": "已永久删除",
+    "purgeConfirm": "永久删除“{name}”？此操作无法撤销。",
+    "phase": {
+      "queued": "等待中",
+      "hashing": "正在校验文件",
+      "starting": "正在开始",
+      "uploading": "上传中",
+      "verifying": "正在验证",
+      "done": "已上传"
+    }
   }
 }
