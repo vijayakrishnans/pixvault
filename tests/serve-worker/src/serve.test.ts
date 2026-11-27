@@ -315,6 +315,20 @@ describe("random image API", () => {
   });
 });
 
+describe("Server-Timing", () => {
+  it("every response reports the worker's own duration, refusals included", async () => {
+    const A = addLibrary(w, "acme", "brand");
+    addFile(w, A, "/x.png");
+    let t = 100;
+    const clock = () => (t += 7.25);
+    const ok = await get(w, "/acme/brand/x.png", {}, { clock });
+    expect(ok.headers.get("server-timing")).toBe("worker;dur=7.3");
+    await ok.arrayBuffer();
+    expect((await get(w, "/acme/brand/missing.png")).headers.get("server-timing")).toMatch(/^worker;dur=\d+(\.\d)?$/);
+    expect((await get(w, "/health")).headers.get("server-timing")).toMatch(/^worker;dur=/);
+  });
+});
+
 describe("analytics", () => {
   it("records library, file, referrer host, country, preset and outcome, never the IP or full referrer", async () => {
     const A = addLibrary(w, "acme", "brand");

@@ -1,0 +1,19 @@
+# PV-19: PV3, Server-Timing and smoke retry. Minted under milestone PV3; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-19
+spec:
+  goal: "Every serve-worker response carries Server-Timing with the worker's own time (KV, cache, R2), so serving latency can be measured apart from the client's network; the deploy smoke retries for 30 s, because CI runs it once and a new workers.dev route 404s for a few seconds."
+  affects:
+    - default/pixvault/serve-worker
+    - default/pixvault/serve-worker-tests
+    - apps/serve-worker/**
+    - tests/serve-worker/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "a served response's Server-Timing header reports the worker's duration (test)"
+    - "on stage, the worker's p95 for a cached public file is under 100 ms, measured from Server-Timing over at least 100 requests"
+  gates: []

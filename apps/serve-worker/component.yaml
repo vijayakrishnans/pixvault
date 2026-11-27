@@ -110,8 +110,8 @@ spec:
     preDeployCommand: "echo 'No pre-deploy step configured.'"
     migrationCommand: "echo 'No migrations configured.'"
     # SERVE_URL comes from this component's per-environment env (above): this type has no DEPLOYED_URL.
-    # The composition retries the smoke with backoff.
-    smokeCommand: "b=$(curl -sf \"${SERVE_URL}/health\") && case \"$b\" in *'serve-worker'*) true ;; *) echo 'serve-worker: /health not ok'; false ;; esac"
+    # CI runs the smoke once, and a new workers.dev route can 404 for a few seconds: retry for 30 s.
+    smokeCommand: "ok=; for i in 1 2 3 4 5 6 7 8 9 10; do b=$(curl -sf \"${SERVE_URL}/health\") && case \"$b\" in *'serve-worker'*) ok=1 ;; esac; [ -n \"$ok\" ] && break; sleep 3; done; [ -n \"$ok\" ] || { echo 'serve-worker: /health not ok after 30 s'; false; }"
   labels:
     team: platform
     layer: runtime

@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-27, PV-18._
+_Last updated: 2026-11-27, PV-19._
 
 ## Blocked
 
@@ -91,7 +91,8 @@ _Last updated: 2026-11-27, PV-18._
 | G49 | **Presets only; no arbitrary width/height/quality** | ImgBed accepts any `w`/`h` up to 4096. Pixvault accepts only the library's presets (thumb 200², small 480, medium 960, large 1920). | Deliberate (risk PV-B): arbitrary sizes let anyone mint unbounded unique transforms on a public URL. | Per-library custom presets in settings, PV9 |
 | G50 | **Edge cache isn't purged on trash or visibility change** | A trashed or made-private file stops serving at once only because its route is checked before the cache; KV route reads are edge-cached up to 60 s, so it can take up to a minute. | The cache is keyed by bytes' hash and is read only after the route; route reads use `cacheTtl: 60`. | Shorter `cacheTtl` or a purge on change if 60 s proves too long, PV4 (moderation needs it) |
 | G51 | **No serving analytics in the app yet** | Data points are written (library, file, referrer host, country, preset, outcome, bytes; no IP), but nothing reads them. | Reading Analytics Engine needs the SQL API with an Account Analytics Read token, which the brokered templates don't include. | Add the scope (W-3) and a usage page, PV11 (G33) |
-| G52 | **`cloudflare-worker-turbo` gives the smoke step no URL or environment name** | PV-17's first deploy succeeded but its smoke failed (`DEPLOYED_URL: unbound variable`): only `cloudflare-workers-assets-turbo` sets it, and parameters aren't rendered with the environment. | serve-worker sets `SERVE_URL` per environment under `subscribe.environments[].env` (the plan puts it in the job's env), and the smoke reads it. | Upstream: export `DEPLOYED_URL` from the worker type too (orun-cloud compositions) |
+| G52 | **`cloudflare-worker-turbo` gives the smoke step no URL or environment name** | PV-17's first deploy succeeded but its smoke failed (`DEPLOYED_URL: unbound variable`): only `cloudflare-workers-assets-turbo` sets it, and parameters aren't rendered with the environment. | serve-worker sets `SERVE_URL` per environment under `subscribe.environments[].env` (the plan puts it in the job's env), and the smoke reads it. CI also runs the smoke **once** (prod's first deploy failed in 0.3 s on the new route's 404 window), so the smoke retries for 30 s itself (PV-19). | Upstream: export `DEPLOYED_URL` from the worker type too (orun-cloud compositions) |
+| G53 | **No latency measurement from a well-connected client** | From the build box, `/health` alone has p95 over 300 ms and some connections time out, so client TTFB says nothing about the worker. | Every response carries `Server-Timing: worker;dur=…` (the worker's own I/O time), and the PV3 latency criterion is measured from it. | A synthetic check from a cloud runner near an edge (Cloudflare Health Checks or a scheduled CI probe), PV11 |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed
