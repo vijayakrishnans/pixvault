@@ -1,0 +1,38 @@
+# PV-10: PV2, library index, managed R2 storage and resumable uploads. Minted under milestone PV2.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-10
+spec:
+  goal: "Each library has a SQLite LibraryIndex Durable Object; files upload to managed R2 in resumable sessions (single or multipart), commit only after a size and SHA-256 check, deduplicate per library by reference count, keep versions, go to trash and back, purge their blob only at refcount 0, and count against org quotas."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - default/pixvault/contracts
+    - default/pixvault/db
+    - default/pixvault/db-tests
+    - default/pixvault/db-migrate
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/api-edge/src/media-facade.ts
+    - apps/api-edge/src/rate-limit.ts
+    - tests/api-edge/src/media-facade.test.ts
+    - packages/contracts/**
+    - packages/db/src/migrations/210_media_usage/**
+    - packages/db/src/manifest.ts
+    - packages/db/src/media/**
+    - tests/db/**
+    - pnpm-lock.yaml
+    - specs/epics/pixvault-team-media/**
+    - ai/context/pixvault-ledger.md
+    - tasks/**
+  doneWhen:
+    - "on stage, uploads of 1 KB, 10 MB, 200 MB and 2 GB commit with matching SHA-256"
+    - "a multipart upload stopped half way resumes from its last part and commits"
+    - "uploading the same bytes twice adds no stored bytes (refcount 2)"
+    - "delete goes to trash, restore returns the same file, and purge deletes the blob only at refcount 0"
+    - "a session over the org storage quota is refused with quota_exceeded"
+    - "DO commit throughput is measured and recorded"
+  gates: []

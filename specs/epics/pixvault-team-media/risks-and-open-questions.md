@@ -77,3 +77,17 @@ successor. We build on `cirrus-baseline baseline-v29`, which has the same worker
 
 On 2026-11-27, creating the `pixvault` workspace under account `ws_SMS84Q22` returned 404 because the building
 user has no role on that account. Phase A waits on WAITING W1. Spec and inventory work proceeds meanwhile.
+
+## PV-L: usage isn't visible in Cirrus metering yet (ACCEPTED, follow-up)
+
+Media quotas are enforced from `media_usage` (PV2), so the console's usage page and billing don't see media usage
+yet. Cirrus metering only accepts usage recorded by org owners or admins. The fix is an internal, service-only
+record route in metering-worker that media-worker calls after each commit and purge. It's due before PV11's plans
+and billing.
+
+## PV-M: commit-time hashing of large files (RISK)
+
+A multipart commit streams the whole object through `DigestStream` to verify its SHA-256: about a few seconds of
+CPU for 2 GB, within Workers Paid's default 30 s. The stage 2 GB run measures it. If it gets close to the limit,
+the fallback is per-part SHA-256 (R2 verifies each part) plus an asynchronous whole-object check before the file
+leaves `processing`.

@@ -58,7 +58,8 @@ export type RouteFamily =
   | "audit"
   | "notifications"
   | "integrations"
-  | "media";
+  | "media"
+  | "media_upload";
 
 interface BucketLimits {
   /** Bucket capacity (max tokens). */
@@ -113,6 +114,11 @@ const LIMITS: Record<RouteFamily, FamilyConfig> = {
   media: {
     identity: { limit: 120, windowSec: 60 },
     org: { limit: 600, windowSec: 60 },
+  },
+  // Uploads: sessions, 32 MiB parts and commits. Sized for a few large files in parallel per person.
+  media_upload: {
+    identity: { limit: 600, windowSec: 60 },
+    org: { limit: 3000, windowSec: 60 },
   },
   audit: {
     identity: { limit: 120, windowSec: 60 },

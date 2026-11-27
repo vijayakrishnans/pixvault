@@ -1,0 +1,198 @@
+// Derived from MarSeventh/CloudFlare-ImgBed@611153e:functions/api/manage/delete/[[path]].js (MIT), modified.
+// ImgBed deletes a file outright from its channel. Here a delete moves the file to trash (kept for the library's
+// retention), restore brings it back, and purge removes it for good, deleting the blob only when no other file or
+// version still references the same bytes.
+
+import { DEFAULT_MEDIA_LIMITS, type PublicFile, type PublicFileVersion } from "@saas/contracts/media";
+import { authorizeOnLibrary, hasAnyStanding, loadFacts } from "../access.js";
+import type { Ctx } from "../ctx.js";
+import { errorResponse, successResponse, validationError } from "../http.js";
+import { indexFor, IndexCallError } from "../index-do/client.js";
+import type { FileRow } from "../index-do/core.js";
+import { filePublicId, libraryPublicId } from "../ids.js";
+import { loadAuthorized } from "./libraries.js";
+import { monthOf, normalizeFolder } from "./uploads.js";
+
+export function toPublicFile(f: FileRow, libraryId: string): PublicFile {
+  return {
+    id: filePublicId(f.id),
+    libraryId: libraryPublicId(libraryId),
+    path: f.path,
+    name: f.name,
+    folder: f.folder,
+    size: f.size,
+    mime: f.mime,
+    sha256: f.blob_sha256,
+    visibility: f.visibility,
+    status: f.status,
+    version: f.version,
+    uploadedBy: f.uploaded_by,
+    createdAt: f.created_at,
+    updatedAt: f.updated_at,
+    trashedAt: f.trashed_at,
+  };
+}
+
+const nf = (ctx: Ctx) => errorResponse("not_found", "Not found", 404, ctx.requestId);
+
+/** Read access to one file: `file.read`, or `file.read.own` for the uploader of that file. */
+async function canRead(ctx: Ctx, a: Awaited<ReturnType<typeof loadAuthorized>> & { ok: true }, f: FileRow): Promise<boolean> {
+  if (await authorizeOnLibrary(ctx.env, ctx.actor, "file.read", a.lib, a.facts, ctx.requestId)) return true;
+  return f.uploaded_by === ctx.actor.subjectId && (await authorizeOnLibrary(ctx.env, ctx.actor, "file.read.own", a.lib, a.facts, ctx.requestId));
+}
+
+/** GET …/files?folder=&trash=1&cursor=&limit= */
+export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, libraryId: string): Promise<Response> {
+  const a = await loadAuthorized(ctx, orgId, libraryId, "library.read");
+  if (!a.ok) return a.response;
+  const trash = url.searchParams.get("trash") === "1";
+  let uploadedBy: string | undefined;
+  if (trash) {
+    if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.restore", a.lib, a.facts, ctx.requestId))) return nf(ctx);
+  } else if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list", a.lib, a.facts, ctx.requestId))) {
+    if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list.own", a.lib, a.facts, ctx.requestId))) return nf(ctx);
+    uploadedBy = ctx.actor.subjectId;
+  }
+  const folderParam = url.searchParams.get("folder");
+  const folder = folderParam === null ? undefined : normalizeFolder(folderParam);
+  if (folder === null) return validationError(ctx.requestId, { folder: ["Invalid folder"] });
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 50) || 50, 1), 200);
+  const cursor = url.searchParams.get("cursor") ?? undefined;
+  if (cursor !== undefined && !/^[\d\-T:.Z]{10,40}\|[0-9a-f-]{36}$/.test(cursor)) return validationError(ctx.requestId, { cursor: ["Invalid cursor"] });
+  const r = await indexFor(ctx.env, { orgId, libraryId }).call<{ files: FileRow[]; nextCursor: string | null }>({
+    op: "listFiles",
+    ...(folder !== undefined ? { folder } : {}),
+    status: trash ? "trashed" : "live",
+    ...(uploadedBy ? { uploadedBy } : {}),
+    ...(cursor ? { cursor } : {}),
+    limit,
+  });
+  return successResponse({ files: r.files.map((f) => toPublicFile(f, libraryId)), nextCursor: r.nextCursor }, ctx.requestId);
+}
+
+async function loadFile(ctx: Ctx, orgId: string, libraryId: string, fileId: string) {
+  const a = await loadAuthorized(ctx, orgId, libraryId, "library.read");
+  if (!a.ok) return { ok: false as const, response: a.response };
+  const idx = indexFor(ctx.env, { orgId, libraryId });
+  const got = await idx.call<{ file: FileRow; objectKey: string | null } | null>({ op: "getFileWithKey", id: fileId });
+  if (!got) return { ok: false as const, response: nf(ctx) };
+  return { ok: true as const, a, idx, file: got.file, objectKey: got.objectKey };
+}
+
+/** GET …/files/{fil} */
+export async function handleGetFile(ctx: Ctx, orgId: string, libraryId: string, fileId: string): Promise<Response> {
+  const l = await loadFile(ctx, orgId, libraryId, fileId);
+  if (!l.ok) return l.response;
+  if (l.file.status === "trashed" && !(await authorizeOnLibrary(ctx.env, ctx.actor, "file.restore", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
+  if (!(await canRead(ctx, l.a, l.file))) return nf(ctx);
+  return successResponse({ file: toPublicFile(l.file, libraryId) }, ctx.requestId);
+}
+
+/** GET …/files/{fil}/content: the bytes, for signed-in members. Public serving is serve-worker's (PV3). */
+export async function handleFileContent(ctx: Ctx, orgId: string, libraryId: string, fileId: string): Promise<Response> {
+  const l = await loadFile(ctx, orgId, libraryId, fileId);
+  if (!l.ok) return l.response;
+  if (l.file.status === "trashed" || !(await canRead(ctx, l.a, l.file)) || !l.objectKey) return nf(ctx);
+  const obj = await ctx.env.MEDIA_BUCKET!.get(l.objectKey);
+  if (!obj) return nf(ctx);
+  const safeName = l.file.name.replace(/["\\\r\n]/g, "_");
+  return new Response(obj.body, {
+    headers: {
+      "content-type": l.file.mime,
+      "content-length": String(obj.size),
+      "content-disposition": `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(l.file.name)}`,
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+      etag: `"${l.file.blob_sha256}"`,
+      "x-request-id": ctx.requestId,
+    },
+  });
+}
+
+/** DELETE …/files/{fil}: to trash; with ?permanent=1 on a trashed file, purge it. */
+export async function handleDeleteFile(ctx: Ctx, url: URL, orgId: string, libraryId: string, fileId: string): Promise<Response> {
+  const l = await loadFile(ctx, orgId, libraryId, fileId);
+  if (!l.ok) return l.response;
+  if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.delete", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
+  const now = ctx.now();
+  try {
+    if (url.searchParams.get("permanent") === "1") {
+      const r = await l.idx.call<{ deleteKeys: string[]; releasedBytes: number }>({ op: "purge", id: fileId });
+      for (const key of r.deleteKeys) await ctx.env.MEDIA_BUCKET!.delete(key);
+      if (r.releasedBytes > 0) await ctx.repo.releaseStorage(orgId, r.releasedBytes, now);
+      return successResponse({ purged: true, releasedBytes: r.releasedBytes }, ctx.requestId);
+    }
+    const f = await l.idx.call<FileRow>({ op: "trash", id: fileId, nowIso: now.toISOString() });
+    return successResponse({ file: toPublicFile(f, libraryId) }, ctx.requestId);
+  } catch (e) {
+    if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
+    throw e;
+  }
+}
+
+/** POST …/files/{fil}/restore */
+export async function handleRestoreFile(ctx: Ctx, orgId: string, libraryId: string, fileId: string): Promise<Response> {
+  const l = await loadFile(ctx, orgId, libraryId, fileId);
+  if (!l.ok) return l.response;
+  if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.restore", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
+  try {
+    const f = await l.idx.call<FileRow>({ op: "restore", id: fileId, nowIso: ctx.now().toISOString() });
+    return successResponse({ file: toPublicFile(f, libraryId) }, ctx.requestId);
+  } catch (e) {
+    if (e instanceof IndexCallError && e.code === "conflict") return errorResponse("conflict", "Another file now uses this path", 409, ctx.requestId);
+    if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
+    throw e;
+  }
+}
+
+/** GET …/files/{fil}/versions */
+export async function handleListVersions(ctx: Ctx, orgId: string, libraryId: string, fileId: string): Promise<Response> {
+  const l = await loadFile(ctx, orgId, libraryId, fileId);
+  if (!l.ok) return l.response;
+  if (!(await canRead(ctx, l.a, l.file))) return nf(ctx);
+  const vs = await l.idx.call<{ version: number; blob_sha256: string; size: number; created_by: string; created_at: string }[]>({ op: "versions", id: fileId });
+  const versions: PublicFileVersion[] = vs.map((v) => ({
+    version: v.version,
+    size: v.size,
+    sha256: v.blob_sha256,
+    createdBy: v.created_by,
+    createdAt: v.created_at,
+    current: v.version === l.file.version,
+  }));
+  return successResponse({ versions }, ctx.requestId);
+}
+
+/** POST …/files/{fil}/versions/{n}/restore */
+export async function handleRestoreVersion(ctx: Ctx, orgId: string, libraryId: string, fileId: string, version: number): Promise<Response> {
+  const l = await loadFile(ctx, orgId, libraryId, fileId);
+  if (!l.ok) return l.response;
+  if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.update", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
+  try {
+    const f = await l.idx.call<FileRow>({ op: "restoreVersion", id: fileId, version, actor: ctx.actor.subjectId, nowIso: ctx.now().toISOString() });
+    return successResponse({ file: toPublicFile(f, libraryId) }, ctx.requestId);
+  } catch (e) {
+    if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
+    throw e;
+  }
+}
+
+/** GET /v1/organizations/{org}/media-usage */
+export async function handleMediaUsage(ctx: Ctx, orgId: string): Promise<Response> {
+  const facts = await loadFacts(ctx.env, ctx.repo, ctx.actor, orgId, ctx.requestId);
+  if (!facts.ok) return errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
+  if (!hasAnyStanding(facts.facts)) return nf(ctx);
+  const [usage, o] = await Promise.all([ctx.repo.getUsage(orgId, monthOf(ctx.now())), ctx.repo.getLimitOverrides(orgId)]);
+  if (!usage.ok || !o.ok) return errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
+  return successResponse(
+    {
+      usage: {
+        storageBytes: usage.value.storageBytes,
+        storageBytesLimit: o.value?.storageBytesLimit ?? DEFAULT_MEDIA_LIMITS.storageBytesLimit,
+        uploadsThisMonth: usage.value.uploadsThisMonth,
+        uploadsPerMonthLimit: o.value?.uploadsPerMonthLimit ?? DEFAULT_MEDIA_LIMITS.uploadsPerMonthLimit,
+        maxFileBytes: o.value?.maxFileBytes ?? DEFAULT_MEDIA_LIMITS.maxFileBytes,
+      },
+    },
+    ctx.requestId,
+  );
+}

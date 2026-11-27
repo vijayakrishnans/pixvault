@@ -50,6 +50,17 @@ describe("api-edge media facade", () => {
     [`/v1/organizations/${ORG}/libraries/${LIB}/invitations/lbi_x`],
     ["/v1/media/libraries"],
     ["/v1/media/invitations/accept"],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/uploads`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/uploads/ups_1`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/uploads/ups_1/parts/12`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/uploads/ups_1/commit`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/files`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/content`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/restore`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/versions`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/versions/3/restore`],
+    [`/v1/organizations/${ORG}/media-usage`],
   ])("routes %s to media-worker, not the project or org facades", (path) => {
     expect(isMediaRoute(path)).toBe(true);
     expect(isProjectRoute(path)).toBe(false);
@@ -59,7 +70,8 @@ describe("api-edge media facade", () => {
     expect(isMediaRoute(`/v1/organizations/${ORG}/projects`)).toBe(false);
     expect(isMediaRoute(`/v1/organizations/${ORG}/members`)).toBe(false);
     expect(isOrgRoute(`/v1/organizations/${ORG}/members`)).toBe(true);
-    expect(isMediaRoute(`/v1/organizations/${ORG}/libraries/${LIB}/files`)).toBe(false);
+    expect(isMediaRoute(`/v1/organizations/${ORG}/libraries/${LIB}/uploads/ups_1/parts/x`)).toBe(false);
+    expect(isMediaRoute(`/v1/organizations/${ORG}/usage`)).toBe(false); // metering's
   });
 
   it("refuses methods a route doesn't take (405) without calling anything", async () => {
@@ -114,6 +126,20 @@ describe("api-edge media facade", () => {
     expect(h.get("x-actor-subject-type")).toBe("user");
     expect(h.get("authorization")).toBeNull();
     expect(await new Response(call.init.body).json()).toEqual({ name: "Brand assets" });
+  });
+
+  it("streams a part's raw bytes through to media-worker", async () => {
+    const media = fetcher(() => Response.json({ data: {}, meta: { requestId: "r", cursor: null } }));
+    const path = `/v1/organizations/${ORG}/libraries/${LIB}/uploads/ups_1/parts/1`;
+    const bytes = new Uint8Array([1, 2, 3, 250, 251]);
+    const res = await handleMediaRoute(
+      new Request(`https://edge${path}`, { method: "PUT", headers: { authorization: "Bearer sps_ses_test" }, body: bytes }),
+      { IDENTITY_WORKER: identity().fetcher, MEDIA_WORKER: media.fetcher, ENVIRONMENT: "test" },
+      "req_5",
+      path,
+    );
+    expect(res.status).toBe(200);
+    expect(new Uint8Array(await new Response(media.calls[0]!.init.body).arrayBuffer())).toEqual(bytes);
   });
 
   it("answers 503 when media-worker isn't bound", async () => {

@@ -6,7 +6,7 @@ As-built ≠ intent. This file records what actually shipped and every place the
 |---|---|---|
 | PV0: the spec | ✅ done 2026-11-27: PV-1 doc set + port inventory; PV-2 public, listing-ready repo; PV-3 WAITING.md | #3 (`0ca8a26`), #4 (`213d751`), PV-3 (this PR) |
 | PV1: libraries and access | ✅ done 2026-11-27: PV-4 backend (libraries, roles, guests, media-worker, facade; 1,200-case matrix; isolation sweep); PV-5 multi-tenant profile; PV-6 media-web app shell and brand check. Verified live on stage | #6 (`dc41aa6`), #7 (`df92dc9`), #8 (`e34ecfc`), #9 (`d932ebf`), PV-8 CSP fix (this PR) |
-| PV2: index, storage, uploads | in progress: PV-9 managed R2 bucket | PV-9 (this PR) |
+| PV2: index, storage, uploads | in progress: PV-9 R2 bucket landed; PV-10 index, storage, uploads | #11, PV-10 (this PR) |
 | PV3: serving | | |
 | PV4: pipeline and safety | | |
 | PV5: browser and live collaboration | | |
@@ -69,3 +69,23 @@ As-built ≠ intent. This file records what actually shipped and every place the
   (`wrangler dev`) and the deployed stage app, not just the dev server.
 - **Accessibility in CI (axe) is not in PV1.** Forms use labels, buttons are buttons, focus is visible, and
   keyboard flow works in the browser run. axe joins the CI lanes with the browse UI (PV5) and is required by PV11.
+
+### PV2
+
+- **Managed R2 uploads stream through media-worker, not presigned URLs.** Presigning needs long-lived S3 keys in a
+  Worker (another stored credential) and a bucket CORS rule the pinned Terraform provider can't express. Each part
+  (32 MiB) is streamed through media-worker into R2 multipart over the binding instead. It keeps the same session,
+  part, commit and resume model, holds no credential, and the bytes stay on Cloudflare's network. Presigning
+  arrives in PV7 for BYO buckets, where the keys are the customer's.
+- **No separate storage-worker yet.** The `ObjectStore` functions live in `apps/media-worker/src/storage/` and use
+  the binding. storage-worker splits out in PV7, where BYO credentials must be decrypted only inside it.
+- **Objects are keyed by upload, not by hash** (`org/<org>/lib/<lib>/blob/<ups_id>`, recorded in the index's
+  `blobs` table). An upload therefore never overwrites a blob, even when a client declares someone else's hash.
+  Dedup is decided after the bytes are verified, and a redundant copy is deleted.
+- **The dedup shortcut** (create a file without sending bytes) is allowed only to callers who may read the
+  library's files. An uploader who knows a hash must still send the bytes, or the hash alone would unlock them.
+- **Quotas are enforced in media's own tables** (`210_media_usage`: stored bytes, monthly uploads, per-org
+  overrides), not Cirrus metering. Metering's record and check routes need `organization.metering.*`
+  (owner/admin), which an editor's or guest's upload doesn't have. Mirroring usage into metering needs a service
+  path in metering-worker; it's a follow-up, recorded in risks (PV-L). Defaults: 10 GiB stored, 2,000
+  uploads/month, 2 GiB per file.

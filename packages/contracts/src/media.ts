@@ -167,3 +167,100 @@ export const DEFAULT_LIBRARY_SETTINGS: LibrarySettings = {
 };
 
 export const DEFAULT_RETENTION_DAYS = 30;
+
+// ── Files and uploads (PV2) ─────────────────────────────────────────────
+
+/** Bytes per multipart part. R2 needs ≥ 5 MiB for every part but the last; 32 MiB keeps a 2 GB file at 60 parts. */
+export const UPLOAD_PART_SIZE = 32 * 1024 * 1024;
+/** Upload sessions expire (and their parts are aborted) this long after creation. */
+export const UPLOAD_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+export type FileStatus = "processing" | "held" | "public" | "private" | "flagged" | "trashed";
+
+export interface PublicFile {
+  id: string; // fil_…
+  libraryId: string;
+  path: string; // "/folder/name.png"
+  name: string;
+  folder: string; // "/folder"
+  size: number;
+  mime: string;
+  sha256: string;
+  visibility: LibraryVisibility;
+  status: FileStatus;
+  version: number;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  trashedAt: string | null;
+}
+
+export interface CreateUploadSessionRequest {
+  /** File name; the path is folder + "/" + name. */
+  name: string;
+  folder?: string;
+  size: number;
+  /** Lowercase hex SHA-256 of the whole file, computed by the client. Verified at commit. */
+  sha256: string;
+  mime?: string;
+  visibility?: LibraryVisibility;
+  /** Replace the file at this path, keeping the old bytes as a version. Without it, an existing path is a 409. */
+  replace?: boolean;
+}
+
+export interface PublicUploadSession {
+  id: string; // ups_…
+  libraryId: string;
+  path: string;
+  size: number;
+  sha256: string;
+  mode: "single" | "multipart";
+  partSize: number;
+  partCount: number;
+  /** Part numbers (1-based) already stored; resume from the first missing one. */
+  uploadedParts: number[];
+  expiresAt: string;
+}
+
+export interface CreateUploadSessionResponse {
+  /** Present when bytes must be sent. */
+  session?: PublicUploadSession;
+  /** Present when the library already holds these bytes and the caller may read them: the file was created directly. */
+  file?: PublicFile;
+  deduplicated?: boolean;
+}
+
+export interface CommitUploadResponse {
+  file: PublicFile;
+  /** True when the bytes matched a blob already in the library, so no storage was added. */
+  deduplicated: boolean;
+}
+
+export interface ListFilesResponse {
+  files: PublicFile[];
+  nextCursor: string | null;
+}
+
+export interface PublicFileVersion {
+  version: number;
+  size: number;
+  sha256: string;
+  createdBy: string;
+  createdAt: string;
+  current: boolean;
+}
+
+export interface PublicMediaUsage {
+  storageBytes: number;
+  storageBytesLimit: number;
+  uploadsThisMonth: number;
+  uploadsPerMonthLimit: number;
+  maxFileBytes: number;
+}
+
+/** Plan defaults when an org has no media_org_limits row (PV2; plans arrive in PV11). */
+export const DEFAULT_MEDIA_LIMITS = {
+  storageBytesLimit: 10 * 1024 * 1024 * 1024,
+  uploadsPerMonthLimit: 2000,
+  maxFileBytes: 2 * 1024 * 1024 * 1024,
+} as const;

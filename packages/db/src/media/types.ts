@@ -108,6 +108,18 @@ export interface CreateInvitationInput {
   expiresAt: Date;
 }
 
+export interface OrgUsage {
+  storageBytes: number;
+  uploadsThisMonth: number;
+  uploadBytesThisMonth: number;
+}
+
+export interface OrgLimitOverrides {
+  storageBytesLimit: number | null;
+  uploadsPerMonthLimit: number | null;
+  maxFileBytes: number | null;
+}
+
 export interface MediaRepository {
   createLibrary(input: CreateLibraryInput): Promise<MediaResult<Library>>;
   getLibrary(orgId: string, libraryId: string): Promise<MediaResult<Library>>;
@@ -134,4 +146,12 @@ export interface MediaRepository {
   acceptInvitation(invitation: LibraryInvitation, principalId: string, at: Date): Promise<MediaResult<LibraryMember>>;
 
   getStorageBackend(orgId: string, libraryId: string): Promise<MediaResult<StorageBackend>>;
+
+  /** Stored bytes (all time) and this month's uploads for one org. `month` is 'YYYY-MM'. */
+  getUsage(orgId: string, month: string): Promise<MediaResult<OrgUsage>>;
+  getLimitOverrides(orgId: string): Promise<MediaResult<OrgLimitOverrides | null>>;
+  /** Count one committed upload: +1 upload and +bytes this month; +storedBytes to the stored total (0 when deduplicated). */
+  recordUpload(orgId: string, month: string, bytes: number, storedBytes: number, at: Date): Promise<MediaResult<true>>;
+  /** Release stored bytes when a blob is purged. Never goes below zero. */
+  releaseStorage(orgId: string, bytes: number, at: Date): Promise<MediaResult<true>>;
 }

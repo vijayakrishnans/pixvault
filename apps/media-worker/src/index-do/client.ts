@@ -1,0 +1,30 @@
+import type { Env } from "../env.js";
+import type { IndexOp, IndexResult } from "./library-index.js";
+import type { Scope } from "./core.js";
+
+export class IndexCallError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+  }
+}
+
+export interface LibraryIndexClient {
+  call<T>(req: IndexOp): Promise<T>;
+}
+
+interface IndexStub {
+  call(scope: Scope, req: IndexOp): Promise<IndexResult>;
+}
+
+/** The index of one library. The DO's name binds it to (org, library), and every call restates the scope. */
+export function indexFor(env: Env, scope: Scope): LibraryIndexClient {
+  const ns = env.LIBRARY_INDEX!;
+  const stub = ns.get(ns.idFromName(`org:${scope.orgId}:lib:${scope.libraryId}`)) as unknown as IndexStub;
+  return {
+    async call<T>(req: IndexOp): Promise<T> {
+      const r = await stub.call(scope, req);
+      if (!r.ok) throw new IndexCallError(r.code, r.message);
+      return r.value as T;
+    },
+  };
+}
