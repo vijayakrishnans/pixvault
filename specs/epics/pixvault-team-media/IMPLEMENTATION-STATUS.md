@@ -5,7 +5,7 @@ As-built ≠ intent. This file records what actually shipped and every place the
 | Milestone | State | PR |
 |---|---|---|
 | PV0: the spec | ✅ done 2026-11-27: PV-1 doc set + port inventory; PV-2 public, listing-ready repo; PV-3 WAITING.md | #3 (`0ca8a26`), #4 (`213d751`), PV-3 (this PR) |
-| PV1: libraries and access | in progress: PV-4 backend (libraries, roles, guests, media-worker, facade, matrix and isolation tests) | PV-4 (this PR) |
+| PV1: libraries and access | in progress: PV-4 backend landed; PV-5 multi-tenant profile | #6 (`dc41aa6`), PV-5 (this PR) |
 | PV2: index, storage, uploads | | |
 | PV3: serving | | |
 | PV4: pipeline and safety | | |
@@ -31,6 +31,12 @@ As-built ≠ intent. This file records what actually shipped and every place the
   and PV8 wait on it.
 
 ### PV1
+
+- **The baseline shipped in the Solo (single-user) profile.** It allowed one personal org per account and 404'd
+  org members, invitations and API keys at the edge. A teams product needs all of them, so PV-5 turns Solo off in
+  api-edge, identity-worker, membership-worker and the console. A side effect: new accounts no longer get a
+  personal org automatically, and they create their team org through the console's onboarding. The PV1 stage
+  smoke caught this on its first run (`403 solo_profile` on a second org).
 
 - **Org role names.** The brief's org "member" is Cirrus's `builder`. `billing_admin` has no library access.
 - **`everyone_in_org`** grants org builders `editor` and org viewers `viewer`. The brief didn't say which role.

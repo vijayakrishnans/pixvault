@@ -38,10 +38,12 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_DEPLOY_ENV: process.env.NEXT_PUBLIC_DEPLOY_ENV ?? "",
-    // M0 / Solo profile (Pixvault ships single-user). Build with
-    // NEXT_PUBLIC_SOLO_MODE=false to restore the full multi-tenant baseline.
-    // See specs/profiles/solo-m0.md.
-    NEXT_PUBLIC_SOLO_MODE: process.env.NEXT_PUBLIC_SOLO_MODE ?? "true",
+    // Pixvault runs the full multi-tenant profile: teams have members,
+    // invitations and API keys (PV-5). Build with NEXT_PUBLIC_SOLO_MODE=true
+    // for the single-user profile; see specs/profiles/solo-m0.md. Keep it in
+    // step with SOLO_MODE in the api-edge, identity-worker and
+    // membership-worker wrangler templates.
+    NEXT_PUBLIC_SOLO_MODE: process.env.NEXT_PUBLIC_SOLO_MODE ?? "false",
   },
 };
 
