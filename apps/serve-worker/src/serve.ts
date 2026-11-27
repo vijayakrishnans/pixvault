@@ -36,6 +36,8 @@ interface RouteValue {
 export interface ServeDeps {
   cache?: Cache | null;
   now?: () => number;
+  /** Monotonic clock for Server-Timing (tests inject one). */
+  clock?: () => number;
   waitUntil?: (p: Promise<unknown>) => void;
 }
 
@@ -114,7 +116,26 @@ function analytics(env: Env, request: Request, map: LibraryMap, route: RouteValu
   }
 }
 
+/**
+ * Serve one request and report the worker's own time in Server-Timing. In Workers the clock advances only across
+ * I/O, so `dur` is the time spent on KV, cache, R2 and Images: the part of TTFB the product controls, apart from the
+ * client's network.
+ */
 export async function serve(request: Request, env: Env, deps: ServeDeps = {}): Promise<Response> {
+  const clock = deps.clock ?? (() => performance.now());
+  const t0 = clock();
+  let res = await handle(request, env, deps);
+  const dur = Math.max(0, clock() - t0).toFixed(1);
+  try {
+    res.headers.set("server-timing", `worker;dur=${dur}`);
+  } catch {
+    res = new Response(res.body, res);
+    res.headers.set("server-timing", `worker;dur=${dur}`);
+  }
+  return res;
+}
+
+async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Response> {
   const now = deps.now?.() ?? Date.now();
   const url = new URL(request.url);
   if (url.pathname === "/health") return Response.json({ status: "ok", service: "serve-worker", environment: env.ENVIRONMENT ?? "local" });
