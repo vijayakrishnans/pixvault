@@ -16,7 +16,7 @@ export type IndexOp =
   | { op: "liveFileAt"; path: string }
   | { op: "getFile"; id: string }
   | { op: "getFileWithKey"; id: string }
-  | { op: "listFiles"; folder?: string; status?: "live" | "trashed"; uploadedBy?: string; cursor?: string; limit: number }
+  | { op: "listFiles"; folder?: string; status?: "live" | "trashed" | "review"; uploadedBy?: string; cursor?: string; limit: number }
   | { op: "versions"; id: string }
   | { op: "openSession"; session: Parameters<LibraryIndexCore["openSession"]>[0] }
   | { op: "getSession"; id: string }
@@ -33,6 +33,7 @@ export type IndexOp =
   | { op: "swapBlob"; input: Parameters<LibraryIndexCore["swapBlob"]>[0] }
   | { op: "finishProcessing"; id: string; sha256: string; result: ProcessingResult; nowIso: string }
   | { op: "reprocess"; id: string; nowIso: string }
+  | { op: "review"; id: string; decision: "approve" | "reject"; nowIso: string }
   | { op: "requeueAllRoutes"; nowIso: string }
   | { op: "randomPublic"; folder: string; mimePrefix: string };
 
@@ -86,6 +87,8 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
         return { ok: true, value: core.swapBlob(req.input) };
       case "finishProcessing":
         return { ok: true, value: core.finishProcessing(req.id, req.sha256, req.result, req.nowIso) };
+      case "review":
+        return { ok: true, value: core.review(req.id, req.decision, req.nowIso) };
       case "reprocess":
         return { ok: true, value: core.reprocess(req.id, req.nowIso) };
       case "requeueAllRoutes":
@@ -119,7 +122,7 @@ export class LibraryIndex extends DurableObject<Env> {
     const result = dispatch(this.core, scope, req);
     // The outbox drains on an alarm right away, so the request isn't held up by KV writes; sessions expire and
     // trash ages out on later alarms.
-    if (result.ok && (this.core.outboxSize() > 0 || req.op === "openSession" || req.op === "trash" || req.op === "commit" || req.op === "setVisibility" || req.op === "reprocess" || req.op === "restoreVersion")) {
+    if (result.ok && (this.core.outboxSize() > 0 || req.op === "openSession" || req.op === "trash" || req.op === "commit" || req.op === "setVisibility" || req.op === "reprocess" || req.op === "restoreVersion" || req.op === "review")) {
       await this.scheduleAlarm();
     }
     return result;

@@ -11,6 +11,7 @@ import type { Env } from "../env.js";
 import type { FileRow } from "../index-do/core.js";
 import { indexFor } from "../index-do/client.js";
 import { stripLocation, sniff } from "./metadata.js";
+import { moderate, smallJpeg, tagImage } from "./ai.js";
 import type { PipelineParams } from "./start.js";
 
 export interface StepConfig {
@@ -106,15 +107,51 @@ export async function runPipeline(env: Env, p: PipelineParams, step: Step, now: 
           }
         });
 
+    const isImage = cleaned.kind !== "other" && !cleaned.hold;
+    const currentKey = cleaned.key ?? target.objectKey;
+    const small = async () => {
+      const obj = await bucket.get(currentKey);
+      if (!obj || !("body" in obj)) throw new Error("object_missing");
+      return smallJpeg(env, obj.body);
+    };
+
+    // Held until safe: a public file on a free plan is shown only once moderation passes (design §4.3, PV-23).
+    let moderation: string = "skipped";
+    let modNote: string | null = null;
+    if (p.requireSafety) {
+      stage = "moderate";
+      if (!isImage) {
+        moderation = "not_applicable"; // GAPS G61: only images are moderated
+      } else {
+        const v = await step.do("moderate", RETRY, async () => {
+          const jpeg = await small();
+          if (!jpeg) return { outcome: "error" as const, categories: [] as string[] };
+          return moderate(env, jpeg);
+        });
+        moderation = v.outcome;
+        if (v.outcome === "fail") modNote = `flagged:${v.categories.join(",") || "unsafe"}`;
+        if (v.outcome === "error") modNote = "moderation_unavailable";
+      }
+    }
+
+    stage = "tags";
+    const tags = isImage
+      ? await step.do("tags", RETRY, async () => {
+          const jpeg = await small();
+          return jpeg ? tagImage(env, jpeg) : [];
+        })
+      : [];
+
     stage = "finish";
-    const note = cleaned.hold ?? (cleaned.removed.length ? `removed:${cleaned.removed.join(",")}` : null);
-    const status = cleaned.hold ? "held" : target.file.visibility;
+    const removedNote = cleaned.removed.length ? `removed:${cleaned.removed.join(",")}` : null;
+    const note = cleaned.hold ?? modNote ?? removedNote;
+    const status = cleaned.hold || moderation === "error" ? "held" : moderation === "fail" ? "flagged" : target.file.visibility;
     await step.do("finish", RETRY, () =>
       idx.call({
         op: "finishProcessing",
         id: p.fileId,
         sha256: currentSha,
-        result: { status, width: info.width, height: info.height, moderation: "skipped", note },
+        result: { status, width: info.width, height: info.height, moderation, tags, note },
         nowIso: now().toISOString(),
       }),
     );

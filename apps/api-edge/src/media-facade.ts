@@ -25,6 +25,7 @@ const ORG_LIBRARY_FILE_CONTENT_RE = new RegExp(`${L}\\/files\\/[^/]+\\/content$`
 const ORG_LIBRARY_FILE_RESTORE_RE = new RegExp(`${L}\\/files\\/[^/]+\\/restore$`);
 const ORG_LIBRARY_FILE_SIGNED_URL_RE = new RegExp(`${L}\\/files\\/[^/]+\\/signed-url$`);
 const ORG_LIBRARY_FILE_REPROCESS_RE = new RegExp(`${L}\\/files\\/[^/]+\\/reprocess$`);
+const ORG_LIBRARY_FILE_REVIEW_RE = new RegExp(`${L}\\/files\\/[^/]+\\/review$`);
 const ORG_LIBRARY_PIPELINE_FAILURES_RE = new RegExp(`${L}\\/pipeline-failures$`);
 const ORG_LIBRARY_FILE_VERSIONS_RE = new RegExp(`${L}\\/files\\/[^/]+\\/versions$`);
 const ORG_LIBRARY_FILE_VERSION_RESTORE_RE = new RegExp(`${L}\\/files\\/[^/]+\\/versions\\/\\d{1,6}\\/restore$`);
@@ -47,6 +48,7 @@ const ALLOWED: ReadonlyArray<[RegExp | string, ReadonlySet<string>]> = [
   [ORG_LIBRARY_FILE_RE, new Set(["GET", "DELETE", "PATCH"])],
   [ORG_LIBRARY_FILE_SIGNED_URL_RE, new Set(["POST"])],
   [ORG_LIBRARY_FILE_REPROCESS_RE, new Set(["POST"])],
+  [ORG_LIBRARY_FILE_REVIEW_RE, new Set(["POST"])],
   [ORG_LIBRARY_PIPELINE_FAILURES_RE, new Set(["GET"])],
   [ORG_LIBRARY_FILE_CONTENT_RE, new Set(["GET"])],
   [ORG_LIBRARY_FILE_RESTORE_RE, new Set(["POST"])],

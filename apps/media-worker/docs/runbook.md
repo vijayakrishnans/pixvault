@@ -38,3 +38,6 @@ exercised through `api-edge` (this Worker has no public URL).
   10 minutes. Runs are listed in the Cloudflare dashboard under Workflows → `pixvault-process-file-<env>`.
 - **A file is `held` with `failed:<step>`**: its run failed after retries. `GET …/libraries/{lib}/pipeline-failures`
   lists them (ids and step names only); `POST …/files/{fil}/reprocess` runs it again.
+- **Files `flagged` or `held` with `moderation_unavailable`**: moderation said unsafe, or its answer couldn't be read.
+  Editors and managers see them at `GET …/files?review=1` and decide with `POST …/files/{fil}/review`
+  (`approve` | `reject`). A file held with `failed:<step>` can't be approved: reprocess it.

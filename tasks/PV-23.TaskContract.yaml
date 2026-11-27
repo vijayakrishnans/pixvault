@@ -1,0 +1,24 @@
+# PV-23: PV4, moderation, tags and review. Minted under milestone PV4; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-23
+spec:
+  goal: "A public image on a free plan is served only after Workers AI moderation passes: unsafe is flagged, an unreadable or unavailable answer holds it, and editors and managers approve or reject held and flagged files in a review queue. Images get up to three AI tags."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/api-edge/**
+    - tests/api-edge/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "a free-plan public upload isn't served until the safety step passes (test)"
+    - "an unclear model answer never counts as a pass (test)"
+    - "on stage, a synthetic public image on a free plan is moderated by the real model and served"
+  gates: []

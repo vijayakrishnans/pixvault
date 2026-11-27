@@ -62,13 +62,17 @@ async function canRead(ctx: Ctx, a: Awaited<ReturnType<typeof loadAuthorized>> &
   return f.uploaded_by === ctx.actor.subjectId && (await authorizeOnLibrary(ctx.env, ctx.actor, "file.read.own", a.lib, a.facts, ctx.requestId));
 }
 
-/** GET …/files?folder=&trash=1&cursor=&limit= */
+/** GET …/files?folder=&trash=1&review=1&cursor=&limit= */
 export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, libraryId: string): Promise<Response> {
   const a = await loadAuthorized(ctx, orgId, libraryId, "library.read");
   if (!a.ok) return a.response;
   const trash = url.searchParams.get("trash") === "1";
+  const review = url.searchParams.get("review") === "1";
   let uploadedBy: string | undefined;
-  if (trash) {
+  if (review) {
+    // The review queue: held and flagged files, for the people who decide on them.
+    if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "review.decide", a.lib, a.facts, ctx.requestId))) return nf(ctx);
+  } else if (trash) {
     if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.restore", a.lib, a.facts, ctx.requestId))) return nf(ctx);
   } else if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list", a.lib, a.facts, ctx.requestId))) {
     if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list.own", a.lib, a.facts, ctx.requestId))) return nf(ctx);
@@ -83,7 +87,7 @@ export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, library
   const r = await indexFor(ctx.env, { orgId, libraryId }).call<{ files: FileRow[]; nextCursor: string | null }>({
     op: "listFiles",
     ...(folder !== undefined ? { folder } : {}),
-    status: trash ? "trashed" : "live",
+    status: review ? "review" : trash ? "trashed" : "live",
     ...(uploadedBy ? { uploadedBy } : {}),
     ...(cursor ? { cursor } : {}),
     limit,
@@ -270,4 +274,26 @@ export async function handleSignedUrl(ctx: Ctx, request: Request, orgId: string,
   const signed = await signedFileUrl(ctx.env, l.a.lib, l.file.path, expiresIn, ctx.now());
   if (!signed) return errorResponse("unavailable", "Links aren't available for this library yet", 409, ctx.requestId);
   return successResponse(signed, ctx.requestId);
+}
+
+/** POST …/files/{fil}/review { decision: "approve" | "reject" } (editors and managers: review.decide) */
+export async function handleReviewFile(ctx: Ctx, request: Request, orgId: string, libraryId: string, fileId: string): Promise<Response> {
+  let body: { decision?: unknown } | undefined;
+  try {
+    body = (await request.json()) as { decision?: unknown };
+  } catch {
+    body = undefined;
+  }
+  if (!body || (body.decision !== "approve" && body.decision !== "reject")) return validationError(ctx.requestId, { decision: ["Must be approve or reject"] });
+  const l = await loadFile(ctx, orgId, libraryId, fileId);
+  if (!l.ok) return l.response;
+  if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "review.decide", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
+  try {
+    const f = await l.idx.call<FileRow>({ op: "review", id: fileId, decision: body.decision, nowIso: ctx.now().toISOString() });
+    return successResponse({ file: toPublicFile(f, l.a.lib, ctx.env) }, ctx.requestId);
+  } catch (e) {
+    if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
+    if (e instanceof IndexCallError && e.code === "invalid_state") return errorResponse("conflict", e.message, 409, ctx.requestId);
+    throw e;
+  }
 }
