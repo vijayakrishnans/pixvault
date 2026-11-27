@@ -1,0 +1,19 @@
+# PV-8: PV1 fix-forward, media-web renders under its CSP (no eval). Minted under milestone PV1.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-8
+spec:
+  goal: "The deployed media-web renders under its strict CSP: vue-i18n compiles messages without eval, and the build fails if any shipped script contains new Function or eval."
+  affects:
+    - default/pixvault/media-web
+    - apps/media-web/vite.config.js
+    - apps/media-web/package.json
+    - apps/media-web/scripts/**
+    - apps/media-web/component.yaml
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - the media-web build fails on new Function or eval in dist/assets
+    - the browser flow (sign in, team, default library, invite, save) passes against the deployed stage app with no CSP errors
+  gates: []
