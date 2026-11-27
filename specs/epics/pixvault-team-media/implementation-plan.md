@@ -6,7 +6,7 @@ A milestone is marked ✅ here when its **Done when** list is true, and recorded
 PR that lands its last task. Upstream sources are cited at `CloudFlare-ImgBed@611153e` and `Sanyue-ImgHub@1621525`;
 `port/README.md` lists every file.
 
-## PV0: the spec
+## PV0: the spec ✅
 
 PV-1 lands this doc set, the task contract and `tools/port-inventory` with its generated `port/*.json`. PV-2 makes
 the repo public and ready to list (LICENSE MIT, THIRD_PARTY_NOTICES, SECURITY, CONTRIBUTING, ABUSE, README with the

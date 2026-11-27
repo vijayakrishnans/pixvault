@@ -1,0 +1,16 @@
+# PV-3: the human items. Minted in Orunbase under milestone PV0; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-3
+spec:
+  goal: "Every item Pixvault needs from a human is in WAITING.md with exact steps and an unblock signal, and PV0 is closed in the epic's status."
+  affects:
+    - WAITING.md
+    - specs/epics/pixvault-team-media/**
+    - ai/context/pixvault-ledger.md
+    - tasks/**
+  doneWhen:
+    - WAITING.md on main lists each human item with steps and an unblock signal
+    - implementation-plan.md marks PV0 done and IMPLEMENTATION-STATUS.md records PV-1, PV-2 and PV-3
+  gates: []

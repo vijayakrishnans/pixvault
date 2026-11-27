@@ -15,7 +15,7 @@ measured numbers, deferred items.
 | workers.dev subdomain | `vijayakrishnan12994` (verified against a live Worker on the same connection) |
 | Repo | https://github.com/vijayakrishnans/pixvault (public) |
 | Baseline | `cirrus-baseline` `baseline-v29`. `cirrus` is retired in the registry and this is its successor |
-| Product domain | none yet; `pixvault.app` isn't registered (WAITING W6) |
+| Product domain | none yet; `pixvault.app` isn't registered (WAITING W-6) |
 | IMGBED_REF | `MarSeventh/CloudFlare-ImgBed@611153e47cc839ecf28b344bcd233032a37cc216` (2026-11-21) |
 | IMGHUB_REF | `MarSeventh/Sanyue-ImgHub@1621525ce523782852d46d43c4cf3d036dda520b` (2026-11-21) |
 | Epic | EP-2 `pixvault-team-media` (`epc_MZ72W460`); the bootstrap's own epic is EP-1 `infra-baselining` |
@@ -50,8 +50,7 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 
 ## Open risks and deferred items
 
-See `specs/epics/pixvault-team-media/risks-and-open-questions.md` and the operator's `pixvault-WAITING.md`
-(W3 Docker, W5 nexo revoked, W6 domain, plus the PV-3 entries once landed).
+See `specs/epics/pixvault-team-media/risks-and-open-questions.md` and [`WAITING.md`](../../WAITING.md) (W-1 … W-9).
 
 ## Pointers
 
