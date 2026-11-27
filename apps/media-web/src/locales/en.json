@@ -142,5 +142,29 @@
       "verifying": "Verifying",
       "done": "Uploaded"
     }
+  },
+  "links": {
+    "open": "Links",
+    "public": "Public",
+    "private": "Private",
+    "makePublic": "Public",
+    "publicHint": "Anyone with the link can see this file.",
+    "privateHint": "Only people in this library can open it. Create a link that expires to share it.",
+    "createSigned": "Create link",
+    "expires": "Expires {at}",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Couldn't copy: select the text and copy it",
+    "ttl": {
+      "hour": "1 hour",
+      "day": "1 day",
+      "week": "7 days"
+    },
+    "format": {
+      "url": "URL",
+      "markdown": "Markdown",
+      "html": "HTML",
+      "bbcode": "BBCode"
+    }
   }
 }

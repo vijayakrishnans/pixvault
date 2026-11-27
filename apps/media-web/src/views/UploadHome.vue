@@ -73,7 +73,7 @@
       <el-table v-loading="filesLoading" :data="files" :empty-text="tab === 'trash' ? $t('upload.trashEmpty') : $t('upload.empty')">
         <el-table-column :label="$t('upload.name')" min-width="220">
           <template #default="{ row }">
-            <div class="fname">{{ row.name }}</div>
+            <div class="fname">{{ row.name }} <el-tag v-if="row.visibility === 'public'" size="small" type="success">{{ $t("links.public") }}</el-tag></div>
             <div class="pv-muted small">{{ row.folder }}</div>
           </template>
         </el-table-column>
@@ -83,9 +83,10 @@
         <el-table-column :label="tab === 'trash' ? $t('upload.trashed') : $t('upload.uploaded')" width="170">
           <template #default="{ row }">{{ new Date(tab === "trash" ? row.trashedAt : row.createdAt).toLocaleString() }}</template>
         </el-table-column>
-        <el-table-column width="190" align="right">
+        <el-table-column width="250" align="right">
           <template #default="{ row }">
             <template v-if="tab === 'files'">
+              <el-button size="small" text type="primary" data-test="links" @click="linkFile = row">{{ $t("links.open") }}</el-button>
               <el-button size="small" text @click="download(row)">{{ $t("upload.download") }}</el-button>
               <el-button v-if="canTrash" size="small" text type="danger" @click="trash(row)">{{ $t("upload.delete") }}</el-button>
             </template>
@@ -97,6 +98,7 @@
         </el-table-column>
       </el-table>
       <div v-if="nextCursor" class="more"><el-button @click="loadFiles(true)">{{ $t("upload.more") }}</el-button></div>
+      <LinkDialog :file="linkFile" :org="org" :lib="lib" :can-edit="canTrash" @close="linkFile = null" @updated="onFileUpdated" />
     </template>
   </AppShell>
 </template>
@@ -106,13 +108,14 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api/client";
 import { uploadFile } from "@/api/uploader";
 import AppShell from "@/components/AppShell.vue";
+import LinkDialog from "@/components/LinkDialog.vue";
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"];
 let seq = 0;
 
 export default {
   name: "LibraryHome",
-  components: { AppShell },
+  components: { AppShell, LinkDialog },
   props: { org: { type: String, required: true }, lib: { type: String, required: true } },
   data: () => ({
     loading: true,
@@ -126,6 +129,7 @@ export default {
     files: [],
     nextCursor: null,
     filesLoading: false,
+    linkFile: null,
   }),
   computed: {
     canUpload() {
@@ -238,6 +242,10 @@ export default {
       // Pasted screenshots are all called "image.png": give each a unique, dated name.
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       this.enqueue(files.map((f, i) => (f.name === "image.png" ? new File([f], `paste-${stamp}-${i}.png`, { type: f.type }) : f)));
+    },
+    onFileUpdated(file) {
+      this.files = this.files.map((f) => (f.id === file.id ? file : f));
+      this.linkFile = file;
     },
     async download(row) {
       try {

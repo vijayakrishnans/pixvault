@@ -117,6 +117,8 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
       trashFile: (org, id, fileId) => request("DELETE", `${lib(org, id)}/files/${encodeURIComponent(fileId)}`),
       restoreFile: (org, id, fileId) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/restore`),
       purgeFile: (org, id, fileId) => request("DELETE", `${lib(org, id)}/files/${encodeURIComponent(fileId)}?permanent=1`),
+      setVisibility: (org, id, fileId, visibility) => request("PATCH", `${lib(org, id)}/files/${encodeURIComponent(fileId)}`, { visibility }),
+      signedUrl: (org, id, fileId, expiresIn) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/signed-url`, { expiresIn }),
       acceptInvitations: () => request("POST", "/v1/media/invitations/accept"),
     },
   };

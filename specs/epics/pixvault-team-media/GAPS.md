@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-27, PV-19._
+_Last updated: 2026-11-27, PV-20 (PV3 closed)._
 
 ## Blocked
 
@@ -52,7 +52,7 @@ _Last updated: 2026-11-27, PV-19._
 | G19 | **URL upload** (`functions/api/fetchRes.js`, IB-032) | §6 screen 2 | Needs an SSRF guard (no private ranges, a size cap); not on PV2's acceptance list. | You can't paste a URL to upload. | PV5 |
 | G20 | **File expiry ("expires at")** (`functions/api/manage/expiry.js`, IB-052) | §4.4 | It goes with the purge Workflows. | No per-file expiry. | PV4 |
 | G21 | **Folder upload** (`directoryTraversal.js`, IH-095) | §6 screen 2 | Needs the folder tree UI. | Dropping a folder uploads nothing (files only). | PV5 |
-| G22 | **Link formats** (URL, Markdown, HTML, BBCode; `urlBuilder.js`, IH-098) | §6 screen 2 | There are no public or signed URLs until serving exists. | After uploading, there's no link to copy, only Download. | **PV3** |
+| G22 | **Link formats** (URL, Markdown, HTML, BBCode; `urlBuilder.js`, IH-098) | §6 screen 2 | **Built in PV-20**: a Links dialog per file with all four formats, each escaped for its format (upstream inserted names raw), images embedded and other files linked; signed links (1 h, 1 day, 7 days) for private files; a public/private switch for editors and managers. | No custom link prefix (upstream `rootUrl`), and the upload queue doesn't show links (open them from the file list). | Custom domains PV10; queue links PV5 |
 | G23 | **Upload history and the upload settings dialog** (IH-057, IH-058) | §6 screen 2 | Not on PV2's acceptance list. | No per-user history panel or naming options. | PV5 |
 | G24 | **Image compression and format conversion before upload** (`fileFormat.js`, `animatedImage.js`, `FileFormatSettings.vue`) | ImgBed client options | Server-side transforms (PV3) cover most of the need. | No client-side compression or WebP conversion. | PV9 (with the ImgBed-compatible options) |
 | G25 | **Version history in the app** | §6 screen 4 (file drawer) | The API exists (`GET …/versions`, `POST …/versions/{n}/restore`); the drawer is PV5. | Versions can be restored only through the API. | PV5 |
@@ -93,6 +93,8 @@ _Last updated: 2026-11-27, PV-19._
 | G51 | **No serving analytics in the app yet** | Data points are written (library, file, referrer host, country, preset, outcome, bytes; no IP), but nothing reads them. | Reading Analytics Engine needs the SQL API with an Account Analytics Read token, which the brokered templates don't include. | Add the scope (W-3) and a usage page, PV11 (G33) |
 | G52 | **`cloudflare-worker-turbo` gives the smoke step no URL or environment name** | PV-17's first deploy succeeded but its smoke failed (`DEPLOYED_URL: unbound variable`): only `cloudflare-workers-assets-turbo` sets it, and parameters aren't rendered with the environment. | serve-worker sets `SERVE_URL` per environment under `subscribe.environments[].env` (the plan puts it in the job's env), and the smoke reads it. CI also runs the smoke **once** (prod's first deploy failed in 0.3 s on the new route's 404 window), so the smoke retries for 30 s itself (PV-19). | Upstream: export `DEPLOYED_URL` from the worker type too (orun-cloud compositions) |
 | G53 | **No latency measurement from a well-connected client** | From the build box, `/health` alone has p95 over 300 ms and some connections time out, so client TTFB says nothing about the worker. | Every response carries `Server-Timing: worker;dur=…` (the worker's own I/O time), and the PV3 latency criterion is measured from it. | A synthetic check from a cloud runner near an edge (Cloudflare Health Checks or a scheduled CI probe), PV11 |
+| G54 | **No `serve_routes` D1 mirror** | Design §2.5 keeps a D1 copy of every route so KV can be rebuilt. | Each library's index is already the source: `requeueAllRoutes` re-publishes every live file's route (used for pre-PV3 libraries). A D1 mirror would be a third copy and cost ~250 ms per write (G34). | Add an admin "rebuild routes" action that walks libraries and calls `requeueAllRoutes`, PV11 |
+| G55 | **No blocked list (451)** | Serving has no per-file block that answers 451 Unavailable For Legal Reasons. | Held and flagged files already return 404; the 451 path belongs with moderation and takedown. | PV4 |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed

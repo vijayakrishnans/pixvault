@@ -61,3 +61,15 @@ test("token storage survives a storage that throws", () => {
   setToken(null, ok);
   assert.equal(getToken(ok), null);
 });
+
+test("visibility and signed links call the file routes", async () => {
+  const f = fakeFetch(200, { data: { url: "u", expiresAt: "t" } });
+  const c = createClient({ base: "https://edge", fetchImpl: f.fn, token: () => "tok" });
+  await c.libraries.setVisibility("org_1", "lib_2", "fil_3", "public");
+  assert.equal(f.calls[0].url, "https://edge/v1/organizations/org_1/libraries/lib_2/files/fil_3");
+  assert.equal(f.calls[0].init.method, "PATCH");
+  assert.deepEqual(JSON.parse(f.calls[0].init.body), { visibility: "public" });
+  assert.deepEqual(await c.libraries.signedUrl("org_1", "lib_2", "fil_3", 3600), { url: "u", expiresAt: "t" });
+  assert.equal(f.calls[1].url, "https://edge/v1/organizations/org_1/libraries/lib_2/files/fil_3/signed-url");
+  assert.deepEqual(JSON.parse(f.calls[1].init.body), { expiresIn: 3600 });
+});
