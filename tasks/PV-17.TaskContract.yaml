@@ -1,0 +1,21 @@
+# PV-17: PV3, serve-worker. Minted under milestone PV3; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-17
+spec:
+  goal: "serve-worker serves public files at /<orgSlug>/<libSlug>/<path> from one KV route and R2 (edge-cached), private files only with a valid signature, preset transforms through the Images binding, the library's referrer and IP rules, a per-IP rate limit, the random-image API, and an Analytics Engine data point per serve."
+  affects:
+    - default/pixvault/serve-worker
+    - default/pixvault/serve-worker-tests
+    - apps/serve-worker/**
+    - tests/serve-worker/**
+    - pnpm-lock.yaml
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "a file in library A can't be served through library B's path (test)"
+    - "a forged, altered or expired signature never serves a private file (test)"
+    - "a preset outside the library's list is refused and not transformed (test)"
+    - "on stage, a public file serves and a cached public file's p95 TTFB is under 100 ms"
+  gates: []

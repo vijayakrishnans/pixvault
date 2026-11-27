@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-27, PV-16._
+_Last updated: 2026-11-27, PV-17._
 
 ## Blocked
 
@@ -57,7 +57,7 @@ _Last updated: 2026-11-27, PV-16._
 | G24 | **Image compression and format conversion before upload** (`fileFormat.js`, `animatedImage.js`, `FileFormatSettings.vue`) | ImgBed client options | Server-side transforms (PV3) cover most of the need. | No client-side compression or WebP conversion. | PV9 (with the ImgBed-compatible options) |
 | G25 | **Version history in the app** | §6 screen 4 (file drawer) | The API exists (`GET …/versions`, `POST …/versions/{n}/restore`); the drawer is PV5. | Versions can be restored only through the API. | PV5 |
 | G26 | **Webhook and activity events per file** (`file.uploaded`, …) | §4.7, §4.8 | Library-level actions are audited, but per-file events need the outbox (G16). | No webhooks and no file activity yet. | PV3 (outbox), PV5 (activity) |
-| G27 | **Library settings enforcement**: referrer and IP rules, random API toggle | §2.5 | Stored and validated since PV1; serving enforces them. | Settings have no effect yet. | **PV3** |
+| G27 | **Library settings enforcement**: referrer and IP rules, random API toggle | §2.5 | **Enforced by serve-worker in PV-17**: referrer allow list (subdomains included; direct visits allowed), IP allow and block lists (exact IPv4/IPv6, IPv4 CIDR), the random API toggle and the preset list. | IPv6 CIDR ranges aren't matched, only exact IPv6 addresses. Direct visits with no Referer are always allowed (the upstream behaviour too). | IPv6 CIDR: PV11 |
 | G28 | **Blocked executable types for free orgs** | §4.9 | Part of the safety pipeline. | Any MIME type can be uploaded unless the library restricts types. | PV4 |
 
 ## Partial
@@ -87,6 +87,10 @@ _Last updated: 2026-11-27, PV-16._
 | G45 | **Signing keys live in D1 and the routes KV, not a secret store** | Anyone with read access to the stage/prod D1 or the routes namespace could forge signed URLs for that library. Both are reachable only by bound Workers and Cloudflare account admins. | Per-library random 32-byte keys (migration 220), never in API responses (tested); versioned so they can rotate. Writing keys through the Orunbase secret store is a secret-store write, which agents are blocked from. | Wrap them with a root key from the secret store (the user sets one value), PV11 |
 | G46 | **An org slug captured at library creation won't follow an org rename** | Renaming an org would leave its libraries serving under the old slug, and new links would differ from old ones. | Captured once (`media_libraries.org_slug`). Cirrus has no org-rename UI in this product yet. | Re-publish maps on rename and keep the old slug as a redirect, PV11 |
 | G47 | **No key-rotation API** | Signing keys can't be rotated yet. | The signature format carries the key version (`<v>.<mac>`), and maps hold keys by version, so rotation is additive. | PV6 (sharing) |
+| G48 | **Public serving is on workers.dev, not `i.<domain>`** | Links look like `pixvault-serve-worker-<env>.<sub>.workers.dev/<org>/<lib>/<path>`; changing host later breaks every link already shared. | serve-worker deploys with `workers_dev: true`. A custom domain needs a zone and Zone Settings/SSL scope the brokered tokens don't have (W-3). | Attach a custom domain once W-3 is decided; keep workers.dev answering with redirects, PV10 |
+| G49 | **Presets only; no arbitrary width/height/quality** | ImgBed accepts any `w`/`h` up to 4096. Pixvault accepts only the library's presets (thumb 200², small 480, medium 960, large 1920). | Deliberate (risk PV-B): arbitrary sizes let anyone mint unbounded unique transforms on a public URL. | Per-library custom presets in settings, PV9 |
+| G50 | **Edge cache isn't purged on trash or visibility change** | A trashed or made-private file stops serving at once only because its route is checked before the cache; KV route reads are edge-cached up to 60 s, so it can take up to a minute. | The cache is keyed by bytes' hash and is read only after the route; route reads use `cacheTtl: 60`. | Shorter `cacheTtl` or a purge on change if 60 s proves too long, PV4 (moderation needs it) |
+| G51 | **No serving analytics in the app yet** | Data points are written (library, file, referrer host, country, preset, outcome, bytes; no IP), but nothing reads them. | Reading Analytics Engine needs the SQL API with an Account Analytics Read token, which the brokered templates don't include. | Add the scope (W-3) and a usage page, PV11 (G33) |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed
