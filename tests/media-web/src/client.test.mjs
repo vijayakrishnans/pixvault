@@ -73,3 +73,16 @@ test("visibility and signed links call the file routes", async () => {
   assert.equal(f.calls[1].url, "https://edge/v1/organizations/org_1/libraries/lib_2/files/fil_3/signed-url");
   assert.deepEqual(JSON.parse(f.calls[1].init.body), { expiresIn: 3600 });
 });
+
+test("review, reprocess and the review list call their routes", async () => {
+  const f = fakeFetch(200, { data: { file: { id: "fil_3" }, files: [], nextCursor: null } });
+  const c = createClient({ base: "https://edge", fetchImpl: f.fn, token: () => "tok" });
+  await c.libraries.review("org_1", "lib_2", "fil_3", "approve");
+  assert.equal(f.calls[0].url, "https://edge/v1/organizations/org_1/libraries/lib_2/files/fil_3/review");
+  assert.deepEqual(JSON.parse(f.calls[0].init.body), { decision: "approve" });
+  await c.libraries.reprocess("org_1", "lib_2", "fil_3");
+  assert.equal(f.calls[1].url, "https://edge/v1/organizations/org_1/libraries/lib_2/files/fil_3/reprocess");
+  assert.equal(f.calls[1].init.method, "POST");
+  await c.libraries.files("org_1", "lib_2", { review: true });
+  assert.equal(f.calls[2].url, "https://edge/v1/organizations/org_1/libraries/lib_2/files?review=1");
+});

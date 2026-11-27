@@ -106,10 +106,11 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
       revokeInvitation: (org, id, invitationId) => request("DELETE", `${lib(org, id)}/invitations/${encodeURIComponent(invitationId)}`),
       guestLibraries: () => request("GET", "/v1/media/libraries"),
       usage: (org) => request("GET", `/v1/organizations/${encodeURIComponent(org)}/media-usage`),
-      files: (org, id, { folder, trash, cursor } = {}) => {
+      files: (org, id, { folder, trash, review, cursor } = {}) => {
         const q = new URLSearchParams();
         if (folder) q.set("folder", folder);
         if (trash) q.set("trash", "1");
+        if (review) q.set("review", "1");
         if (cursor) q.set("cursor", cursor);
         const qs = q.toString();
         return request("GET", `${lib(org, id)}/files${qs ? `?${qs}` : ""}`);
@@ -119,6 +120,8 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
       purgeFile: (org, id, fileId) => request("DELETE", `${lib(org, id)}/files/${encodeURIComponent(fileId)}?permanent=1`),
       setVisibility: (org, id, fileId, visibility) => request("PATCH", `${lib(org, id)}/files/${encodeURIComponent(fileId)}`, { visibility }),
       signedUrl: (org, id, fileId, expiresIn) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/signed-url`, { expiresIn }),
+      review: (org, id, fileId, decision) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/review`, { decision }),
+      reprocess: (org, id, fileId) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/reprocess`),
       acceptInvitations: () => request("POST", "/v1/media/invitations/accept"),
     },
   };

@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-25._
+_Last updated: 2026-11-28, PV-26 (PV4 closed)._
 
 ## Blocked
 

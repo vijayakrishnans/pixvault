@@ -85,7 +85,7 @@ the random-image API and Analytics Engine data points.
 index (`requeueAllRoutes`) instead of a `serve_routes` mirror (G54). The 451 blocked list waits for moderation
 (G55), key rotation for sharing (G47). Ledger: *Measured*.
 
-## PV4: pipeline and safety
+## PV4: pipeline and safety ✅
 
 This milestone adds `ProcessFileWorkflow` (metadata, EXIF GPS strip, thumbnail, blurhash, moderation,
 held-until-safe for free public uploads, AI tags, index and FTS update, events), Queues with a DLQ and a replay
@@ -102,6 +102,13 @@ returning 451 with a notice page, org suspension, and CSAM scanning on serving h
 - a takedown blocks serving within 1 minute, measured on stage
 - `docs/ops/abuse-runbook.md` is on `main`
 - GPS EXIF is absent from a stored fixture JPEG by default
+
+**As built (2026-11-28):** **Workflows instead of Queues** (the user's decision; GAPS G56): a failed run holds the
+file and writes `media_pipeline_failures`, replayed per file or listed for operators. Location removal covers JPEG,
+PNG and WebP (G57). Moderation by a Workers AI vision model for free-plan public images; unclear answers hold the
+file (G61, G62). Abuse cases, takedown (451) and suspension through operator APIs (G65, G68). CSAM scanning waits for
+a serving zone (W-5, G69). Stage: GPS removed and served clean in 14 s; the real model passed a safe synthetic image;
+a takedown answered 451 after 3.3 s. Ledger: *Measured*.
 
 ## PV5: library browser and live collaboration
 

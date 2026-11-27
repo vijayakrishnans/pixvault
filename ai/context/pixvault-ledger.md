@@ -89,6 +89,12 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
   `/health` alone at p95 321–352 ms and some connect timeouts, so the tail is this client's network (G53).
 - PV3 propagation (PV-21, 2026-11-27): a switch to public served after 51 s with KV `cacheTtl` 60; with 30 (KV's
   minimum) 21.6 s, 20.8 s, 20.5 s over three runs. Headless Links flow on the stage app: 11/11.
+- PV4 stage (2026-11-28): a canvas-drawn JPEG with a made-up GPS IFD → `processing` at commit → public 14.1–14.5 s
+  later with `removed:exif.gps`, 320×200 recorded; stored, downloaded and served bytes carry no GPS (8/8). The real
+  moderation model (`@cf/mistralai/mistral-small-3.1-24b-instruct`) passed it; tags `["envelope"]`. PV-23's first
+  run held it (`moderation_unavailable`): the binding returns the answer already parsed, fixed in PV-24.
+- PV4 takedown (2026-11-28): report through `/_report` → case listed for a temporary stage operator → takedown →
+  **451 after 3.3 s** at a warmed edge; reinstate → public. The operator row was removed afterwards (0 operators).
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items
