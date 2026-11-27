@@ -1,0 +1,15 @@
+# PV-18: PV3, serve-worker smoke fix. Minted under milestone PV3; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-18
+spec:
+  goal: "serve-worker's deploy smoke checks its own environment's /health. The cloudflare-worker-turbo type sets no DEPLOYED_URL, so the URL comes from the component's per-environment env."
+  affects:
+    - default/pixvault/serve-worker
+    - apps/serve-worker/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "the main convergence after merge passes serve-worker stage and prod, smoke included"
+  gates: []

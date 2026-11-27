@@ -59,6 +59,8 @@ spec:
       - name: dev
         profile: verify
       - name: stage
+        env:
+          SERVE_URL: https://pixvault-serve-worker-stage.vijayakrishnan12994.workers.dev
         # Peer edges are runtime calls, not deploy order: every binding target
         # exists before this deploys (policy-worker's pre-deploy places one,
         # tooling/deploy/fleet-stubs.mjs), so nothing in this lane waits on a
@@ -70,6 +72,8 @@ spec:
             when:
               triggerRef: github-push-main
       - name: prod
+        env:
+          SERVE_URL: https://pixvault-serve-worker-prod.vijayakrishnan12994.workers.dev
         # Peer edges are runtime calls, not deploy order: every binding target
         # exists before this deploys (policy-worker's pre-deploy places one,
         # tooling/deploy/fleet-stubs.mjs), so nothing in this lane waits on a
@@ -105,7 +109,9 @@ spec:
     deployCommand: pnpm exec wrangler deploy --config wrangler.jsonc --env prod
     preDeployCommand: "echo 'No pre-deploy step configured.'"
     migrationCommand: "echo 'No migrations configured.'"
-    smokeCommand: "ok=; for i in 1 2 3 4 5 6 7 8 9 10; do b=$(curl -sf \"${DEPLOYED_URL}/health\") && case \"$b\" in *'serve-worker'*) ok=1 ;; esac; [ -n \"$ok\" ] && break; sleep 3; done; [ -n \"$ok\" ] || { echo 'serve-worker: /health not ok after 30 s'; false; }"
+    # SERVE_URL comes from this component's per-environment env (above): this type has no DEPLOYED_URL.
+    # The composition retries the smoke with backoff.
+    smokeCommand: "b=$(curl -sf \"${SERVE_URL}/health\") && case \"$b\" in *'serve-worker'*) true ;; *) echo 'serve-worker: /health not ok'; false ;; esac"
   labels:
     team: platform
     layer: runtime
