@@ -1,0 +1,18 @@
+# PV-13: PV2 fix, stream the commit hash (crypto.DigestStream), never buffer. Minted under milestone PV2.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-13
+spec:
+  goal: "Commit verification streams objects of any size through crypto.DigestStream; the buffered fallback refuses anything over 64 MiB, so a 200 MB or 2 GB upload commits instead of hitting the 128 MB memory limit."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - apps/media-worker/src/storage/**
+    - tests/media-worker/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "sha256OfObject uses crypto.DigestStream when the runtime has it, and refuses to buffer more than 64 MiB otherwise (test)"
+    - "on stage, 200 MB and 2 GB uploads commit with matching SHA-256"
+  gates: []

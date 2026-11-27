@@ -291,3 +291,24 @@ export class FakeIndexNamespace {
     return { call: async (scope: { orgId: string; libraryId: string }, req: never) => structuredClone(dispatch(c, scope, req)) };
   }
 }
+
+/** A stand-in for workerd's crypto.DigestStream: a WritableStream that hashes as it goes. */
+export class FakeDigestStream extends WritableStream<Uint8Array> {
+  digest: Promise<ArrayBuffer>;
+  constructor(_alg: string) {
+    const h = createHash("sha256");
+    let resolve!: (b: ArrayBuffer) => void;
+    const done = new Promise<ArrayBuffer>((r) => (resolve = r));
+    super({
+      write(chunk) {
+        h.update(chunk);
+      },
+      close() {
+        const d = h.digest();
+        resolve(d.buffer.slice(d.byteOffset, d.byteOffset + d.length));
+      },
+    });
+    this.digest = done;
+  }
+}
+

@@ -89,3 +89,8 @@ As-built ≠ intent. This file records what actually shipped and every place the
   (owner/admin), which an editor's or guest's upload doesn't have. Mirroring usage into metering needs a service
   path in metering-worker; it's a follow-up, recorded in risks (PV-L). Defaults: 10 GiB stored, 2,000
   uploads/month, 2 GiB per file.
+- **The first stage run failed every commit above about 128 MB** with "Memory limit would be exceeded before EOF".
+  The streaming digest was looked up as a global, but workerd exposes it as `crypto.DigestStream`, so commits
+  took a buffered fallback meant for tests. A 70 MB file fit, and local workerd doesn't enforce the memory limit,
+  so neither caught it. Workers Logs (PV-12) named it. PV-13 uses `crypto.DigestStream`, and the fallback now
+  refuses more than 64 MiB.
