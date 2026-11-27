@@ -1,0 +1,17 @@
+# PV-15: PV3, the serving routes KV namespace. Minted under milestone PV3; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-15
+spec:
+  goal: "Each environment has a media routes KV namespace, created by a new cloudflare-kv-media root and published as WIRING_CLOUDFLARE_KV_MEDIA (media_routes_kv_id), for serve-worker and media-worker to bind."
+  affects:
+    - default/pixvault/cloudflare-kv-media
+    - infra/terraform/cloudflare-kv-media/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+    - WAITING.md
+  doneWhen:
+    - the convergence of this merge applies cloudflare-kv-media on stage and prod, adding one namespace
+    - WIRING_CLOUDFLARE_KV_MEDIA exists for stage and prod
+  gates: []

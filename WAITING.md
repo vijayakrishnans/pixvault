@@ -48,8 +48,11 @@ Workflows, KV, D1 and R2.
 - **Workers AI** and **Analytics Engine** bindings deploy under Workers Scripts Write; the first PV3 and PV4
   deploys confirm this.
 
+- **Workers KV Storage Read** in `workers-deploy`. It has Write only, which Cloudflare's API doesn't treat as
+  Read, so an existing KV root can't be refreshed (GAPS G44; PV-15 worked around it with a new root).
+
 **Steps:** in orun-cloud (`apps/integrations-worker/src/providers/cloudflare.ts`), add templates for these
-permission groups. Then make sure the parent Cloudflare connection's token holds those groups (reconnect with a
+permission groups (and Read to `workers-deploy`). Then make sure the parent Cloudflare connection's token holds those groups (reconnect with a
 wider token if `parent_grant_insufficient`). This is a platform change in another repository, so it waits for a go
 from the person who owns orun-cloud.
 **Signal:** `orun integrations cloudflare templates list --workspace ws_KG0H9PEH` shows a queues template (and, for

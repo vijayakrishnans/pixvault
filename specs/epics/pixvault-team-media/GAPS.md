@@ -15,13 +15,13 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-27, after PV2 (PRs #3–#15)._
+_Last updated: 2026-11-27, PV-15 (PR #17)._
 
 ## Blocked
 
 | # | Item | Why | What's missing | What was done | Lands |
 |---|---|---|---|---|---|
-| G1 | **Cloudflare scopes for Queues and custom hostnames** (WAITING W-3) | Orunbase's Cloudflare scope templates mint only Workers, KV, R2, D1 and DNS tokens. There's no template for Queues Write, SSL and Certificates Write, or Zone Settings Write. | PV4's `file-committed` queue and DLQ; PV8's custom domains; Image Transformations on our own zone. | Recorded with exact steps. Raised to the user, who needs to decide on a platform change in orun-cloud (`apps/integrations-worker/src/providers/cloudflare.ts`). PV4 can use Workflows (deployable today) until Queues are mintable. | PV4 and PV8, after the decision |
+| G1 | **Cloudflare scopes for Queues and custom hostnames** (WAITING W-3) | Orunbase's Cloudflare scope templates mint only Workers, KV, R2, D1 and DNS tokens. There's no template for Queues Write, SSL and Certificates Write, or Zone Settings Write, and `workers-deploy` lacks KV Read (G44). | PV4's `file-committed` queue and DLQ; PV8's custom domains; Image Transformations on our own zone. | Recorded with exact steps. Raised to the user, who needs to decide on a platform change in orun-cloud (`apps/integrations-worker/src/providers/cloudflare.ts`). PV4 can use Workflows (deployable today) until Queues are mintable. | PV4 and PV8, after the decision |
 | G2 | **CSAM scanning** (W-5) | It's enabled per zone in the Cloudflare dashboard and isn't available on `workers.dev`. | No CSAM scanning on any serving host. | **Public sharing stays off in prod** until W-5 and W-6 are done (risk PV-A). | PV4 / PV8 |
 | G3 | **Product domain `pixvault.app`** (W-6) | It isn't registered, and there's no zone. | Everything is served on `*.vijayakrishnan12994.workers.dev`: no `i.`/`app.`/`dav.` hosts, and no CSAM scanning (G2). | `productdomain` was left empty at bootstrap; the parked custom-domain component can be switched on later. | When the domain exists |
 | G4 | **Grievance officer details and legal review** (W-1, W-2) | They need a person and a lawyer. | `ABUSE.md` has a placeholder section; terms and privacy pages aren't written. | Policy text and process are in `ABUSE.md`. | PV11 |
@@ -83,6 +83,7 @@ _Last updated: 2026-11-27, after PV2 (PRs #3–#15)._
 | G40 | **Guest invitations send no email** | The manager shares the app link by hand. | The invitation is created and accepted on sign-in by email match. | PV6 (notifications) |
 | G41 | **Baseline test failures**: `tests/integrations-worker` (5 drain tests, also failing on clean `main`); an api-edge rate-limit DO test flaky under full parallel load | Noise in local full runs. CI's PR lanes don't run them. | Verified both against clean `main` and in isolation. | Report upstream to cirrus-baseline |
 | G42 | **No `orun/compliance` check is posted on this repo** | Lineage isn't enforced by CI. | Branch, trailer, manifest and contract are kept by hand; `orun task check` runs before every push. | Check the repo link's compliance mode in the console |
+| G44 | **The `workers-deploy` token can create KV namespaces but not read them** | Changing an existing KV root fails on refresh with "Authentication error (10000)" (found by PV-15's plan on `cloudflare-kv`). The template grants Workers KV Storage *Write* only; Cloudflare's permission-group API doesn't imply Read. Every product from this baseline is affected. | PV3's routes namespace went into a **new root**, `cloudflare-kv-media` (a fresh root only creates). The same root will hit this on its first later change. | Add Workers KV Storage Read to `workers-deploy` in orun-cloud: added to the W-3 platform decision |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed
