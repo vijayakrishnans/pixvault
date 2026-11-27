@@ -36,6 +36,7 @@ import {
   handleRestoreVersion,
 } from "./handlers/files.js";
 import { errorResponse, methodNotAllowed, notFound } from "./http.js";
+import { logError, routeTemplate } from "./log.js";
 import {
   generateRequestId,
   isPrincipalId,
@@ -234,7 +235,8 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
       return method === "DELETE" ? await handleRevokeInvitation(ctx, orgId, libId, invId) : methodNotAllowed(requestId);
     }
     return notFound(requestId, path);
-  } catch {
+  } catch (e) {
+    logError(requestId, `${method} ${routeTemplate(path)}`, e);
     return errorResponse("internal_error", "Service unavailable", 503, requestId);
   } finally {
     await executor.dispose();

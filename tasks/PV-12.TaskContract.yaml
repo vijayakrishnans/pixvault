@@ -1,0 +1,20 @@
+# PV-12: PV2, media-worker is observable. Minted under milestone PV2; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-12
+spec:
+  goal: "media-worker sends its logs to Workers Logs and writes one structured line for every unhandled error and for each step of an upload commit, with ids and sizes only, so a failed commit on stage can be diagnosed."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - pnpm-lock.yaml
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "media-worker's wrangler config enables observability on stage and prod"
+    - "an unhandled error logs one JSON line with requestId, route, error name and message, and no file contents or URLs (test)"
+    - "the failing 200 MB commit on stage is diagnosed from its log lines"
+  gates: []

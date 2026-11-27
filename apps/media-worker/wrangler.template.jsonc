@@ -28,6 +28,8 @@
     },
     "stage": {
       "workers_dev": false,
+      // Workers Logs: structured lines from src/log.ts (ids and sizes only).
+      "observability": { "enabled": true, "head_sampling_rate": 1 },
       "vars": {
         "ENVIRONMENT": "stage"
       },
@@ -65,6 +67,8 @@
     },
     "prod": {
       "workers_dev": false,
+      // Workers Logs: structured lines from src/log.ts (ids and sizes only).
+      "observability": { "enabled": true, "head_sampling_rate": 1 },
       "vars": {
         "ENVIRONMENT": "prod"
       },

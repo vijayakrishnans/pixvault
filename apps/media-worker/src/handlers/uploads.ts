@@ -14,6 +14,7 @@ import {
 import { authorizeOnLibrary } from "../access.js";
 import type { Ctx } from "../ctx.js";
 import { errorResponse, successResponse, validationError } from "../http.js";
+import { logError, logInfo } from "../log.js";
 import { indexFor, IndexCallError } from "../index-do/client.js";
 import type { CommitResult, FileRow, SessionRow } from "../index-do/core.js";
 import { libraryPublicId, sessionPublicId } from "../ids.js";
@@ -133,7 +134,10 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
     ctx.repo.getUsage(orgId, monthOf(ctx.now())),
     idx.call<{ object_key: string } | null>({ op: "findBlob", sha256 }),
   ]);
-  if (!limits || !usage.ok) return unavailable(ctx);
+  if (!limits || !usage.ok) {
+    logError(ctx.requestId, "createUpload.usage", usage.ok ? "limits unavailable" : usage.error.kind);
+    return unavailable(ctx);
+  }
   const newBytes = blob ? 0 : size;
   if (usage.value.storageBytes + newBytes > limits.storageBytesLimit) {
     return errorResponse("quota_exceeded", "Your team's storage is full", 412, ctx.requestId, {
@@ -278,18 +282,32 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
   for (let n = 1; n <= s.part_count; n++) if (!parts[String(n)]) missing.push(n);
   if (missing.length) return errorResponse("incomplete", "Some parts haven't been uploaded", 409, ctx.requestId, { missing: missing.slice(0, 50) });
 
+  const t0 = Date.now();
+  const step = async <T>(name: string, fn: () => Promise<T>): Promise<T> => {
+    try {
+      return await fn();
+    } catch (e) {
+      logError(ctx.requestId, `commit.${name}`, e, { session: s.id, size: s.size, parts: s.part_count, mode: s.mode, ms: Date.now() - t0 });
+      throw e;
+    }
+  };
+  logInfo(ctx.requestId, "commit.start", { session: s.id, size: s.size, parts: s.part_count, mode: s.mode });
   if (s.mode === "multipart") {
-    await completeMultipart(bucket, s.object_key, s.multipart_upload_id!, Object.entries(parts).map(([n, etag]) => ({ partNumber: Number(n), etag })));
+    await step("complete_multipart", () =>
+      completeMultipart(bucket, s.object_key, s.multipart_upload_id!, Object.entries(parts).map(([n, etag]) => ({ partNumber: Number(n), etag }))),
+    );
   }
   // Verify what is stored, not what was declared. (A single PUT was already checked by R2 against the SHA-256.)
-  const stored = s.mode === "multipart" ? await sha256OfObject(bucket, s.object_key) : await headAsDigest(bucket, s.object_key);
+  const tHash = Date.now();
+  const stored = await step("verify", () => (s.mode === "multipart" ? sha256OfObject(bucket, s.object_key) : headAsDigest(bucket, s.object_key)));
+  logInfo(ctx.requestId, "commit.verified", { session: s.id, size: s.size, hashMs: Date.now() - tHash, match: !!stored && stored.size === s.size && stored.sha256 === s.sha256 });
   if (!stored || stored.size !== s.size || stored.sha256 !== s.sha256) {
     await bucket.delete(s.object_key);
     await o.idx.call({ op: "closeSession", id: s.id, state: "aborted" });
     return errorResponse("hash_mismatch", "The stored bytes don't match the declared size and SHA-256; start a new upload", 422, ctx.requestId);
   }
   try {
-    const result = await o.idx.call<CommitResult>({
+    const result = await step("index", () => o.idx.call<CommitResult>({
       op: "commit",
       input: {
         sessionId: s.id,
@@ -306,8 +324,9 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
         actor: ctx.actor.subjectId,
         nowIso: ctx.now().toISOString(),
       },
-    });
-    await settle(ctx, orgId, result);
+    }));
+    await step("settle", () => settle(ctx, orgId, result));
+    logInfo(ctx.requestId, "commit.done", { session: s.id, size: s.size, deduplicated: result.deduplicated, ms: Date.now() - t0 });
     return successResponse({ file: toPublicFile(result.file, o.a.lib.id), deduplicated: result.deduplicated }, ctx.requestId);
   } catch (e) {
     if (e instanceof IndexCallError && e.code === "conflict") {

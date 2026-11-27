@@ -9,6 +9,7 @@ import type { Library } from "@saas/db/media";
 import { authorizeCreate, authorizeOnLibrary, displayRole, hasAnyStanding, loadFacts, type AccessFacts } from "../access.js";
 import { audit, type Ctx } from "../ctx.js";
 import { errorResponse, successResponse, validationError } from "../http.js";
+import { logError } from "../log.js";
 import { actorUuid, libraryPublicId, orgPublicId, parseProjectPublicId, projectPublicId } from "../ids.js";
 import { archiveProject, createProject } from "../projects-client.js";
 
@@ -198,8 +199,12 @@ export async function loadAuthorized(
     ctx.repo.getLibrary(orgId, libraryId),
     loadFacts(ctx.env, ctx.repo, ctx.actor, orgId, ctx.requestId),
   ]);
-  if (!facts.ok) return { ok: false, response: errorResponse("internal_error", "Service unavailable", 503, ctx.requestId) };
+  if (!facts.ok) {
+    logError(ctx.requestId, "loadAuthorized.facts", "membership or library roles unavailable");
+    return { ok: false, response: errorResponse("internal_error", "Service unavailable", 503, ctx.requestId) };
+  }
   if (!lib.ok) {
+    if (lib.error.kind !== "not_found") logError(ctx.requestId, "loadAuthorized.library", lib.error.kind === "internal" ? lib.error.message : lib.error.kind);
     return lib.error.kind === "not_found"
       ? { ok: false, response: errorResponse("not_found", "Not found", 404, ctx.requestId) }
       : { ok: false, response: errorResponse("internal_error", "Service unavailable", 503, ctx.requestId) };
