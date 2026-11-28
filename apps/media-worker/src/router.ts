@@ -39,6 +39,7 @@ import {
   handleReviewFile,
 } from "./handlers/files.js";
 import { handleListPipelineFailures, handleReprocess } from "./handlers/pipeline.js";
+import { handleCollectionItems, handleCreateCollection, handleDeleteCollection, handleGetCollection, handleListCollections, handleUpdateCollection } from "./handlers/collections.js";
 import { handleCreateUploadLink, handleListUploadLinks, handleRevokeUploadLink, handleUploadLinkOpen, handleUploadLinkUpload } from "./handlers/uploadlinks.js";
 import { handleCreateShareLink, handleListShareLinks, handleRevokeShareLink, handleShareContent, handleShareOpen } from "./handlers/shares.js";
 import { handleLiveTicket, handleBatch, handleCreateFolder, handleListFolders, handleListTags, handleMoveFolder, handleTrashFolder } from "./handlers/browse.js";
@@ -64,6 +65,7 @@ import {
   parseSessionPublicId,
   parseShareLinkPublicId,
   parseUploadLinkPublicId,
+  parseCollectionPublicId,
 } from "./ids.js";
 
 export interface ActorContext {
@@ -95,6 +97,9 @@ const LIVE_TICKETS_RE = new RegExp(`${LIB}\\/live-tickets$`);
 const SHARE_LINKS_RE = new RegExp(`${LIB}\\/share-links$`);
 const SHARE_LINK_RE = new RegExp(`${LIB}\\/share-links\\/([^/]+)$`);
 // Guests' share pages, from serve-worker over the service binding (api-edge doesn't forward these).
+const COLLECTIONS_RE = new RegExp(`${LIB}\\/collections$`);
+const COLLECTION_RE = new RegExp(`${LIB}\\/collections\\/([^/]+)$`);
+const COLLECTION_ITEMS_RE = new RegExp(`${LIB}\\/collections\\/([^/]+)\\/items$`);
 const UPLOAD_LINKS_RE = new RegExp(`${LIB}\\/upload-links$`);
 const UPLOAD_LINK_RE = new RegExp(`${LIB}\\/upload-links\\/([^/]+)$`);
 const UPLOAD_LINK_OPEN = "/v1/media/upload-links/open";
@@ -249,7 +254,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     // Files and uploads need the bucket and the index.
-    const fileRoute = [UPLOAD_LINKS_RE, UPLOAD_LINK_RE, SHARE_LINKS_RE, SHARE_LINK_RE, LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
+    const fileRoute = [COLLECTIONS_RE, COLLECTION_RE, COLLECTION_ITEMS_RE, UPLOAD_LINKS_RE, UPLOAD_LINK_RE, SHARE_LINKS_RE, SHARE_LINK_RE, LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
     if (fileRoute) {
       if (!env.MEDIA_BUCKET || !env.LIBRARY_INDEX) return errorResponse("internal_error", "Service unavailable", 503, requestId);
       const lm = path.match(new RegExp(LIB))!;
@@ -283,6 +288,24 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
       }
       if ((m = path.match(FOLDERS_MOVE_RE))) return method === "POST" ? await handleMoveFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
       if ((m = path.match(FOLDERS_TRASH_RE))) return method === "POST" ? await handleTrashFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
+      if ((m = path.match(COLLECTIONS_RE))) {
+        if (method === "GET") return await handleListCollections(ctx, orgId, libId);
+        if (method === "POST") return await handleCreateCollection(ctx, request, orgId, libId);
+        return methodNotAllowed(requestId);
+      }
+      if ((m = path.match(COLLECTION_ITEMS_RE))) {
+        const col = parseCollectionPublicId(m[3]!);
+        if (!col) return nf();
+        return method === "POST" ? await handleCollectionItems(ctx, request, orgId, libId, col) : methodNotAllowed(requestId);
+      }
+      if ((m = path.match(COLLECTION_RE))) {
+        const col = parseCollectionPublicId(m[3]!);
+        if (!col) return nf();
+        if (method === "GET") return await handleGetCollection(ctx, orgId, libId, col);
+        if (method === "PATCH") return await handleUpdateCollection(ctx, request, orgId, libId, col);
+        if (method === "DELETE") return await handleDeleteCollection(ctx, orgId, libId, col);
+        return methodNotAllowed(requestId);
+      }
       if ((m = path.match(UPLOAD_LINKS_RE))) {
         if (method === "GET") return await handleListUploadLinks(ctx, orgId, libId);
         if (method === "POST") return await handleCreateUploadLink(ctx, request, orgId, libId);

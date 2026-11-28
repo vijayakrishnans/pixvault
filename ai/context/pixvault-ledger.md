@@ -110,6 +110,9 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
   path-scoped HttpOnly cookie on the right one, allows its one download and refuses the second (410). After a revoke
   the very next request was 404 (2.2 s for the DELETE plus the GET).
 - PV-34: the Cloudflare API shows prod media-worker and serve-worker with PUBLIC_SHARING=off, stage on.
+- PV-36 stage (2026-11-28): an upload link over HTTP, 7/7. The guest form (no script) took notes.txt and refused
+  tool.exe (type not accepted, with the reason); the file reached the Review tab held as `review:upload_link`,
+  uploaded by `upl_…`; approving made it private; the link counted 1 file and 400 bytes; revoked, the page was 404.
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

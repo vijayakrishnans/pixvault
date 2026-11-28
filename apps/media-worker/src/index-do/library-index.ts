@@ -46,7 +46,16 @@ export type IndexOp =
   | { op: "takedown"; id: string; note: string; nowIso: string }
   | { op: "reinstate"; id: string; nowIso: string }
   | { op: "requeueAllRoutes"; nowIso: string }
-  | { op: "randomPublic"; folder: string; mimePrefix: string };
+  | { op: "randomPublic"; folder: string; mimePrefix: string }
+  | { op: "createCollection"; input: Parameters<LibraryIndexCore["createCollection"]>[0] }
+  | { op: "listCollections" }
+  | { op: "getCollection"; id: string }
+  | { op: "updateCollection"; id: string; patch: { name?: string; description?: string; publicGallery?: boolean }; nowIso: string }
+  | { op: "deleteCollection"; id: string }
+  | { op: "collectionItems"; id: string; action: "add" | "remove"; fileIds: string[]; nowIso: string }
+  | { op: "collectionFiles"; id: string; servedOnly?: boolean; limit: number }
+  | { op: "inCollection"; id: string; fileId: string }
+  | { op: "gallery"; id: string };
 
 export type IndexResult = { ok: true; value: unknown } | { ok: false; code: string; message: string };
 
@@ -124,6 +133,25 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
         return { ok: true, value: core.reprocess(req.id, req.nowIso) };
       case "requeueAllRoutes":
         return { ok: true, value: core.requeueAllRoutes(req.nowIso) };
+      case "createCollection":
+        return { ok: true, value: core.createCollection(req.input) };
+      case "listCollections":
+        return { ok: true, value: core.listCollections() };
+      case "getCollection":
+        return { ok: true, value: core.getCollection(req.id) };
+      case "updateCollection":
+        return { ok: true, value: core.updateCollection(req.id, req.patch, req.nowIso) };
+      case "deleteCollection":
+        core.deleteCollection(req.id);
+        return { ok: true, value: true };
+      case "collectionItems":
+        return { ok: true, value: core.collectionItems(req.id, req.action, req.fileIds, req.nowIso) };
+      case "collectionFiles":
+        return { ok: true, value: core.collectionFiles(req.id, { servedOnly: req.servedOnly ?? false, limit: req.limit }) };
+      case "inCollection":
+        return { ok: true, value: core.inCollection(req.id, req.fileId) };
+      case "gallery":
+        return { ok: true, value: core.gallery(req.id) };
       case "randomPublic":
         return { ok: true, value: core.randomPublic(req.folder, req.mimePrefix) };
     }

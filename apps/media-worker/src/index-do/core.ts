@@ -161,6 +161,14 @@ CREATE TABLE IF NOT EXISTS folders (
   path TEXT PRIMARY KEY, parent TEXT, name TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS folders_parent ON folders (parent);
 CREATE TABLE IF NOT EXISTS fts_map (file_id TEXT PRIMARY KEY, fts_rowid INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS collections (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', public_gallery INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS collection_items (
+  collection_id TEXT NOT NULL, file_id TEXT NOT NULL, position INTEGER NOT NULL, added_at TEXT NOT NULL,
+  PRIMARY KEY (collection_id, file_id));
+CREATE INDEX IF NOT EXISTS collection_items_order ON collection_items (collection_id, position);
+CREATE INDEX IF NOT EXISTS collection_items_file ON collection_items (file_id);
 CREATE TABLE IF NOT EXISTS live_tickets (
   ticket TEXT PRIMARY KEY, subject TEXT NOT NULL, scope TEXT NOT NULL, expires_at TEXT NOT NULL);
 `;
@@ -236,6 +244,23 @@ export type BatchAction =
 
 /** What a live socket may see: every file's changes, or only the holder's own uploads. */
 export type LiveScope = "all" | "own";
+
+export interface CollectionRow {
+  id: string;
+  name: string;
+  description: string;
+  public_gallery: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  /** Live files in it (trashed ones are hidden). */
+  files: number;
+  /** The first live image, for a cover. */
+  cover_file_id: string | null;
+}
+
+export const MAX_COLLECTION_ITEMS = 5000;
+export const MAX_COLLECTIONS = 500;
 
 export interface BatchResult {
   done: FileRow[];
@@ -623,6 +648,112 @@ export class LibraryIndexCore {
     const page = rows.slice(0, opts.limit);
     const last = page[page.length - 1];
     return { files: page, nextCursor: rows.length > opts.limit && last ? `${last.created_at}|${last.id}` : null };
+  }
+
+  // ── collections (PV6): ordered sets of files; a public one is a gallery ──
+
+  private collectionRow(where: string, ...params: unknown[]): CollectionRow[] {
+    return this.sql
+      .exec<CollectionRow>(
+        `SELECT c.*,
+           (SELECT COUNT(*) FROM collection_items i JOIN files f ON f.id = i.file_id WHERE i.collection_id = c.id AND f.status != 'trashed') AS files,
+           (SELECT i.file_id FROM collection_items i JOIN files f ON f.id = i.file_id
+              WHERE i.collection_id = c.id AND f.status != 'trashed' AND f.mime LIKE 'image/%' ORDER BY i.position LIMIT 1) AS cover_file_id
+         FROM collections c ${where}`,
+        ...params,
+      )
+      .toArray();
+  }
+
+  createCollection(input: { id: string; name: string; description: string; publicGallery: boolean; actor: string; nowIso: string }): CollectionRow {
+    return this.sql.transaction(() => {
+      const n = Number(one(this.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM collections`).toArray())?.n ?? 0);
+      if (n >= MAX_COLLECTIONS) throw new IndexError("invalid_state", `At most ${MAX_COLLECTIONS} collections in a library`);
+      this.sql.exec(
+        `INSERT INTO collections (id, name, description, public_gallery, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        input.id, input.name, input.description, input.publicGallery ? 1 : 0, input.actor, input.nowIso, input.nowIso,
+      );
+      return this.collectionRow(`WHERE c.id = ?`, input.id)[0]!;
+    });
+  }
+
+  listCollections(): CollectionRow[] {
+    return this.collectionRow(`ORDER BY c.updated_at DESC LIMIT ?`, MAX_COLLECTIONS);
+  }
+
+  getCollection(id: string): CollectionRow | null {
+    return this.collectionRow(`WHERE c.id = ?`, id)[0] ?? null;
+  }
+
+  updateCollection(id: string, patch: { name?: string; description?: string; publicGallery?: boolean }, nowIso: string): CollectionRow {
+    return this.sql.transaction(() => {
+      if (!this.getCollection(id)) throw new IndexError("not_found", "Collection not found");
+      if (patch.name !== undefined) this.sql.exec(`UPDATE collections SET name = ? WHERE id = ?`, patch.name, id);
+      if (patch.description !== undefined) this.sql.exec(`UPDATE collections SET description = ? WHERE id = ?`, patch.description, id);
+      if (patch.publicGallery !== undefined) this.sql.exec(`UPDATE collections SET public_gallery = ? WHERE id = ?`, patch.publicGallery ? 1 : 0, id);
+      this.sql.exec(`UPDATE collections SET updated_at = ? WHERE id = ?`, nowIso, id);
+      return this.getCollection(id)!;
+    });
+  }
+
+  deleteCollection(id: string): void {
+    this.sql.transaction(() => {
+      if (!this.getCollection(id)) throw new IndexError("not_found", "Collection not found");
+      this.sql.exec(`DELETE FROM collection_items WHERE collection_id = ?`, id);
+      this.sql.exec(`DELETE FROM collections WHERE id = ?`, id);
+    });
+  }
+
+  /** Add files (to the end, in the order given) or remove them. Unknown or trashed files are reported, not added. */
+  collectionItems(id: string, action: "add" | "remove", fileIds: string[], nowIso: string): { collection: CollectionRow; changed: number; failed: string[] } {
+    return this.sql.transaction(() => {
+      if (!this.getCollection(id)) throw new IndexError("not_found", "Collection not found");
+      let changed = 0;
+      const failed: string[] = [];
+      if (action === "remove") {
+        for (const f of new Set(fileIds)) {
+          const before = Number(one(this.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM collection_items WHERE collection_id = ? AND file_id = ?`, id, f).toArray())?.n ?? 0);
+          this.sql.exec(`DELETE FROM collection_items WHERE collection_id = ? AND file_id = ?`, id, f);
+          changed += before;
+        }
+      } else {
+        let size = Number(one(this.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM collection_items WHERE collection_id = ?`, id).toArray())?.n ?? 0);
+        let pos = Number(one(this.sql.exec<{ p: number | null }>(`SELECT MAX(position) AS p FROM collection_items WHERE collection_id = ?`, id).toArray())?.p ?? 0);
+        for (const f of new Set(fileIds)) {
+          const file = this.getFile(f);
+          if (!file || file.status === "trashed") {
+            failed.push(f);
+            continue;
+          }
+          if (one(this.sql.exec(`SELECT 1 AS x FROM collection_items WHERE collection_id = ? AND file_id = ?`, id, f).toArray())) continue;
+          if (size >= MAX_COLLECTION_ITEMS) throw new IndexError("invalid_state", `At most ${MAX_COLLECTION_ITEMS} files in a collection`);
+          this.sql.exec(`INSERT INTO collection_items (collection_id, file_id, position, added_at) VALUES (?, ?, ?, ?)`, id, f, ++pos, nowIso);
+          size++;
+          changed++;
+        }
+      }
+      this.sql.exec(`UPDATE collections SET updated_at = ? WHERE id = ?`, nowIso, id);
+      return { collection: this.getCollection(id)!, changed, failed };
+    });
+  }
+
+  /** A collection's files in order: every live file, or (servedOnly) only those being served. */
+  collectionFiles(id: string, opts: { servedOnly?: boolean; publicOnly?: boolean; limit: number }): FileRow[] {
+    const status = opts.publicOnly ? `f.status = 'public' AND f.visibility = 'public'` : opts.servedOnly ? `f.status IN ('public', 'private')` : `f.status != 'trashed'`;
+    return this.sql
+      .exec<FileRow>(`SELECT f.* FROM collection_items i JOIN files f ON f.id = i.file_id WHERE i.collection_id = ? AND ${status} ORDER BY i.position LIMIT ?`, id, opts.limit)
+      .toArray();
+  }
+
+  inCollection(id: string, fileId: string): boolean {
+    return !!one(this.sql.exec(`SELECT 1 AS x FROM collection_items WHERE collection_id = ? AND file_id = ?`, id, fileId).toArray());
+  }
+
+  /** A public gallery: the collection if it is one, with its public files only. */
+  gallery(id: string, limit = 500): { collection: CollectionRow; files: FileRow[] } | null {
+    const c = this.getCollection(id);
+    if (!c || c.public_gallery !== 1) return null;
+    return { collection: c, files: this.collectionFiles(id, { publicOnly: true, limit }) };
   }
 
   // ── live tickets (PV5): one-use passes for the library's WebSocket ──
@@ -1039,6 +1170,7 @@ export class LibraryIndexCore {
         }
       }
       this.sql.exec(`DELETE FROM files WHERE id = ?`, id);
+      this.sql.exec(`DELETE FROM collection_items WHERE file_id = ?`, id);
       return { deleteKeys, releasedBytes };
     });
   }

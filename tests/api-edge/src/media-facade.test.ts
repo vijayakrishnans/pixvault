@@ -75,6 +75,9 @@ describe("api-edge media facade", () => {
     [`/v1/organizations/${ORG}/libraries/${LIB}/share-links/shl_1`],
     [`/v1/organizations/${ORG}/libraries/${LIB}/upload-links`],
     [`/v1/organizations/${ORG}/libraries/${LIB}/upload-links/upl_1`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/collections`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/collections/col_1`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/collections/col_1/items`],
   ])("routes %s to media-worker, not the project or org facades", (path) => {
     expect(isMediaRoute(path)).toBe(true);
     expect(isProjectRoute(path)).toBe(false);

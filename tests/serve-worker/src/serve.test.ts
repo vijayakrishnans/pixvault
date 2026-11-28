@@ -445,3 +445,41 @@ describe("public sharing off (prod until CSAM scanning and the domain exist)", (
     expect(publicSharingAllowed({ ENVIRONMENT: "stage", PUBLIC_SHARING: "off" })).toBe(false);
   });
 });
+
+describe("public galleries", () => {
+  const COL = "c".repeat(32);
+  const view = {
+    collection: { name: "Launch <day>", description: "Our kit" },
+    files: [
+      { path: "/kit/logo one.png", name: "logo one.png", mime: "image/png", width: 320, height: 200 },
+      { path: "/kit/brief.pdf", name: "brief.pdf", mime: "application/pdf", width: null, height: null },
+    ],
+  };
+
+  it("render the collection's files as thumbnails linking to each file, escaped, without script", async () => {
+    addLibrary(w, "acme", "brand");
+    w.randomResult = view as never;
+    const r = await get(w, `/acme/brand/_gallery/${COL}`);
+    expect(r.status).toBe(200);
+    const html = await r.text();
+    expect(html).toContain("Launch &lt;day&gt;");
+    expect(html).toContain('src="/acme/brand/kit/logo%20one.png?preset=thumb"');
+    expect(html).toContain('href="/acme/brand/kit/brief.pdf"');
+    expect(html).not.toContain("<script");
+    expect(r.headers.get("content-security-policy")).toContain("default-src 'none'");
+    const call = w.randomCalls.at(-1) as { req: { op: string; id: string } };
+    expect(call.req).toEqual({ op: "gallery", id: `${COL.slice(0, 8)}-${COL.slice(8, 12)}-${COL.slice(12, 16)}-${COL.slice(16, 20)}-${COL.slice(20)}` });
+  });
+
+  it("a collection that isn't a gallery, a bad id, or public sharing off: 404", async () => {
+    addLibrary(w, "acme", "brand");
+    w.randomResult = null;
+    expect((await get(w, `/acme/brand/_gallery/${COL}`)).status).toBe(404);
+    expect((await get(w, `/acme/brand/_gallery/xyz`)).status).toBe(404);
+    w.randomResult = view as never;
+    w.env.PUBLIC_SHARING = "off";
+    w.randomCalls = [];
+    expect((await get(w, `/acme/brand/_gallery/${COL}`)).status).toBe(404);
+    expect(w.randomCalls).toEqual([]);
+  });
+});

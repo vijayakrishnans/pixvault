@@ -12,8 +12,8 @@ import { createSqlExecutor } from "@saas/db/d1";
 import { createMediaRepository, type MediaRepository, type ShareLink } from "@saas/db/media";
 import { errorResponse, successResponse, validationError } from "../http.js";
 import { indexFor } from "../index-do/client.js";
-import type { FileRow, FolderRow } from "../index-do/core.js";
-import { actorUuid, filePublicId, parseFilePublicId, shareLinkPublicId } from "../ids.js";
+import type { CollectionRow, FileRow, FolderRow } from "../index-do/core.js";
+import { actorUuid, collectionPublicId, filePublicId, parseCollectionPublicId, parseFilePublicId, shareLinkPublicId } from "../ids.js";
 import { uuidToHex } from "@saas/db/ids";
 import { loadAuthorized } from "./libraries.js";
 import { normalizeFolder } from "./uploads.js";
@@ -55,7 +55,7 @@ export function toPublicShareLink(l: ShareLink, now: Date): PublicShareLink {
   return {
     id: shareLinkPublicId(l.id),
     targetKind: l.targetKind,
-    target: l.targetKind === "file" ? filePublicId(l.targetId) : l.targetId,
+    target: l.targetKind === "file" ? filePublicId(l.targetId) : l.targetKind === "collection" ? collectionPublicId(l.targetId) : l.targetId,
     targetLabel: l.targetLabel,
     mode: l.mode,
     expiresAt: l.expiresAt,
@@ -94,9 +94,11 @@ export async function handleCreateShareLink(ctx: Ctx, request: Request, orgId: s
   const b = await readJson(request);
   if (!b) return validationError(ctx.requestId, { body: ["Must be a JSON object"] });
   const fields: Record<string, string[]> = {};
-  const target = (b.target ?? null) as { kind?: unknown; fileId?: unknown; path?: unknown } | null;
+  const target = (b.target ?? null) as { kind?: unknown; fileId?: unknown; path?: unknown; collectionId?: unknown } | null;
   const kind = target?.kind;
-  if (kind !== "file" && kind !== "folder") fields.target = ["Must be { kind: 'file', fileId } or { kind: 'folder', path }"];
+  if (kind !== "file" && kind !== "folder" && kind !== "collection") fields.target = ["Must be { kind: 'file', fileId }, { kind: 'folder', path } or { kind: 'collection', collectionId }"];
+  const collectionId = kind === "collection" && typeof target?.collectionId === "string" ? parseCollectionPublicId(target.collectionId) : null;
+  if (kind === "collection" && !collectionId) fields["target.collectionId"] = ["Must be a collection id"];
   const fileId = kind === "file" && typeof target?.fileId === "string" ? parseFilePublicId(target.fileId) : null;
   if (kind === "file" && !fileId) fields["target.fileId"] = ["Must be a file id"];
   const folder = kind === "folder" ? normalizeFolder(target?.path) : null;
@@ -131,6 +133,11 @@ export async function handleCreateShareLink(ctx: Ctx, request: Request, orgId: s
     if (f.status !== "public" && f.status !== "private") return errorResponse("conflict", "This file can't be shared in its current state", 409, ctx.requestId, { status: f.status });
     targetId = f.id;
     label = f.name;
+  } else if (kind === "collection") {
+    const c = await idx.call<CollectionRow | null>({ op: "getCollection", id: collectionId! });
+    if (!c) return nf(ctx.requestId);
+    targetId = c.id;
+    label = c.name;
   } else {
     const folders = await idx.call<FolderRow[]>({ op: "listFolders" });
     if (!folders.some((d) => d.path === folder)) return nf(ctx.requestId);
@@ -141,7 +148,7 @@ export async function handleCreateShareLink(ctx: Ctx, request: Request, orgId: s
   const created = await ctx.repo.createShareLink({
     orgId,
     libraryId,
-    targetKind: kind as "file" | "folder",
+    targetKind: kind as "file" | "folder" | "collection",
     targetId,
     targetLabel: label,
     mode: mode as "view" | "download",
@@ -162,8 +169,14 @@ export async function handleListShareLinks(ctx: Ctx, url: URL, orgId: string, li
   if (!a.ok) return a.response;
   const file = url.searchParams.get("file");
   const folderParam = url.searchParams.get("folder");
-  const filter: { targetKind?: "file" | "folder"; targetId?: string; limit: number } = { limit: 200 };
-  if (file) {
+  const filter: { targetKind?: "file" | "folder" | "collection"; targetId?: string; limit: number } = { limit: 200 };
+  const collection = url.searchParams.get("collection");
+  if (collection) {
+    const id = parseCollectionPublicId(collection);
+    if (!id) return validationError(ctx.requestId, { collection: ["Must be a collection id"] });
+    filter.targetKind = "collection";
+    filter.targetId = id;
+  } else if (file) {
     const id = parseFilePublicId(file);
     if (!id) return validationError(ctx.requestId, { file: ["Must be a file id"] });
     filter.targetKind = "file";
@@ -224,7 +237,8 @@ function inShare(link: ShareLink, f: FileRow): boolean {
   if (f.status !== "public" && f.status !== "private") return false;
   if (link.targetKind === "file") return f.id === link.targetId;
   if (link.targetKind === "folder") return f.folder === link.targetId || f.folder.startsWith(`${link.targetId}/`);
-  return false;
+  // Collections are checked against the index by the caller; here only the state.
+  return link.targetKind === "collection";
 }
 
 /** POST /v1/media/shares/open { token, proof?, password? }: what the landing page shows. */
@@ -243,6 +257,8 @@ export async function handleShareOpen(env: Env, request: Request, requestId: str
     if (f?.status === "removed") return errorResponse("unavailable_for_legal_reasons", "Unavailable", 451, requestId);
     if (!f || !inShare(link, f)) return nf(requestId);
     files = [f];
+  } else if (link.targetKind === "collection") {
+    files = await idx.call<FileRow[]>({ op: "collectionFiles", id: link.targetId, servedOnly: true, limit: MAX_FOLDER_FILES });
   } else {
     files = (await idx.call<{ files: FileRow[] }>({ op: "listFiles", under: link.targetId, servedOnly: true, status: "live", limit: MAX_FOLDER_FILES })).files;
   }
@@ -284,6 +300,8 @@ export async function handleShareContent(env: Env, request: Request, requestId: 
   const got = await indexFor(env, { orgId: link.orgId, libraryId: link.libraryId }).call<{ file: FileRow; objectKey: string | null } | null>({ op: "getFileWithKey", id });
   if (got?.file.status === "removed" && (link.targetKind !== "file" || got.file.id === link.targetId)) return errorResponse("unavailable_for_legal_reasons", "Unavailable", 451, requestId);
   if (!got || !got.objectKey || !inShare(link, got.file)) return nf(requestId);
+  // A collection link reaches only files in that collection now (removing a file from it takes it out of the share).
+  if (link.targetKind === "collection" && !(await indexFor(env, { orgId: link.orgId, libraryId: link.libraryId }).call<boolean>({ op: "inCollection", id: link.targetId, fileId: got.file.id }))) return nf(requestId);
   const f = got.file;
   const download = link.mode === "download" || body.download === true || !INLINE.test(f.mime);
   // A download counts against the link's limit; viewing inline (view mode) doesn't.
