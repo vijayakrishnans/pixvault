@@ -53,10 +53,11 @@
 
       <div v-if="canUpload" class="opts">
         <el-button size="small" data-test="upload-folder" @click="$refs.folderPicker.click()"><el-icon><FolderAdd /></el-icon><span class="btn-label">{{ $t("browse.uploadFolder") }}</span></el-button>
-        <el-radio-group v-model="visibility" size="small">
+        <el-radio-group v-if="publicSharing" v-model="visibility" size="small">
           <el-radio-button value="private">{{ $t("library.private") }}</el-radio-button>
           <el-radio-button value="public">{{ $t("library.public") }}</el-radio-button>
         </el-radio-group>
+        <span v-else class="pv-muted small" data-test="sharing-off">{{ $t("library.sharingOff") }}</span>
       </div>
 
       <ul v-if="queue.length" class="queue" aria-live="polite">
@@ -181,7 +182,7 @@
             </el-table>
           </div>
           <div v-if="nextCursor" class="more"><el-button @click="loadFiles(true)">{{ $t("upload.more") }}</el-button></div>
-          <BatchActionBar :selected-count="selected.length" :can-edit="canEdit" :can-trash="canTrash" @clear="selected = []" @action="bulk" />
+          <BatchActionBar :selected-count="selected.length" :can-edit="canEdit" :can-publish="publicSharing" :can-trash="canTrash" @clear="selected = []" @action="bulk" />
         </main>
       </div>
 
@@ -235,7 +236,7 @@
         @trash="trash"
         @updated="onFileUpdated"
       />
-      <LinkDialog :file="linkFile" :org="org" :lib="lib" :can-edit="canEdit" @close="linkFile = null" @updated="onFileUpdated" />
+      <LinkDialog :file="linkFile" :org="org" :lib="lib" :can-edit="canEdit && publicSharing" @close="linkFile = null" @updated="onFileUpdated" />
       <MoveFileDialog :visible="!!moveTarget" :title="moveTitle" :folders="folders" :current="moveTarget ? moveTarget.from : '/'" :busy="moving" @close="moveTarget = null" @confirm="doMove" />
     </template>
   </AppShell>
@@ -319,6 +320,10 @@ export default {
     canEdit() {
       return ["manager", "editor"].includes(this.library?.myRole);
     },
+    /** Off in prod until CSAM scanning and the domain exist: files stay private, signed links work. */
+    publicSharing() {
+      return this.library?.publicSharing !== false;
+    },
     usagePct() {
       if (!this.usage) return 0;
       return Math.min(100, Math.round((this.usage.storageBytes / this.usage.storageBytesLimit) * 100));
@@ -393,7 +398,7 @@ export default {
       try {
         const r = await api.libraries.get(this.org, this.lib);
         this.library = r.library;
-        this.visibility = r.library.visibilityDefault;
+        this.visibility = r.library.publicSharing === false ? "private" : r.library.visibilityDefault;
         await Promise.all([this.loadFiles(), this.loadUsage(), this.loadFolders(), this.loadTags(), this.loadNames()]);
         this.startLive();
       } catch {

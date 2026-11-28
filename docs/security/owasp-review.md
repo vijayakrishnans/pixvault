@@ -37,6 +37,7 @@ controls in place, where they're tested, and what's still open (GAPS ids in
 - **Uploader-only members** list, read, open live sockets and see folders for their own uploads only (F4).
 - **Platform operators** live in a hand-filled table outside the repo; anyone else gets 404 on admin routes (`abuse.test.ts`).
 - **Live sockets** open with a one-use, 60-second ticket from an authorised API call. Events carry ids, folders and states only. Sockets expire after an hour, and reconnecting re-checks membership (G75).
+- **Public sharing is off in prod** until CSAM scanning and the domain exist (PV-34, risk PV-A): `PUBLIC_SHARING=off` makes media-worker refuse anything public and serve-worker require a signature for every file. Dev and stage keep it on.
 - **Serving:** private files need a signed URL (an HMAC over the path and an expiry, with per-library keys held in the serving map by key id). A taken-down file or a suspended team answers 451.
 
 ### A02 Security misconfiguration

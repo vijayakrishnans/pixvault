@@ -59,6 +59,13 @@ export function clearMapMemo(): void {
 const INLINE = /^(image\/(png|jpe?g|gif|webp|avif|bmp|x-icon)|video\/[a-z0-9.+-]+|audio\/[a-z0-9.+-]+|application\/pdf|text\/plain)$/i;
 const SAFE_CSP = "default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; sandbox";
 
+/** Mirrors media-worker's sharing.ts: unset means off in prod, on elsewhere. */
+export function publicSharingAllowed(env: { ENVIRONMENT?: string; PUBLIC_SHARING?: string }): boolean {
+  if (env.PUBLIC_SHARING === "on") return true;
+  if (env.PUBLIC_SHARING === "off") return false;
+  return env.ENVIRONMENT !== "prod";
+}
+
 function text(status: number, body: string, extra: Record<string, string> = {}): Response {
   return new Response(body, { status, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", ...extra } });
 }
@@ -165,9 +172,11 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
   if (!ipAllowed(ip, map.ia, map.ib)) return text(403, "Forbidden");
   if (!referrerAllowed(request.headers.get("referer"), map.r, url.hostname)) return text(403, "Hotlinking from this site isn't allowed");
 
+  const publicOk = publicSharingAllowed(env);
+
   // Random-image API (functions/random/**): a random public image in a folder, as a redirect.
   if (p.path === "/_random") {
-    if (!map.rnd || !env.LIBRARY_INDEX) return notFound();
+    if (!publicOk || !map.rnd || !env.LIBRARY_INDEX) return notFound();
     const folderParam = url.searchParams.get("folder") ?? "/";
     const folder = `/${folderParam.split("/").filter(Boolean).join("/")}`.replace(/^\/$/, "/");
     if (folder.split("/").some((s) => s === "." || s === "..")) return notFound();
@@ -188,7 +197,8 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
   if (route.st === "removed") return unavailable(); // taken down by an operator
   if (route.st !== "public" && route.st !== "private") return notFound(); // processing, held, flagged: not served (PV4)
 
-  const isPrivate = route.v === "private" || route.st === "private";
+  // While public sharing is off (prod, until CSAM scanning and the domain exist), every file needs a signed link.
+  const isPrivate = route.v === "private" || route.st === "private" || !publicOk;
   if (isPrivate) {
     const v = await verifyPath(map.k, map.l, p.path, url.searchParams.get("exp"), url.searchParams.get("sig"), Math.floor(now / 1000));
     if (v === "expired") return text(410, "This link has expired");

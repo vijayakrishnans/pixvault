@@ -419,3 +419,29 @@ describe("takedown, suspension and abuse reports (PV-25)", () => {
     expect(w.reports).toEqual([]);
   });
 });
+
+describe("public sharing off (prod until CSAM scanning and the domain exist)", () => {
+  it("serves a public file only with a signature, never caches it publicly, and turns the random API off", async () => {
+    w.env.PUBLIC_SHARING = "off";
+    const A = addLibrary(w, "acme", "brand", { rnd: true });
+    addFile(w, A, "/logo.png");
+    w.randomResult = { path: "/logo.png" };
+    expect((await get(w, "/acme/brand/logo.png")).status).toBe(404);
+    expect((await get(w, "/acme/brand/_random")).status).toBe(404);
+    const exp = NOW / 1000 + 600;
+    const sig = await signPath(A.key, 1, A.id, "/logo.png", exp);
+    const cache = new FakeCache();
+    const r = await get(w, `/acme/brand/logo.png?exp=${exp}&sig=${encodeURIComponent(sig)}`, {}, { cache: cache as unknown as Cache });
+    expect(r.status).toBe(200);
+    expect(r.headers.get("cache-control")).toBe("private, no-store");
+    expect(cache.store.size).toBe(0);
+  });
+
+  it("is off by default in prod and on by default elsewhere", async () => {
+    const { publicSharingAllowed } = await import("@serve-worker/serve");
+    expect(publicSharingAllowed({ ENVIRONMENT: "prod" })).toBe(false);
+    expect(publicSharingAllowed({ ENVIRONMENT: "prod", PUBLIC_SHARING: "on" })).toBe(true);
+    expect(publicSharingAllowed({ ENVIRONMENT: "stage" })).toBe(true);
+    expect(publicSharingAllowed({ ENVIRONMENT: "stage", PUBLIC_SHARING: "off" })).toBe(false);
+  });
+});

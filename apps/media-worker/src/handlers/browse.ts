@@ -13,6 +13,7 @@ import { loadAuthorized } from "./libraries.js";
 import { loadFile, toPublicFile } from "./files.js";
 import { normalizeFolder, validName } from "./uploads.js";
 import { kickPipeline } from "./pipeline.js";
+import { publicSharingAllowed, sharingOff } from "../sharing.js";
 
 const nf = (ctx: Ctx) => errorResponse("not_found", "Not found", 404, ctx.requestId);
 
@@ -164,6 +165,7 @@ export async function handleBatch(ctx: Ctx, request: Request, orgId: string, lib
   if (!a.ok) return a.response;
   const act = action as keyof typeof ACTION_PERMISSION;
   if (!(await authorizeOnLibrary(ctx.env, ctx.actor, ACTION_PERMISSION[act], a.lib, a.facts, ctx.requestId))) return nf(ctx);
+  if (act === "visibility" && b.visibility === "public" && !publicSharingAllowed(ctx.env)) return sharingOff(ctx.requestId);
 
   const ids: string[] = [];
   const failed: { id: string; code: string }[] = [];

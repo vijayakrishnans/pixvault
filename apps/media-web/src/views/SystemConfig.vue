@@ -20,8 +20,9 @@
             <el-form-item :label="$t('home.visibility')">
               <el-radio-group v-model="draft.visibilityDefault">
                 <el-radio-button value="private">{{ $t("library.private") }}</el-radio-button>
-                <el-radio-button value="public">{{ $t("library.public") }}</el-radio-button>
+                <el-radio-button value="public" :disabled="library && library.publicSharing === false">{{ $t("library.public") }}</el-radio-button>
               </el-radio-group>
+              <div v-if="library && library.publicSharing === false" class="pv-muted small">{{ $t("library.sharingOff") }}</div>
             </el-form-item>
             <el-form-item><el-checkbox v-model="draft.everyoneInOrg">{{ $t("library.everyone") }}</el-checkbox></el-form-item>
             <el-form-item :label="$t('settings.moderation')">
@@ -48,7 +49,7 @@
             </el-form-item>
             <el-form-item :label="$t('settings.allowedTypes')"><el-input v-model="draft.allowedTypes" type="textarea" :rows="3" /></el-form-item>
             <el-form-item :label="$t('settings.presets')"><el-input v-model="draft.transformPresets" type="textarea" :rows="3" /></el-form-item>
-            <el-form-item><el-checkbox v-model="draft.randomApiEnabled">{{ $t("settings.random") }}</el-checkbox></el-form-item>
+            <el-form-item><el-checkbox v-model="draft.randomApiEnabled" :disabled="library && library.publicSharing === false">{{ $t("settings.random") }}</el-checkbox></el-form-item>
             <el-button v-if="isManager" type="primary" native-type="submit" :loading="busy">{{ $t("library.save") }}</el-button>
           </el-form>
         </el-tab-pane>

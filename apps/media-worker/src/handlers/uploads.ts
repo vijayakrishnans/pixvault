@@ -24,6 +24,7 @@ import { managedPrefix } from "@saas/db/media";
 import { abortUpload, completeMultipart, createMultipart, putSingle, sha256OfObject, uploadPart } from "../storage/object-store.js";
 import { loadAuthorized, parseSettings } from "./libraries.js";
 import { toPublicFile } from "./files.js";
+import { publicSharingAllowed, sharingOff } from "../sharing.js";
 
 const SHA_RE = /^[0-9a-f]{64}$/;
 const CONTROL = /[\u0000-\u001f\u007f]/;
@@ -170,7 +171,9 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
     return errorResponse("conflict", "A file already exists at this path", 409, ctx.requestId, { fileId: toPublicFile(existing, a.lib, ctx.env).id });
   }
 
-  const visibility = body.visibility ?? a.lib.visibilityDefault;
+  if (body.visibility === "public" && !publicSharingAllowed(ctx.env)) return sharingOff(ctx.requestId);
+  // A library made public before the gate existed uploads private while sharing is off.
+  const visibility = body.visibility ?? (publicSharingAllowed(ctx.env) ? a.lib.visibilityDefault : "private");
   const now = ctx.now();
   if (existing?.status === "removed") {
     return errorResponse("conflict", "This file was taken down and can't be replaced", 409, ctx.requestId, { reason: "taken_down" });

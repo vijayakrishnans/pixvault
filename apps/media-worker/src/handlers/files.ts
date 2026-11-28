@@ -17,6 +17,7 @@ import { fileUrl, signedFileUrl } from "../serving.js";
 import { monthOf, normalizeFolder } from "./uploads.js";
 import { kickPipeline, pipelineFor } from "./pipeline.js";
 import { moveOneFile } from "./browse.js";
+import { publicSharingAllowed, sharingOff } from "../sharing.js";
 
 export function toPublicFile(f: FileRow, lib: Library, env: Env): PublicFile {
   return {
@@ -36,7 +37,8 @@ export function toPublicFile(f: FileRow, lib: Library, env: Env): PublicFile {
     updatedAt: f.updated_at,
     trashedAt: f.trashed_at,
     // A plain URL only for public files; private ones get a signed URL on request.
-    url: f.status === "public" && f.visibility === "public" ? fileUrl(env, lib, f.path) : null,
+    // While public sharing is off (prod for now) there are no plain URLs; members use signed links.
+    url: f.status === "public" && f.visibility === "public" && publicSharingAllowed(env) ? fileUrl(env, lib, f.path) : null,
     width: f.width ?? null,
     height: f.height ?? null,
     tags: parseTags(f.tags),
@@ -296,6 +298,7 @@ export async function handleUpdateFile(ctx: Ctx, request: Request, orgId: string
   const l = await loadFile(ctx, orgId, libraryId, fileId);
   if (!l.ok) return l.response;
   if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.update", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
+  if (body.visibility === "public" && !publicSharingAllowed(ctx.env)) return sharingOff(ctx.requestId);
   if (body.folder !== undefined || body.name !== undefined) {
     const moved = await moveOneFile(ctx, l, body.folder, body.name);
     if (moved instanceof Response) return moved;
