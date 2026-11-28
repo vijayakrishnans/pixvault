@@ -11,8 +11,9 @@ import { computeSha256 } from "../utils/upload/sha256.js";
 const RESUME_PREFIX = "pixvault.media.upload.";
 const PART_RETRIES = 3;
 
-export function resumeKey(libraryId, file) {
-  return `${RESUME_PREFIX}${libraryId}.${file.size}.${file.lastModified}.${file.name}`;
+/** The same file dropped into two folders is two uploads, so the folder is part of the key. */
+export function resumeKey(libraryId, file, folder = "/") {
+  return `${RESUME_PREFIX}${libraryId}.${file.size}.${file.lastModified}.${folder === "/" ? "" : `${folder}/`}${file.name}`;
 }
 
 function readResume(storage, key) {
@@ -81,7 +82,7 @@ export async function uploadFile(o, deps = {}) {
   status({ phase: "hashing", progress: 0 });
   const sha = await sha256(o.file, (p) => status({ phase: "hashing", progress: p }), o.signal);
 
-  const key = resumeKey(o.lib, o.file);
+  const key = resumeKey(o.lib, o.file, o.folder ?? "/");
   let session = null;
   let resumed = false;
   const saved = readResume(storage, key);

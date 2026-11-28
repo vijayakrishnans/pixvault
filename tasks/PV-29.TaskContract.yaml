@@ -1,0 +1,20 @@
+# PV-29: PV5, the library browser in the app. Minted under milestone PV5; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-29
+spec:
+  goal: "The app's library page becomes a browser: a folder tree, search and filters, grid and list views, a bulk bar (move, visibility, delete), a file drawer with rename, move and version restore, folder uploads that keep their structure, and live updates and presence over the library's socket."
+  affects:
+    - default/pixvault/media-web
+    - default/pixvault/media-web-tests
+    - apps/media-web/**
+    - tests/media-web/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "the client, live connection, folder traversal and tree helpers are tested"
+    - "the build passes its CSP check with the socket allowed"
+    - "on stage, a two-browser test shows an upload in one browser appearing in the other within 2 s"
+  gates: []
