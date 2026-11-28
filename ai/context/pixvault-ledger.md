@@ -131,6 +131,7 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 
 - PV7 storage-worker (PV-44, 2026-11-28): internal-only Worker holding BYO credentials sealed under `STORAGE_KEK` (generated in CI). Tested against s3rver: 21 tests incl. tenancy, SSRF refusals, checksum and timeout. Not wired in until PV-45.
 - PV7 per-library stores (PV-45): `@saas/shared/media-store` (R2-shaped seam + remote store); media-worker `storage/stores.ts` storeFor (30 s cache, fresh on uploads); library map `b`. End-to-end test media-worker → storage-worker → s3rver.
+- PV7 storage API (PV-46): manager-only `…/storage` routes; index lock `beginStorageSwitch`/`endStorageSwitch`, meta `storage_backend` is the authority commits check; 10 checks/hour/library.
 
 ## Open risks and deferred items
 

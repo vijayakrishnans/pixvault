@@ -66,16 +66,13 @@ describe("a library on a customer bucket (through storage-worker)", () => {
         return storageHandle(new Request(String(input), init), sw);
       },
     } as unknown as Fetcher;
-    // Attach the bucket the way PV-46's API will: storage-worker tests it and stores it sealed.
-    const created = await storageHandle(
-      new Request("https://storage.internal/v1/storage/backends", {
-        method: "POST",
-        body: JSON.stringify({ orgId: A.id, libraryId: libId, endpoint, region: "us-east-1", bucket: "team-bucket", prefix: "pixvault", pathStyle: true, accessKeyId: "S3RVER", secretAccessKey: "S3RVER" }),
-      }),
-      sw,
-    );
+    // Attach the bucket through the library's storage API (PV-46).
+    const created = await w.call(owner, "POST", `${base}/storage`, { endpoint, region: "us-east-1", bucket: "team-bucket", prefix: "pixvault", pathStyle: true, accessKeyId: "S3RVER", secretAccessKey: "S3RVER" });
     expect(created.status).toBe(201);
-    backendId = ((await created.json()) as { data: { backend: { id: string } } }).data.backend.id;
+    const pubId: string = created.json.data.backend.id;
+    const h = pubId.slice(4);
+    backendId = `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+    calls.length = 0;
     forgetStore();
   });
 
