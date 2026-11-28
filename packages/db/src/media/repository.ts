@@ -676,6 +676,20 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
       }
     },
 
+    async userEmails(userIds) {
+      try {
+        const ids = [...new Set(userIds)].slice(0, 50);
+        if (!ids.length) return { ok: true, value: new Map() };
+        const r = await executor.execute<Row>(
+          `SELECT id, email FROM identity_users WHERE id IN (` + ids.map((_, i) => `$` + (i + 1)).join(", ") + `)`,
+          ids,
+        );
+        return { ok: true, value: new Map(r.rows.map((row) => [String(row.id), String(row.email)])) };
+      } catch {
+        return internal("Failed to read user emails");
+      }
+    },
+
     async createUploadLink(input) {
       try {
         const id = crypto.randomUUID();

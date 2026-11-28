@@ -113,6 +113,9 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - PV-36 stage (2026-11-28): an upload link over HTTP, 7/7. The guest form (no script) took notes.txt and refused
   tool.exe (type not accepted, with the reason); the file reached the Review tab held as `review:upload_link`,
   uploaded by `upl_…`; approving made it private; the link counted 1 file and 400 bytes; revoked, the page was 404.
+- PV-37 stage (2026-11-28): a public gallery over HTTP, 6/6. A collection with a public and a private file, marked as
+  a gallery: the page listed the public file and not the private one, with no script and a deny-all CSP; turned off,
+  it was 404.
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

@@ -60,7 +60,7 @@ function parseTags(raw: string | null | undefined): string[] {
 const nf = (ctx: Ctx) => errorResponse("not_found", "Not found", 404, ctx.requestId);
 
 /** Read access to one file: `file.read`, or `file.read.own` for the uploader of that file. */
-async function canRead(ctx: Ctx, a: Awaited<ReturnType<typeof loadAuthorized>> & { ok: true }, f: FileRow): Promise<boolean> {
+export async function canRead(ctx: Ctx, a: Awaited<ReturnType<typeof loadAuthorized>> & { ok: true }, f: FileRow): Promise<boolean> {
   if (await authorizeOnLibrary(ctx.env, ctx.actor, "file.read", a.lib, a.facts, ctx.requestId)) return true;
   return f.uploaded_by === ctx.actor.subjectId && (await authorizeOnLibrary(ctx.env, ctx.actor, "file.read.own", a.lib, a.facts, ctx.requestId));
 }

@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-37._
+_Last updated: 2026-11-28, PV-38._
 
 ## Blocked
 
@@ -60,6 +60,8 @@ _Last updated: 2026-11-28, PV-37._
 | G88 | Any type unless the manager restricts it | A new link accepts any type the library accepts (`allowedTypes` empty) | Blocked executable types wait for G28 | A guest can send an executable; it's never served and waits for review | With G28 |
 | G89 | ImgHub's `PublicBrowse.vue` as an app view (IH-105) | A server-rendered gallery page on serve-worker (`/<org>/<lib>/_gallery/<id>`), no script, showing one public collection's public files | No app code on the public serving host; the page CSP allows no script | No search, folders or paging on a gallery (first 500 files) | Kept; paging if asked |
 | G90 | Reordering a collection | Files keep the order they were added in | Not on PV6's done-when | No drag-to-reorder | With the app's collection view, PV6 UI or later |
+| G91 | Mentioning anyone who can see the file | Only explicit library members (and guests) can be mentioned; org owners and admins who reach the library implicitly, and members who join through "everyone in the org", aren't in the list | Mentions are checked against the library's member list | Implicit members get no mention email | With the app's mention picker, PV6 UI |
+| G92 | Delivered mention emails on stage | Stage's notifications-worker runs in local-debug delivery, so emails are queued and recorded, not sent | No email provider configured for stage | Stage can't show a real inbox | When an email provider is connected |
 
 ## Missing (in the design for a closed milestone, not built)
 
@@ -122,7 +124,7 @@ _Last updated: 2026-11-28, PV-37._
 | G63 | **ImageNet labels as tags; no search over them** | Tags are resnet-50's ImageNet classes (only those it scores ≥ 0.4, at most 3), e.g. "tabby cat", not descriptive keywords. Nothing searches them yet. | A cheap baseline that stays inside the account; tags are stored on the file. | A captioning model for descriptive tags and FTS over names and tags, PV5 |
 | G64 | **No notification when a file is flagged or held** | Editors learn about the review queue only by opening it. No `file.flagged` webhook. | The queue is `GET …/files?review=1`. Notifications and webhooks need the events outbox (G26). | PV5 (events), with `file.flagged` |
 | G65 | **Platform operators are a hand-filled table** | Granting an operator means a D1 insert by a Cloudflare account admin (`platform_media_operators`). The baseline's admin-worker support roles aren't reachable through the edge. | A table outside the repo, which is public. Ids only. The tenancy rule (`org_id NOT NULL` on every `media_` table) stays intact because the table isn't a tenant table. | An operator role in the platform's own identity model, PV11 |
-| G66 | **Nobody is told about reports or takedowns** | Teams don't learn that a file was reported or taken down; reporters get no reply. | Cases keep the reporter's optional address for a manual reply. | With notifications (PV5) |
+| G66 | **Nobody is told about reports or takedowns** | Teams don't learn that a file was reported or taken down; reporters get no reply. | Cases keep the reporter's optional address for a manual reply. | Mention emails exist since PV-38 (notifications-worker template `media.comment_mention`); takedown and report emails use the same path, PV11 |
 | G67 | **No appeal flow** | A team can't contest a takedown in the product. | Operators can reinstate through the API. | PV11 |
 | G68 | **No operator UI** | Abuse cases, takedowns, suspensions and pipeline failures are API-only. | `docs/ops/abuse-runbook.md` gives the calls. | PV11 (platform admin) |
 | G69 | **CSAM is caught by reports and moderation only** | No hash matching. Cloudflare's CSAM Scanning Tool needs serving on a zone. | The CSAM category is triaged first and taken down on the report alone (runbook). | W-5 once serving has a zone (W-6) |

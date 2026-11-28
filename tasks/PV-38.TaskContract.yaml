@@ -1,0 +1,31 @@
+# PV-38: PV6, comments and mentions. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-38
+spec:
+  goal: "Anyone who can read a file comments on it (kept in the library's index); authors edit, authors and editors resolve and delete; mentions of library members who can read the file send one email each through notifications-worker (a new escaped template), best effort."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/notifications-worker
+    - default/pixvault/notifications-worker-tests
+    - default/pixvault/db
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/notifications-worker/**
+    - tests/notifications-worker/**
+    - packages/db/**
+    - apps/api-edge/**
+    - tests/api-edge/**
+    - pnpm-lock.yaml
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "comments follow the file's access, and only authors or editors change them (tests)"
+    - "a mention emails only members who can read the file, once each, with no file links (test)"
+    - "the mention email escapes every field and drops non-https links (test)"
+  gates: []

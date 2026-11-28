@@ -252,6 +252,9 @@ importers:
       '@saas/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@saas/notifications-client':
+        specifier: workspace:*
+        version: link:../../packages/notifications-client
       '@saas/policy-engine':
         specifier: workspace:*
         version: link:../../packages/policy-engine

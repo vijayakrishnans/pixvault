@@ -150,3 +150,15 @@ describe("live tickets", () => {
     expect(ws.sent[0]).toEqual({ t: "change", op: "commit", files: [{ id: r.json.data.file.id, folder: "/team", status: "private" }], tree: true });
   });
 });
+
+describe("comment events", () => {
+  it("say which file's comments changed, only to sockets that see every file", () => {
+    const all = new FakeSocket({ sub: "usr_9", scope: "all", folder: null, exp: Date.now() + 1000 });
+    const own = new FakeSocket({ sub: "usr_1", scope: "own", folder: null, exp: Date.now() + 1000 });
+    const c = changeFor({ op: "addComment", input: { id: "c", fileId: "00000000-0000-4000-8000-000000000001", author: "a", body: "secret words", mentions: [], nowIso: "" } }, {})!;
+    deliver([all, own], c, Date.now());
+    expect(all.sent).toEqual([{ t: "change", op: "comment", files: [], tree: false, comments: "fil_00000000000040008000000000000001" }]);
+    expect(JSON.stringify(all.sent)).not.toContain("secret");
+    expect(own.sent).toEqual([]);
+  });
+});
