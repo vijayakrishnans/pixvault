@@ -122,6 +122,11 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - PV-40 stage (2026-11-28, this branch's build served in place of the app): 10/10. A comment (plain text), a file
   shared with the new link shown once and opened by a guest, an upload link for a new folder opened by a guest, a
   collection made from the bulk bar showing its file, and its gallery switched on; no page errors.
+- PV6 on the deployed stage app (2026-11-28, after deploys resumed): 11/11 with no page errors. A comment (plain
+  text); a file shared and the link opened by a guest; an upload link for a new folder opened by a guest; a collection
+  from the bulk bar with its gallery switched on; the Activity tab listing the upload, the comment and the collection.
+- Deploy credentials (2026-11-28): Orunbase refused the Cloudflare token for every deploy job from 05:32Z to about
+  08:30Z (`broker: limit_reached`, 200 mints per rolling 24 h); retries succeeded once older mints aged out.
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

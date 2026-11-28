@@ -1,0 +1,15 @@
+# PV-43: PV6 done. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-43
+spec:
+  goal: "PV6 is marked done in the implementation plan with its as-built note and stage measurements; the ledger and status record the deploy-credential limit that paused deploys."
+  affects:
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "implementation-plan marks PV6 done with its stage measurements"
+    - "the ledger records the deployed stage run of the sharing screens and activity"
+  gates: []
