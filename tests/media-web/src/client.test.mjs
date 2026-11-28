@@ -117,3 +117,34 @@ test("the browser's calls: search and filters, moves, batches, folders, tags, ve
   }
   assert.equal(c.base, "https://edge");
 });
+
+test("the sharing calls: share links, upload links, collections and comments", async () => {
+  const f = fakeFetch(200, { data: {} });
+  const c = createClient({ base: "https://edge", fetchImpl: f.fn, token: () => "tok" });
+  const L = "https://edge/v1/organizations/org_1/libraries/lib_2";
+  const calls = [
+    [() => c.libraries.shareLinks("org_1", "lib_2", { folder: "/a b" }), "GET", `${L}/share-links?folder=%2Fa+b`, undefined],
+    [() => c.libraries.shareLinks("org_1", "lib_2"), "GET", `${L}/share-links`, undefined],
+    [() => c.libraries.createShareLink("org_1", "lib_2", { target: { kind: "file", fileId: "fil_3" }, mode: "view" }), "POST", `${L}/share-links`, { target: { kind: "file", fileId: "fil_3" }, mode: "view" }],
+    [() => c.libraries.revokeShareLink("org_1", "lib_2", "shl_4"), "DELETE", `${L}/share-links/shl_4`, undefined],
+    [() => c.libraries.uploadLinks("org_1", "lib_2"), "GET", `${L}/upload-links`, undefined],
+    [() => c.libraries.createUploadLink("org_1", "lib_2", { folder: "/in" }), "POST", `${L}/upload-links`, { folder: "/in" }],
+    [() => c.libraries.revokeUploadLink("org_1", "lib_2", "upl_5"), "DELETE", `${L}/upload-links/upl_5`, undefined],
+    [() => c.libraries.collections("org_1", "lib_2"), "GET", `${L}/collections`, undefined],
+    [() => c.libraries.createCollection("org_1", "lib_2", { name: "K" }), "POST", `${L}/collections`, { name: "K" }],
+    [() => c.libraries.updateCollection("org_1", "lib_2", "col_6", { publicGallery: true }), "PATCH", `${L}/collections/col_6`, { publicGallery: true }],
+    [() => c.libraries.collectionItems("org_1", "lib_2", "col_6", "add", ["fil_3"]), "POST", `${L}/collections/col_6/items`, { action: "add", ids: ["fil_3"] }],
+    [() => c.libraries.deleteCollection("org_1", "lib_2", "col_6"), "DELETE", `${L}/collections/col_6`, undefined],
+    [() => c.libraries.comments("org_1", "lib_2", "fil_3"), "GET", `${L}/files/fil_3/comments`, undefined],
+    [() => c.libraries.addComment("org_1", "lib_2", "fil_3", "hi", ["usr_7"]), "POST", `${L}/files/fil_3/comments`, { body: "hi", mentions: ["usr_7"] }],
+    [() => c.libraries.updateComment("org_1", "lib_2", "fil_3", "cmt_8", { resolved: true }), "PATCH", `${L}/files/fil_3/comments/cmt_8`, { resolved: true }],
+    [() => c.libraries.deleteComment("org_1", "lib_2", "fil_3", "cmt_8"), "DELETE", `${L}/files/fil_3/comments/cmt_8`, undefined],
+  ];
+  for (const [call, method, url, body] of calls) {
+    const n = f.calls.length;
+    await call();
+    assert.equal(f.calls[n].url, url);
+    assert.equal(f.calls[n].init.method, method);
+    assert.deepEqual(f.calls[n].init.body === undefined ? undefined : JSON.parse(f.calls[n].init.body), body);
+  }
+});

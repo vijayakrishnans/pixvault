@@ -1,0 +1,19 @@
+# PV-40: PV6, the app's sharing screens. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-40
+spec:
+  goal: "The app gets PV6's screens: a share dialog for a file, folder or collection (links, states, revoke, the new URL once), upload links for a folder (managers), a Collections tab with add-from-bulk-bar and the public gallery switch, and comments with notify-by-email in the file drawer, refreshed live."
+  affects:
+    - default/pixvault/media-web
+    - default/pixvault/media-web-tests
+    - apps/media-web/**
+    - tests/media-web/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "the client's sharing calls are tested"
+    - "on stage, a browser run comments, shares a file and opens the link, creates an upload link, builds a collection from the bulk bar and turns on its gallery"
+  gates: []

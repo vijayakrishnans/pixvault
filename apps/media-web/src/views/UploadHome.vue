@@ -80,6 +80,7 @@
 
       <el-tabs v-model="tab" class="tabs" @tab-change="onTab">
         <el-tab-pane :label="$t('upload.files')" name="files" />
+        <el-tab-pane v-if="canList" :label="$t('collections.tab')" name="collections" />
         <el-tab-pane v-if="canTrash" :label="$t('review.tab')" name="review" />
         <el-tab-pane v-if="canTrash" :label="$t('upload.trash')" name="trash" />
       </el-tabs>
@@ -120,6 +121,8 @@
             </el-breadcrumb>
             <span class="grow" />
             <template v-if="folder && folder !== '/' && canEdit">
+              <el-button size="small" text data-test="folder-share" @click="shareTarget = { kind: 'folder', path: folder, label: folder }">{{ $t("share.button") }}</el-button>
+              <el-button v-if="isManager" size="small" text data-test="folder-upload-link" @click="uploadLinkFolder = folder">{{ $t("uploadLink.button") }}</el-button>
               <el-button size="small" text data-test="folder-rename" @click="renameFolder">{{ $t("browse.rename") }}</el-button>
               <el-button size="small" text data-test="folder-move" @click="moveTarget = { kind: 'folder', from: folder }">{{ $t("browse.move") }}</el-button>
               <el-button v-if="canTrash" size="small" text type="danger" data-test="folder-trash" @click="trashFolder">{{ $t("upload.delete") }}</el-button>
@@ -186,6 +189,49 @@
         </main>
       </div>
 
+      <div v-else-if="tab === 'collections'" class="collections" data-test="collections">
+        <template v-if="!openCollection">
+          <div class="toolbar">
+            <span class="pv-muted small">{{ $t("collections.explain") }}</span>
+            <span class="grow" />
+            <el-button v-if="canEdit" size="small" type="primary" data-test="new-collection" @click="newCollection">{{ $t("collections.new") }}</el-button>
+          </div>
+          <el-empty v-if="!collections.length" :description="$t('collections.none')" />
+          <div v-else class="grid">
+            <div v-for="c in collections" :key="c.id" class="col-card pv-card" tabindex="0" role="button" data-test="collection-card" @click="showCollection(c)" @keydown.enter.prevent="showCollection(c)">
+              <strong>{{ c.name }}</strong>
+              <span class="pv-muted small">{{ $t("collections.count", { n: c.files }) }}</span>
+              <el-tag v-if="c.publicGallery" size="small" type="success">{{ $t("collections.gallery") }}</el-tag>
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <div class="crumbs">
+            <el-button size="small" text @click="openCollection = null; loadCollections()">← {{ $t("collections.tab") }}</el-button>
+            <strong>{{ openCollection.name }}</strong>
+            <span class="grow" />
+            <el-switch
+              v-if="canEdit && publicSharing"
+              :model-value="openCollection.publicGallery"
+              :active-text="$t('collections.gallery')"
+              data-test="collection-gallery"
+              @change="toggleGallery"
+            />
+            <a v-if="openCollection.galleryUrl" :href="openCollection.galleryUrl" target="_blank" rel="noopener noreferrer" class="small">{{ $t("collections.openGallery") }}</a>
+            <el-button v-if="canEdit && publicSharing" size="small" text data-test="collection-share" @click="shareTarget = { kind: 'collection', id: openCollection.id, label: openCollection.name }">{{ $t("share.button") }}</el-button>
+            <el-button v-if="canEdit" size="small" text type="danger" @click="deleteCollection">{{ $t("upload.delete") }}</el-button>
+          </div>
+          <p v-if="openCollection.description" class="pv-muted">{{ openCollection.description }}</p>
+          <el-empty v-if="!collectionFiles.length" :description="$t('collections.empty')" />
+          <div v-else class="grid">
+            <div v-for="f in collectionFiles" :key="f.id" class="col-item">
+              <FileCard :file="f" @open="drawerFile = $event" />
+              <el-button v-if="canEdit" size="small" text type="danger" @click="removeFromCollection(f)">{{ $t("collections.remove") }}</el-button>
+            </div>
+          </div>
+        </template>
+      </div>
+
       <template v-else>
         <el-alert v-if="tab === 'review'" type="info" :closable="false" show-icon :title="$t('review.hint')" class="review-hint" />
         <el-table v-loading="filesLoading" :data="files" :empty-text="tab === 'trash' ? $t('upload.trashEmpty') : $t('review.empty')">
@@ -229,6 +275,9 @@
         :can-edit="canEdit"
         :can-trash="canTrash"
         :names="names"
+        :me="me"
+        ref="drawer"
+        @share="shareTarget = { kind: 'file', id: $event.id, label: $event.name }"
         @close="drawerFile = null"
         @links="linkFile = $event"
         @download="download"
@@ -237,6 +286,17 @@
         @updated="onFileUpdated"
       />
       <LinkDialog :file="linkFile" :org="org" :lib="lib" :can-edit="canEdit && publicSharing" @close="linkFile = null" @updated="onFileUpdated" />
+      <ShareDialog :target="shareTarget" :org="org" :lib="lib" :public-sharing="publicSharing" @close="shareTarget = null" />
+      <UploadLinkDialog :folder="uploadLinkFolder" :org="org" :lib="lib" :public-sharing="publicSharing" @close="uploadLinkFolder = null" />
+      <el-dialog :model-value="collectTarget !== null" :title="$t('collections.addTitle', { n: collectTarget ? collectTarget.length : 0 })" width="min(420px, 92vw)" append-to-body @close="collectTarget = null">
+        <el-select v-model="collectInto" filterable :placeholder="$t('collections.choose')" style="width: 100%" data-test="collect-into">
+          <el-option v-for="c in collections" :key="c.id" :value="c.id" :label="c.name" />
+        </el-select>
+        <template #footer>
+          <el-button @click="newCollection(true)">{{ $t("collections.new") }}</el-button>
+          <el-button type="primary" :disabled="!collectInto" data-test="collect-confirm" @click="collect">{{ $t("collections.add") }}</el-button>
+        </template>
+      </el-dialog>
       <MoveFileDialog :visible="!!moveTarget" :title="moveTitle" :folders="folders" :current="moveTarget ? moveTarget.from : '/'" :busy="moving" @close="moveTarget = null" @confirm="doMove" />
     </template>
   </AppShell>
@@ -252,6 +312,8 @@ import BatchActionBar from "@/components/dashboard/BatchActionBar.vue";
 import FileCard from "@/components/dashboard/FileCard.vue";
 import FileDetailDialog from "@/components/dashboard/FileDetailDialog.vue";
 import MoveFileDialog from "@/components/dashboard/MoveFileDialog.vue";
+import ShareDialog from "@/components/ShareDialog.vue";
+import UploadLinkDialog from "@/components/UploadLinkDialog.vue";
 import { buildTree, crumbs as crumbsOf } from "@/utils/folders";
 import { filesFromDrop, folderForRelativePath, joinFolder } from "@/utils/upload/directoryTraversal";
 import { changeTouchesView, initials } from "@/utils/browse";
@@ -272,7 +334,7 @@ function savedView() {
 
 export default {
   name: "LibraryHome",
-  components: { AppShell, LinkDialog, BatchActionBar, FileCard, FileDetailDialog, MoveFileDialog },
+  components: { AppShell, LinkDialog, BatchActionBar, FileCard, FileDetailDialog, MoveFileDialog, ShareDialog, UploadLinkDialog },
   props: { org: { type: String, required: true }, lib: { type: String, required: true } },
   data: () => ({
     loading: true,
@@ -307,6 +369,13 @@ export default {
     presence: [],
     names: {},
     namesAt: 0,
+    shareTarget: null,
+    uploadLinkFolder: null,
+    collections: [],
+    openCollection: null,
+    collectionFiles: [],
+    collectTarget: null,
+    collectInto: "",
     searchTimer: null,
     loadSeq: 0,
   }),
@@ -319,6 +388,12 @@ export default {
     },
     canEdit() {
       return ["manager", "editor"].includes(this.library?.myRole);
+    },
+    isManager() {
+      return this.library?.myRole === "manager";
+    },
+    canList() {
+      return !!this.library && this.library.myRole !== "uploader";
     },
     /** Off in prod until CSAM scanning and the domain exist: files stay private, signed links work. */
     publicSharing() {
@@ -464,7 +539,77 @@ export default {
     },
     onTab() {
       this.selected = [];
+      if (this.tab === "collections") {
+        this.openCollection = null;
+        this.loadCollections();
+        return;
+      }
       this.loadFiles();
+    },
+
+    // ── collections (PV6) ──────────────────────────────────
+    async loadCollections() {
+      this.collections = (await api.libraries.collections(this.org, this.lib).catch(() => null))?.collections ?? [];
+    },
+    async showCollection(c) {
+      const r = await api.libraries.collection(this.org, this.lib, c.id).catch((e) => {
+        ElMessage.error(e.message || this.$t("errors.generic"));
+        return null;
+      });
+      if (!r) return;
+      this.openCollection = r.collection;
+      this.collectionFiles = r.files;
+    },
+    async newCollection(thenSelect = false) {
+      const name = await this.promptName(this.$t("collections.new"));
+      if (!name) return;
+      try {
+        const r = await api.libraries.createCollection(this.org, this.lib, { name });
+        await this.loadCollections();
+        if (thenSelect === true) this.collectInto = r.collection.id;
+      } catch (e) {
+        ElMessage.error(e.message || this.$t("errors.generic"));
+      }
+    },
+    async collect() {
+      try {
+        const r = await api.libraries.collectionItems(this.org, this.lib, this.collectInto, "add", this.collectTarget);
+        ElMessage.success(this.$t("collections.added", { n: r.changed }));
+        this.collectTarget = null;
+        this.selected = [];
+      } catch (e) {
+        ElMessage.error(e.message || this.$t("errors.generic"));
+      }
+    },
+    async removeFromCollection(f) {
+      try {
+        await api.libraries.collectionItems(this.org, this.lib, this.openCollection.id, "remove", [f.id]);
+        await this.showCollection(this.openCollection);
+      } catch (e) {
+        ElMessage.error(e.message || this.$t("errors.generic"));
+      }
+    },
+    async toggleGallery(on) {
+      try {
+        const r = await api.libraries.updateCollection(this.org, this.lib, this.openCollection.id, { publicGallery: on });
+        this.openCollection = r.collection;
+      } catch (e) {
+        ElMessage.error(e?.code === "public_sharing_off" ? this.$t("library.sharingOff") : e.message || this.$t("errors.generic"));
+      }
+    },
+    async deleteCollection() {
+      try {
+        await ElMessageBox.confirm(this.$t("collections.deleteConfirm", { name: this.openCollection.name }), { type: "warning" });
+      } catch {
+        return;
+      }
+      try {
+        await api.libraries.deleteCollection(this.org, this.lib, this.openCollection.id);
+        this.openCollection = null;
+        await this.loadCollections();
+      } catch (e) {
+        ElMessage.error(e.message || this.$t("errors.generic"));
+      }
     },
     onSearch() {
       clearTimeout(this.searchTimer);
@@ -510,6 +655,7 @@ export default {
       if (changes.some((c) => changeTouchesView(c, ctx))) await this.loadFiles();
       if (changes.some((c) => c.op === "processed")) this.loadTags();
       const open = this.drawerFile;
+      if (open && changes.some((c) => c.comments === open.id)) this.$refs.drawer?.reloadComments();
       if (open && changes.some((c) => c.files.some((f) => f.id === open.id))) {
         const r = await api.libraries.file(this.org, this.lib, open.id).catch(() => null);
         if (this.drawerFile?.id === open.id) this.drawerFile = r?.file && r.file.status !== "trashed" ? r.file : null;
@@ -618,6 +764,12 @@ export default {
       if (!ids.length) return;
       if (action === "move") {
         this.moveTarget = { kind: "files", ids, from: this.folder ?? "/" };
+        return;
+      }
+      if (action === "collect") {
+        await this.loadCollections();
+        this.collectInto = this.collections[0]?.id ?? "";
+        this.collectTarget = ids;
         return;
       }
       if (action === "trash") {
@@ -971,6 +1123,24 @@ h1 {
 }
 .filter {
   width: 140px;
+}
+.collections .grid {
+  margin-top: 8px;
+}
+.col-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  cursor: pointer;
+}
+.col-card:hover,
+.col-card:focus-visible {
+  border-color: var(--pv-brand);
+  outline: none;
+}
+.col-item {
+  display: grid;
+  gap: 4px;
 }
 .select-all {
   display: flex;

@@ -264,5 +264,96 @@
       "closed": "实时更新已暂停，正在重连"
     },
     "viaUploadLink": "团队外部人员（通过上传链接）"
+  },
+  "share": {
+    "button": "分享",
+    "title": "分享 {name}",
+    "mode": "访客可以",
+    "view": "查看",
+    "download": "下载",
+    "expires": "有效期",
+    "password": "密码",
+    "optional": "可选，至少 8 个字符",
+    "maxDownloads": "下载次数上限",
+    "unlimited": "不限",
+    "create": "创建链接",
+    "createdOnce": "请立即复制此链接：它不会再次显示。",
+    "existing": "链接",
+    "none": "还没有链接。",
+    "withPassword": "有密码",
+    "opens": "打开 {n} 次",
+    "downloads": "下载 {n} 次",
+    "downloadsOf": "已下载 {n}/{max}",
+    "until": "至 {at}",
+    "revoke": "关闭",
+    "revokeConfirm": "关闭此链接？正在使用的人会立即失去访问。",
+    "revoked": "链接已关闭",
+    "passwordShort": "至少 8 个字符。",
+    "state": {
+      "active": "开启",
+      "expired": "已过期",
+      "revoked": "已关闭",
+      "used_up": "已用完"
+    },
+    "expiry": {
+      "day": "1 天",
+      "week": "7 天",
+      "month": "30 天",
+      "never": "永不"
+    }
+  },
+  "uploadLink": {
+    "button": "上传链接",
+    "title": "上传到 {folder} 的链接",
+    "explain": "团队外部的人可以通过此链接把文件发送到这个文件夹。文件以私有方式到达，并在“审核”中等待，除非你关闭审核。",
+    "label": "链接名称",
+    "labelHint": "例如：请发送你的标志",
+    "maxFiles": "文件数",
+    "maxFileMb": "单个文件大小 (MB)",
+    "types": "接受的类型",
+    "typeAny": "任意",
+    "typeImages": "图片",
+    "typeDocs": "图片、PDF 和文本",
+    "review": "使用前审核",
+    "create": "创建上传链接",
+    "unnamed": "上传链接",
+    "received": "已收到 {n}/{max} 个文件",
+    "state": {
+      "active": "开放",
+      "expired": "已过期",
+      "revoked": "已关闭",
+      "full": "已满"
+    }
+  },
+  "collections": {
+    "tab": "合集",
+    "explain": "按你的顺序挑选的一组文件。合集可以分享，也可以设为公开图库。",
+    "new": "新建合集",
+    "none": "还没有合集。",
+    "count": "{n} 个文件",
+    "gallery": "公开图库",
+    "openGallery": "打开图库",
+    "empty": "这个合集还没有文件。",
+    "remove": "移除",
+    "add": "加入合集",
+    "addTitle": "将 {n} 个文件加入合集",
+    "choose": "选择合集",
+    "added": "已加入 {n} 个文件",
+    "deleteConfirm": "删除合集“{name}”？其中的文件仍保留在库中。"
+  },
+  "comments": {
+    "title": "评论",
+    "none": "还没有评论。",
+    "placeholder": "添加评论",
+    "notify": "通过电子邮件通知队友",
+    "send": "评论",
+    "edit": "编辑",
+    "edited": "已编辑",
+    "resolve": "解决",
+    "reopen": "重新打开",
+    "resolved": "已解决",
+    "deleteConfirm": "删除这条评论？",
+    "notified": "已通知：{names}",
+    "someNotNotified": "部分人未收到通知：他们看不到这个文件。"
   }
 }
