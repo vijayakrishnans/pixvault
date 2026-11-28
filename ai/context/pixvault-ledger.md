@@ -116,6 +116,12 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - PV-37 stage (2026-11-28): a public gallery over HTTP, 6/6. A collection with a public and a private file, marked as
   a gallery: the page listed the public file and not the private one, with no script and a deny-all CSP; turned off,
   it was 404.
+- PV-39 stage (2026-11-28): a comment mentioning a guest viewer queued one `media.comment_mention` notification
+  (category product, idempotency key per comment and person). Its delivery failed: the sender is on the placeholder
+  domain `mail.pixvault.example.com`, which the account doesn't own (G92).
+- PV-40 stage (2026-11-28, this branch's build served in place of the app): 10/10. A comment (plain text), a file
+  shared with the new link shown once and opened by a guest, an upload link for a new folder opened by a guest, a
+  collection made from the bulk bar showing its file, and its gallery switched on; no page errors.
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

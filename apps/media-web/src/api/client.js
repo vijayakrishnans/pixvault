@@ -138,6 +138,28 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
       trashFolder: (org, id, path) => request("POST", `${lib(org, id)}/folders/trash`, { path }),
       tags: (org, id) => request("GET", `${lib(org, id)}/tags`),
       liveTicket: (org, id) => request("POST", `${lib(org, id)}/live-tickets`),
+      // PV6: sharing
+      shareLinks: (org, id, target = {}) => {
+        const q = new URLSearchParams();
+        for (const k of ["file", "folder", "collection"]) if (target[k]) q.set(k, target[k]);
+        const qs = q.toString();
+        return request("GET", `${lib(org, id)}/share-links${qs ? `?${qs}` : ""}`);
+      },
+      createShareLink: (org, id, body) => request("POST", `${lib(org, id)}/share-links`, body),
+      revokeShareLink: (org, id, linkId) => request("DELETE", `${lib(org, id)}/share-links/${encodeURIComponent(linkId)}`),
+      uploadLinks: (org, id) => request("GET", `${lib(org, id)}/upload-links`),
+      createUploadLink: (org, id, body) => request("POST", `${lib(org, id)}/upload-links`, body),
+      revokeUploadLink: (org, id, linkId) => request("DELETE", `${lib(org, id)}/upload-links/${encodeURIComponent(linkId)}`),
+      collections: (org, id) => request("GET", `${lib(org, id)}/collections`),
+      collection: (org, id, colId) => request("GET", `${lib(org, id)}/collections/${encodeURIComponent(colId)}`),
+      createCollection: (org, id, body) => request("POST", `${lib(org, id)}/collections`, body),
+      updateCollection: (org, id, colId, patch) => request("PATCH", `${lib(org, id)}/collections/${encodeURIComponent(colId)}`, patch),
+      deleteCollection: (org, id, colId) => request("DELETE", `${lib(org, id)}/collections/${encodeURIComponent(colId)}`),
+      collectionItems: (org, id, colId, action, ids) => request("POST", `${lib(org, id)}/collections/${encodeURIComponent(colId)}/items`, { action, ids }),
+      comments: (org, id, fileId) => request("GET", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/comments`),
+      addComment: (org, id, fileId, body, mentions = []) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/comments`, { body, mentions }),
+      updateComment: (org, id, fileId, commentId, patch) => request("PATCH", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/comments/${encodeURIComponent(commentId)}`, patch),
+      deleteComment: (org, id, fileId, commentId) => request("DELETE", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/comments/${encodeURIComponent(commentId)}`),
     },
   };
 }

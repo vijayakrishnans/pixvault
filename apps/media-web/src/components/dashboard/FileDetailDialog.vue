@@ -17,6 +17,7 @@
         <el-button v-if="served" size="small" type="primary" data-test="drawer-links" @click="$emit('links', file)">{{ $t("links.open") }}</el-button>
         <el-button size="small" @click="$emit('download', file)">{{ $t("upload.download") }}</el-button>
         <el-button v-if="canEdit && file.status !== 'removed'" size="small" data-test="drawer-move" @click="$emit('move', file)">{{ $t("browse.move") }}</el-button>
+        <el-button v-if="canEdit && served" size="small" data-test="drawer-share" @click="$emit('share', file)">{{ $t("share.button") }}</el-button>
         <el-button v-if="canTrash" size="small" type="danger" plain @click="$emit('trash', file)">{{ $t("upload.delete") }}</el-button>
       </div>
 
@@ -51,6 +52,8 @@
           <el-button v-else-if="canEdit && file.status !== 'removed'" size="small" text type="primary" data-test="restore-version" @click="restoreVersion(v)">{{ $t("browse.restoreVersion") }}</el-button>
         </li>
       </ul>
+
+      <CommentsPanel ref="comments" :org="org" :lib="lib" :file-id="file.id" :names="names" :me="me" :can-moderate="canEdit" />
     </template>
   </el-drawer>
 </template>
@@ -59,11 +62,13 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api/client";
 import { fileKind, thumbUrl, withPreset } from "@/utils/browse";
+import CommentsPanel from "@/components/CommentsPanel.vue";
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"];
 
 export default {
   name: "FileDetailDialog",
+  components: { CommentsPanel },
   props: {
     file: { type: Object, default: null },
     org: { type: String, required: true },
@@ -72,8 +77,9 @@ export default {
     canTrash: { type: Boolean, default: false },
     /** subject id → a name to show (from the library's members). */
     names: { type: Object, default: () => ({}) },
+    me: { type: String, default: null },
   },
-  emits: ["close", "links", "download", "move", "trash", "updated"],
+  emits: ["close", "links", "download", "move", "trash", "updated", "share"],
   data: () => ({ signed: null, versions: [], versionsLoading: false, newName: "", saving: false }),
   computed: {
     kind() {
@@ -116,6 +122,10 @@ export default {
     },
   },
   methods: {
+    /** A teammate changed this file's comments (live event). */
+    reloadComments() {
+      this.$refs.comments?.reload();
+    },
     fmt(n) {
       let i = 0;
       let v = n;

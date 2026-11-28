@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-38._
+_Last updated: 2026-11-28, PV-40._
 
 ## Blocked
 
@@ -61,7 +61,7 @@ _Last updated: 2026-11-28, PV-38._
 | G89 | ImgHub's `PublicBrowse.vue` as an app view (IH-105) | A server-rendered gallery page on serve-worker (`/<org>/<lib>/_gallery/<id>`), no script, showing one public collection's public files | No app code on the public serving host; the page CSP allows no script | No search, folders or paging on a gallery (first 500 files) | Kept; paging if asked |
 | G90 | Reordering a collection | Files keep the order they were added in | Not on PV6's done-when | No drag-to-reorder | With the app's collection view, PV6 UI or later |
 | G91 | Mentioning anyone who can see the file | Only explicit library members (and guests) can be mentioned; org owners and admins who reach the library implicitly, and members who join through "everyone in the org", aren't in the list | Mentions are checked against the library's member list | Implicit members get no mention email | With the app's mention picker, PV6 UI |
-| G92 | Delivered mention emails on stage | Stage's notifications-worker runs in local-debug delivery, so emails are queued and recorded, not sent | No email provider configured for stage | Stage can't show a real inbox | When an email provider is connected |
+| G92 | Emails delivered | No email from Pixvault is delivered yet, on stage or prod: notifications-worker sends through Cloudflare Email from `no-reply@mail.pixvault.example.com`, a placeholder domain the account doesn't own, so every send fails (`domain is not owned by the same account`). Mentions are queued and recorded (PV-39, checked on stage); login and invitation emails are affected the same way | The product domain doesn't exist yet (W-6) | People aren't emailed about mentions; on prod, sign-in by emailed code can't work either | Set `EMAIL_FROM_ADDRESS` on the product domain once W-6 is done |
 
 ## Missing (in the design for a closed milestone, not built)
 

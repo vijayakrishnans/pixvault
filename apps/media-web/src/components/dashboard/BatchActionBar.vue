@@ -10,6 +10,7 @@
       <span class="divider" />
       <template v-if="canEdit">
         <el-button size="small" data-test="bulk-move" @click="$emit('action', 'move')"><el-icon><FolderOpened /></el-icon><span>{{ $t("browse.move") }}</span></el-button>
+        <el-button size="small" data-test="bulk-collect" @click="$emit('action', 'collect')"><el-icon><Files /></el-icon><span>{{ $t("collections.add") }}</span></el-button>
         <el-button v-if="canPublish" size="small" data-test="bulk-public" @click="$emit('action', 'public')"><el-icon><View /></el-icon><span>{{ $t("browse.makePublic") }}</span></el-button>
         <el-button size="small" data-test="bulk-private" @click="$emit('action', 'private')"><el-icon><Hide /></el-icon><span>{{ $t("browse.makePrivate") }}</span></el-button>
       </template>
