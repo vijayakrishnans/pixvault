@@ -10,6 +10,7 @@ import type { Env } from "./env.js";
 import { negotiateFormat, presetOptions, transformImage } from "./transform.js";
 import { ipAllowed, referrerAllowed } from "./rules.js";
 import { SHARE_PREFIX, handleShare, parseSharePath } from "./share.js";
+import { GALLERY_RE, galleryPage, hexToUuid, type GalleryView } from "./gallery.js";
 import { UPLOAD_PREFIX, handleUploadLink, parseUploadPath } from "./upload-link.js";
 import { REPORT_PATH, reportForm, reportLink, reportReceived, submitReport, unavailable } from "./report.js";
 
@@ -187,6 +188,20 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
   if (!referrerAllowed(request.headers.get("referer"), map.r, url.hostname)) return text(403, "Hotlinking from this site isn't allowed");
 
   const publicOk = publicSharingAllowed(env);
+
+  // A public gallery (PV6): a collection the team marked public, showing its public files.
+  const g = p.path.match(GALLERY_RE);
+  if (g) {
+    if (!publicOk || !env.LIBRARY_INDEX) return notFound();
+    const ns = env.LIBRARY_INDEX;
+    const stub = ns.get(ns.idFromName(`org:${map.o}:lib:${map.l}`)) as unknown as {
+      call(scope: { orgId: string; libraryId: string }, req: unknown): Promise<{ ok: boolean; value?: GalleryView | null }>;
+    };
+    const r = await stub.call({ orgId: map.o, libraryId: map.l }, { op: "gallery", id: hexToUuid(g[1]!) });
+    if (!r.ok || !r.value) return notFound();
+    analytics(env, request, map, null, 0, "gallery", "");
+    return galleryPage(p.org, p.lib, r.value);
+  }
 
   // Random-image API (functions/random/**): a random public image in a folder, as a redirect.
   if (p.path === "/_random") {

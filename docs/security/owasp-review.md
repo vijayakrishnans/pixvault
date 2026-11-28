@@ -136,6 +136,12 @@ Each PR says which of these it touches and what it did:
 - **Secrets:** a 256-bit token, stored only as a SHA-256 (with an `upload:` domain separator).
 - **Prod:** off with public sharing (PV-34).
 
+### Collections and galleries (PV-37): how the checklist was met
+- **Access:** changing a collection needs `file.update` (editors and managers); seeing one needs `file.list` (uploader-only members get 404). A collection share link reaches only files that are in the collection *now*: removing a file from the collection takes it out of the share at the next request.
+- **Galleries** list only files that are both visibility `public` and status `public`: never private, processing, held, flagged or taken-down files. They are 404 while public sharing is off, and turning a gallery on is refused then.
+- **Pages:** server-rendered with no script, a deny-all CSP (images from self), no framing; names and descriptions escaped; each file links to its own serving URL, which carries the report link.
+- **Bounds:** 500 collections a library, 5,000 files a collection, 500 ids a call, 100-character names, 2,000-character descriptions.
+
 ### Ahead: what the next milestones must design in
 - **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;

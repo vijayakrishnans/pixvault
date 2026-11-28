@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-36._
+_Last updated: 2026-11-28, PV-37._
 
 ## Blocked
 
@@ -53,11 +53,13 @@ _Last updated: 2026-11-28, PV-36._
 | G81 | Actions pinned by commit SHA | The Security workflow pins by SHA (PV-32); the generated `ci.yml` pins by tag | orun generates `ci.yml` | A moved tag could change what CI runs | When the generator supports SHA pins |
 | G82 | Security alerting (OWASP A09) | Login failures are recorded as security events; nothing alerts on spikes, takedown bursts or failed runs | No alerting channel yet | Attacks are seen only by looking | PV11 |
 | G83 | Share landing at `s.<domain>/<token>` | `/_s/<token>` on serve-worker's host (no domain yet, W-6); the pages ask media-worker over the service binding for every request | No product domain; media-worker has no public route | Moves to `s.<domain>` with PV8 | PV8 |
-| G84 | Share links to collections; a report link on share pages; range requests | File and folder links only; no "Report" on share pages; share bytes stream whole (no `Range`) | Collections arrive later in PV6; the report form keys on serving paths | Can't share a collection yet; abuse via a share link is reported through the team; large videos can't seek | Collections later in PV6; report and Range, PV11 |
+| G84 | Share links to collections; a report link on share pages; range requests | File, folder and (since PV-37) collection links; no "Report" on share pages; share bytes stream whole (no `Range`) | Collections arrive later in PV6; the report form keys on serving paths | Abuse via a share link is reported through the team; large videos can't seek | Report and Range, PV11 |
 | G85 | An open trail of who opened a link | Counts and last-opened time only | Guests are anonymous, and storing their IPs would be personal data | No per-visit log | Kept |
 | G86 | Guest uploads with the app's resumable, hashed uploader | A plain HTML form (no script under the page CSP); each file at most 50 MB, at most 20 files and 95 MB per submission; not resumable | Workers cap request bodies at 100 MB, and serve-worker reads the form into memory | Guests can't send big files or resume | A scripted guest uploader with presigned parts, PV11 |
 | G87 | Upload links with a password | Expiry, limits and revocation only | Not needed for the done-when; the token is 256 bits | A forwarded link works for whoever has it until it expires or fills | PV11 if asked |
 | G88 | Any type unless the manager restricts it | A new link accepts any type the library accepts (`allowedTypes` empty) | Blocked executable types wait for G28 | A guest can send an executable; it's never served and waits for review | With G28 |
+| G89 | ImgHub's `PublicBrowse.vue` as an app view (IH-105) | A server-rendered gallery page on serve-worker (`/<org>/<lib>/_gallery/<id>`), no script, showing one public collection's public files | No app code on the public serving host; the page CSP allows no script | No search, folders or paging on a gallery (first 500 files) | Kept; paging if asked |
+| G90 | Reordering a collection | Files keep the order they were added in | Not on PV6's done-when | No drag-to-reorder | With the app's collection view, PV6 UI or later |
 
 ## Missing (in the design for a closed milestone, not built)
 

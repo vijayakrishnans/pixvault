@@ -1,0 +1,28 @@
+# PV-37: PV6, collections and galleries. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-37
+spec:
+  goal: "Editors make collections (ordered sets of files in a library's index) that everyone who can list files sees; a collection can be shared by link, reaching only its current files; a collection marked as a public gallery gets a server-rendered page on serve-worker showing only its public files, off while public sharing is off."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/serve-worker
+    - default/pixvault/serve-worker-tests
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/serve-worker/**
+    - tests/serve-worker/**
+    - apps/api-edge/**
+    - tests/api-edge/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "a gallery shows only its public files and is 404 while public sharing is off (tests)"
+    - "a collection share link reaches only files currently in the collection (test)"
+    - "only editors and managers change collections (test)"
+  gates: []
