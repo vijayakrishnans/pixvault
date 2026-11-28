@@ -663,6 +663,25 @@ export class LibraryIndexCore {
       .toArray();
   }
 
+  /**
+   * The folders holding someone's own live files, and their ancestors, with counts of their files only. For members
+   * who may list only their own uploads: other people's folder names stay hidden (OWASP A01).
+   */
+  listFoldersOf(uploadedBy: string): FolderRow[] {
+    const counts = new Map<string, number>();
+    for (const r of this.sql
+      .exec<{ folder: string; n: number }>(`SELECT folder, COUNT(*) AS n FROM files WHERE uploaded_by = ? AND status != 'trashed' GROUP BY folder`, uploadedBy)
+      .toArray()) {
+      counts.set(r.folder, Number(r.n));
+    }
+    const paths = new Set<string>();
+    for (const f of counts.keys()) for (const p of folderChain(f)) paths.add(p);
+    return [...paths].sort().map((path) => {
+      const cut = path.lastIndexOf("/");
+      return { path, parent: cut === 0 ? "/" : path.slice(0, cut), name: path.slice(cut + 1), files: counts.get(path) ?? 0 };
+    });
+  }
+
   /** Tags on live files, most used first. */
   listTags(limit = 200): { tag: string; files: number }[] {
     return this.sql

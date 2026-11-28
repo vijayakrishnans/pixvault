@@ -156,8 +156,13 @@ export function createFakeRepository(): IdentityRepository & {
       const c = challenges.get(id);
       if (!c) return { ok: false, error: { kind: "not_found" } };
       if (c.consumedAt !== null) return { ok: false, error: { kind: "already_consumed" } };
-      if (c.expiresAt.getTime() <= consumedAt.getTime()) return { ok: false, error: { kind: "expired" } };
-      if (c.codeHash !== codeHash) return { ok: false, error: { kind: "not_found" } };
+      // Mirrors the real repository: expired, or 5 wrong codes, and it no longer works (OWASP A07).
+      const failed = (c as { failedAttempts?: number }).failedAttempts ?? 0;
+      if (c.expiresAt.getTime() <= consumedAt.getTime() || failed >= 5) return { ok: false, error: { kind: "expired" } };
+      if (c.codeHash !== codeHash) {
+        (c as { failedAttempts?: number }).failedAttempts = failed + 1;
+        return { ok: false, error: { kind: "not_found" } };
+      }
       c.consumedAt = consumedAt;
       return { ok: true, value: c };
     },

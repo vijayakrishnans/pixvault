@@ -228,5 +228,14 @@ export const manifest: MigrationManifest = {
       description:
         "Pixvault abuse handling (PV4) — extends media_abuse_cases (one open case per reported file), platform operators, and org suspension",
     },
+    {
+      id: "250_identity_challenge_attempts",
+      context: "identity",
+      path: "250_identity_challenge_attempts/up.sql",
+      checksum:
+        "9ab0ca1f204199db36e98a86e6fcfe2f4062815af309566f429e8909437ab3ad",
+      description:
+        "Wrong-code limit for email login challenges (OWASP A07): failed_attempts on identity_login_challenges",
+    },
   ],
 };

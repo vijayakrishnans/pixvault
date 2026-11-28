@@ -166,6 +166,43 @@ describe("repositories against a real SQLite engine", () => {
     if (found.ok) expect(found.value.id).toBe("11111111-1111-4111-8111-111111111111");
   });
 
+  it("a login code works once, only before it expires, and only with fewer than 5 wrong codes before it (OWASP A07)", async () => {
+    const repo = createIdentityRepository(executor);
+    const t0 = new Date("2026-01-01T00:00:00.000Z");
+    const at = (min: number) => new Date(t0.getTime() + min * 60_000);
+    await repo.createUser({ id: "33333333-3333-4333-8333-333333333333", email: "c@example.com", emailLower: "c@example.com", displayName: null, createdAt: t0 });
+    const challenge = async (id: string) =>
+      repo.createLoginChallenge({ id, userId: "33333333-3333-4333-8333-333333333333", method: "email_code", codeHash: "good", expiresAt: at(10), createdAt: t0 });
+
+    // the right code, in time: consumed once
+    await challenge("44444444-4444-4444-8444-444444444441");
+    expect((await repo.consumeLoginChallenge("44444444-4444-4444-8444-444444444441", "good", at(1))).ok).toBe(true);
+    const again = await repo.consumeLoginChallenge("44444444-4444-4444-8444-444444444441", "good", at(2));
+    expect(!again.ok && again.error.kind).toBe("already_consumed");
+
+    // the right code after expiry: refused
+    await challenge("44444444-4444-4444-8444-444444444442");
+    const late = await repo.consumeLoginChallenge("44444444-4444-4444-8444-444444444442", "good", at(11));
+    expect(!late.ok && late.error.kind).toBe("expired");
+
+    // 5 wrong codes burn the challenge: the right one no longer works
+    await challenge("44444444-4444-4444-8444-444444444443");
+    for (let i = 0; i < 5; i++) {
+      const wrong = await repo.consumeLoginChallenge("44444444-4444-4444-8444-444444444443", `bad${i}`, at(1));
+      expect(!wrong.ok && wrong.error.kind).toBe("not_found");
+    }
+    const burnt = await repo.consumeLoginChallenge("44444444-4444-4444-8444-444444444443", "good", at(1));
+    expect(!burnt.ok && burnt.error.kind).toBe("expired");
+
+    // 4 wrong codes still leave the right one working
+    await challenge("44444444-4444-4444-8444-444444444444");
+    for (let i = 0; i < 4; i++) await repo.consumeLoginChallenge("44444444-4444-4444-8444-444444444444", `bad${i}`, at(1));
+    expect((await repo.consumeLoginChallenge("44444444-4444-4444-8444-444444444444", "good", at(1))).ok).toBe(true);
+
+    const unknown = await repo.consumeLoginChallenge("44444444-4444-4444-8444-444444444449", "good", at(1));
+    expect(!unknown.ok && unknown.error.kind).toBe("not_found");
+  });
+
   it("maps a real unique-constraint failure to a conflict result", async () => {
     // The dialect's own error, raised by the engine — not a hand-written
     // fixture. This is what makes isUniqueViolation's pattern trustworthy.

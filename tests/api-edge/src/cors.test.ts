@@ -74,12 +74,9 @@ describe("api-edge cors", () => {
       expect(isAllowedOrigin("https://feat-branch-42.pixvault-web-console-stage.pages.dev", prodEnv)).toBe(false);
     });
 
-    it("allows localhost origins", () => {
-      expect(isAllowedOrigin("http://localhost:5173", prodEnv)).toBe(true);
-    });
-
-    it("allows 127.0.0.1 origins", () => {
-      expect(isAllowedOrigin("http://127.0.0.1:5173", prodEnv)).toBe(true);
+    it("refuses localhost and 127.0.0.1 origins in prod (no dev allowances in production)", () => {
+      expect(isAllowedOrigin("http://localhost:5173", prodEnv)).toBe(false);
+      expect(isAllowedOrigin("http://127.0.0.1:5173", prodEnv)).toBe(false);
     });
   });
 

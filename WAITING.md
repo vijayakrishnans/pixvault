@@ -11,7 +11,7 @@ continues meanwhile (local `wrangler dev`, Miniflare, MinIO).
 | W-3 | Cloudflare scopes Orunbase can't mint yet: Queues, custom hostnames, zone settings | PV4 (Queues), PV8 (domains), PV3 transforms on a custom zone | ⛔ open |
 | W-4 | Confirm the Cloudflare account is on Workers Paid | PV4 (Queues need Paid) | ✅ confirmed by measurement (PV2) |
 | W-5 | Turn on CSAM scanning for the serving hostnames | PV4 done; public sharing in prod | ⛔ open |
-| W-6 | Register `pixvault.app` and add its zone | PV8 on our domain; `i.`/`app.` hosts | ⛔ open |
+| W-6 | Choose and register the product domain (the user picks a unique name later), then add its zone | PV8 on our domain; `i.`/`app.` hosts | ⛔ open |
 | W-7 | A throwaway S3-compatible bucket for BYO tests | PV7 end to end (MinIO covers local) | ⛔ open |
 | W-8 | The brief's `nexo` Cloudflare connection is revoked on this account | nothing (decision only) | ℹ️ decision |
 | W-9 | Docker on the build machine (for MinIO) | PV7 local BYO tests | ⛔ open |
@@ -81,8 +81,9 @@ platform abuse contact. Repeat for every serving zone (`pixvault.app` once it ex
 
 The product serves on `*.vijayakrishnan12994.workers.dev` until it has a domain.
 
-**Steps:** register `pixvault.app` (or the final name; the product name is a working name) and add the zone to the
-Cloudflare account behind `int_4da71819…`.
+**Decision (2026-11-28):** the user will choose the domain later, after looking at some unique names (as was done
+for another of their products). Nothing is registered or proposed until then; `pixvault.app` was only a placeholder.
+**Steps:** once chosen, register it and add the zone to the Cloudflare account behind `int_4da71819…`.
 **Signal:** the zone is active in that account. The parked custom-domain component is then switched on, routing
 `pixvault.app`, `app.`, `i.`, `dav.` and `stage.*`.
 

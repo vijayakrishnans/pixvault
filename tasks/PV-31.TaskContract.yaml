@@ -1,0 +1,37 @@
+# PV-31: OWASP review and hardening (before PV6). Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-31
+spec:
+  goal: "What's built is reviewed against the OWASP Top 10 (2025) in docs/security/owasp-review.md, with a checklist every task follows; the findings are fixed: expired login codes refused and a 5-wrong-code limit, API security headers, no localhost CORS in prod, vue-i18n 11, and uploader-only members see only their own folders."
+  affects:
+    - default/pixvault/db
+    - default/pixvault/db-tests
+    - default/pixvault/db-migrate
+    - default/pixvault/identity-worker
+    - default/pixvault/identity-worker-tests
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/media-web
+    - default/pixvault/media-web-tests
+    - packages/db/**
+    - tests/db/**
+    - tests/identity-worker/**
+    - apps/api-edge/**
+    - tests/api-edge/**
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/media-web/**
+    - tests/media-web/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+    - pnpm-lock.yaml
+  doneWhen:
+    - "a real-SQLite test refuses an expired login code and a code after 5 wrong ones, and fails on the old query"
+    - "every API response carries nosniff, no-store and HSTS (test)"
+    - "docs/security/owasp-review.md is on main with its per-task checklist"
+  gates: []
