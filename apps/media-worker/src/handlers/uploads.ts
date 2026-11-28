@@ -4,7 +4,7 @@
 // parts (each can be retried, and the session resumed), then commits; the bytes are verified against the
 // client's SHA-256 before they become a file. Dedup, quotas and library rules apply before any byte is stored.
 
-import { storeFor } from "../storage/stores.js";
+import { backendKey, storeChoice, storeFor, storeOf } from "../storage/stores.js";
 import type { MediaStore } from "@saas/shared/media-store";
 import {
   DEFAULT_MEDIA_LIMITS,
@@ -203,8 +203,11 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
   const objectKey = `${managedPrefix(orgId, libraryId)}blob/${sessionId}`;
   const mode = size > UPLOAD_PART_SIZE ? "multipart" : "single";
   const partCount = mode === "single" ? 1 : Math.ceil(size / UPLOAD_PART_SIZE);
-  const uploadId = mode === "multipart" ? await createMultipart(await storeFor(ctx.env, orgId, libraryId, { fresh: true }), objectKey, mime) : null;
-  const session = await idx.call<SessionRow>({
+  const store = await storeFor(ctx.env, orgId, libraryId, { fresh: true });
+  const uploadId = mode === "multipart" ? await createMultipart(store, objectKey, mime) : null;
+  let session: SessionRow;
+  try {
+    session = await idx.call<SessionRow>({
     op: "openSession",
     session: {
       id: sessionId,
@@ -225,7 +228,14 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
       created_at: now.toISOString(),
       expires_at: new Date(now.getTime() + UPLOAD_SESSION_TTL_MS).toISOString(),
     },
-  });
+    });
+  } catch (e) {
+    if (e instanceof IndexCallError && e.code === "invalid_state") {
+      await abortUpload(store, objectKey, mode, uploadId);
+      return errorResponse("storage_changing", e.message, 409, ctx.requestId);
+    }
+    throw e;
+  }
   return successResponse({ session: sessionView(session, libraryPublicId(libraryId)) }, ctx.requestId, 201);
 }
 
@@ -294,7 +304,8 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
   const bad = sessionUsable(ctx, o.s);
   if (bad) return bad;
   const s = o.s;
-  const bucket = await storeFor(ctx.env, orgId, libraryId, { fresh: true });
+  const choice = await storeChoice(ctx.env, orgId, libraryId, { fresh: true });
+  const bucket = storeOf(ctx.env, choice);
   const parts = JSON.parse(s.parts_json) as Record<string, string>;
   const missing: number[] = [];
   for (let n = 1; n <= s.part_count; n++) if (!parts[String(n)]) missing.push(n);
@@ -329,6 +340,7 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
     const result = await step("index", () => o.idx.call<CommitResult>({
       op: "commit",
       input: {
+        backend: backendKey(choice),
         sessionId: s.id,
         fileId: crypto.randomUUID(),
         path: s.path,
@@ -354,6 +366,12 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
       await bucket.delete(s.object_key);
       await o.idx.call({ op: "closeSession", id: s.id, state: "aborted" });
       return errorResponse("conflict", "A file was created at this path meanwhile", 409, ctx.requestId);
+    }
+    if (e instanceof IndexCallError && e.code === "invalid_state") {
+      // The library's storage is changing or changed (PV7): these bytes are in the old place.
+      await bucket.delete(s.object_key).catch(() => undefined);
+      await o.idx.call({ op: "closeSession", id: s.id, state: "aborted" });
+      return errorResponse("storage_changing", e.message, 409, ctx.requestId);
     }
     throw e;
   }

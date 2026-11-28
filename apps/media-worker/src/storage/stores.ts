@@ -17,7 +17,7 @@ export class StoreUnavailable extends Error {
   }
 }
 
-type Choice = { kind: "managed" } | { kind: "remote"; scope: RemoteScope };
+export type Choice = { kind: "managed" } | { kind: "remote"; scope: RemoteScope };
 const cache = new Map<string, { at: number; choice: Choice }>();
 
 /** For tests, and after this isolate changes a library's storage. */
@@ -40,9 +40,15 @@ export async function storeChoice(env: Env, orgId: string, libraryId: string, op
   return choice;
 }
 
+/** The backend key the library's index records for a choice ("managed" or the backend id). */
+export const backendKey = (c: Choice): string => (c.kind === "managed" ? "managed" : c.scope.backendId);
+
 /** The store for one library. Throws StoreUnavailable when its storage can't be reached from here. */
 export async function storeFor(env: Env, orgId: string, libraryId: string, opts: { fresh?: boolean } = {}): Promise<MediaStore> {
-  const c = await storeChoice(env, orgId, libraryId, opts);
+  return storeOf(env, await storeChoice(env, orgId, libraryId, opts));
+}
+
+export function storeOf(env: Env, c: Choice): MediaStore {
   if (c.kind === "managed") {
     if (!env.MEDIA_BUCKET) throw new StoreUnavailable();
     const managed: MediaStore = env.MEDIA_BUCKET;

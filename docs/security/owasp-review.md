@@ -172,6 +172,12 @@ Each PR says which of these it touches and what it did:
 - **A04/A08 integrity:** uploads still carry their SHA-256 to the store; a single upload to a customer bucket is re-hashed from what the bucket holds before it becomes a file, as multipart uploads already were.
 - **A09/A10:** a refusing or missing bucket is a 502/503 with no detail to the visitor; the code stays in storage-worker's answer to media-worker. A missing bucket is no longer read as a missing file.
 
+### Storage API (PV-46): how the checklist was met
+- **A01:** `storage.manage` (library managers) on every route; anyone else gets 404. Backend ids are checked against the org and library before use.
+- **A04 design:** storage changes only while a library is empty, under a 60 s lock in the library's index: new uploads and commits are refused meanwhile, and each commit names the store it wrote to, refused if that's no longer current. A failed attach releases the lock and leaves managed storage in place.
+- **A10 SSRF and abuse:** endpoints are validated in storage-worker (PV-44); each library may run 10 bucket checks (including attaches and re-checks) an hour, since each one sends requests to an address a manager typed.
+- **A02/A09:** only the bucket fields are forwarded; keys pass to storage-worker once and are never stored, returned or logged here. Attach and detach are audited without them.
+
 ### Ahead: what the next milestones must design in
 - **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;

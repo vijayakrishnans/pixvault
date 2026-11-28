@@ -29,6 +29,9 @@ export type IndexOp =
   | { op: "batch"; ids: string[]; act: BatchAction; actor: string; nowIso: string }
   | { op: "issueTicket"; subject: string; scope: LiveScope; nowIso: string }
   | { op: "versions"; id: string }
+  | { op: "beginStorageSwitch"; nowIso: string; untilIso: string }
+  | { op: "endStorageSwitch"; backend?: string | null }
+  | { op: "noteStorageCheck"; nowIso: string }
   | { op: "openSession"; session: Parameters<LibraryIndexCore["openSession"]>[0] }
   | { op: "getSession"; id: string }
   | { op: "recordPart"; id: string; partNumber: number; etag: string }
@@ -121,6 +124,13 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
         return { ok: true, value: core.issueTicket(req.subject, req.scope, req.nowIso) };
       case "versions":
         return { ok: true, value: core.versions(req.id) };
+      case "beginStorageSwitch":
+        return { ok: true, value: core.beginStorageSwitch(req.nowIso, req.untilIso) };
+      case "endStorageSwitch":
+        core.endStorageSwitch(req.backend ?? null);
+        return { ok: true, value: true };
+      case "noteStorageCheck":
+        return { ok: true, value: core.noteStorageCheck(req.nowIso) };
       case "openSession":
         return { ok: true, value: core.openSession(req.session) };
       case "getSession":

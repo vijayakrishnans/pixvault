@@ -1092,7 +1092,58 @@ export class LibraryIndexCore {
 
   // ── sessions ──────────────────────────────────────────────
 
+  /** Where new bytes go: "managed", or the customer backend's id (PV7). Set only by endStorageSwitch. */
+  storageBackend(): string {
+    return this.meta("storage_backend") ?? "managed";
+  }
+
+  private switchLocked(nowIso: string): boolean {
+    const until = this.meta("storage_lock_until");
+    return !!until && until > nowIso;
+  }
+
+  /**
+   * Start changing the library's storage (PV-46): only while it holds nothing (no file in any state, no blob, no
+   * open upload). Until endStorageSwitch or `untilIso`, new uploads and commits are refused, so nothing can land in
+   * the old store meanwhile.
+   */
+  beginStorageSwitch(nowIso: string, untilIso: string): { ok: true } | { ok: false; files: number; blobs: number; uploads: number } {
+    if (this.switchLocked(nowIso)) throw new IndexError("conflict", "A storage change is already in progress");
+    const n = (q: string) => Number(one(this.sql.exec<{ n: number }>(q).toArray())?.n ?? 0);
+    const files = n(`SELECT COUNT(*) AS n FROM files`);
+    const blobs = n(`SELECT COUNT(*) AS n FROM blobs`);
+    const uploads = n(`SELECT COUNT(*) AS n FROM sessions WHERE state = 'open'`);
+    if (files + blobs + uploads > 0) return { ok: false, files, blobs, uploads };
+    this.setMeta("storage_lock_until", untilIso);
+    return { ok: true };
+  }
+
+  /** Finish a storage change: record the new backend (or keep the old one when `backend` is null) and unlock. */
+  endStorageSwitch(backend: string | null): void {
+    if (backend) this.setMeta("storage_backend", backend);
+    this.sql.exec(`DELETE FROM meta WHERE key = 'storage_lock_until'`);
+  }
+
+  /** At most `max` bucket checks per hour per library: each one sends requests to an address a manager typed. */
+  noteStorageCheck(nowIso: string, max = 10): boolean {
+    const hour = nowIso.slice(0, 13);
+    const [h, c] = (this.meta("storage_checks") ?? "").split("|");
+    const count = h === hour ? Number(c) || 0 : 0;
+    if (count >= max) return false;
+    this.setMeta("storage_checks", `${hour}|${count + 1}`);
+    return true;
+  }
+
+  private meta(key: string): string | null {
+    return one(this.sql.exec<{ value: string }>(`SELECT value FROM meta WHERE key = ?`, key).toArray())?.value ?? null;
+  }
+
+  private setMeta(key: string, value: string): void {
+    this.sql.exec(`INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`, key, value);
+  }
+
   openSession(s: Omit<SessionRow, "parts_json" | "state">): SessionRow {
+    if (this.switchLocked(s.created_at)) throw new IndexError("invalid_state", "This library's storage is changing; try again in a minute");
     this.sql.exec(
       `INSERT INTO sessions (id, path, name, folder, size, sha256, mime, visibility, replace, mode, object_key,
          multipart_upload_id, part_size, part_count, parts_json, state, created_by, created_at, expires_at)
@@ -1160,7 +1211,13 @@ export class LibraryIndexCore {
     processing?: boolean;
     /** Hold the new file for a person's review once the pipeline has run (upload links). New files only. */
     reviewRequired?: boolean;
+    /** The store the bytes were written to (storeChoice's backend); refused if the library's storage changed. */
+    backend?: string;
   }): CommitResult {
+    if (input.objectKey !== null && this.switchLocked(input.nowIso)) throw new IndexError("invalid_state", "This library's storage is changing; try again in a minute");
+    if (input.objectKey !== null && input.backend !== undefined && input.backend !== this.storageBackend()) {
+      throw new IndexError("invalid_state", "This library's storage changed during the upload; upload again");
+    }
     return this.sql.transaction(() => {
       if (input.sessionId) {
         const s = this.getSession(input.sessionId);

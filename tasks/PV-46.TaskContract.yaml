@@ -1,0 +1,26 @@
+# PV-46: PV7, the storage API. Minted under milestone PV7; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-46
+spec:
+  goal: "Library managers can see a library's storage, test a customer bucket, attach it, re-check it and go back to managed storage through the API. Storage changes only while the library is empty, under a lock in the library's index that no upload can start or commit past; checks are limited per library; secrets never come back."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/api-edge
+    - default/pixvault/media-worker-tests
+    - apps/media-worker/**
+    - apps/api-edge/**
+    - tests/media-worker/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "only managers reach the storage API; others get 404 (test)"
+    - "a bucket check reports each step; a non-public endpoint is a field error; 10 checks an hour per library (test)"
+    - "attaching an empty library sends new files to the bucket and tells serving; nothing secret is returned (test)"
+    - "a failing bucket or a library with files is refused and stays on managed storage, unlocked (test)"
+    - "during a switch uploads can't start or commit; a commit into a store that's no longer current is refused (test)"
+    - "detaching an empty library returns it to managed storage (test)"
+  gates: []
