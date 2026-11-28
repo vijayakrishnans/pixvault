@@ -559,8 +559,8 @@
       "component": "media-web library browser",
       "target": "apps/media-web/src/components/dashboard/BatchActionBar.vue",
       "testId": "app/browse",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-29",
+      "status": "verified"
     },
     {
       "id": "IH-041",
@@ -601,8 +601,8 @@
       "component": "media-web library browser",
       "target": "apps/media-web/src/components/dashboard/FileCard.vue",
       "testId": "app/browse",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-29",
+      "status": "verified"
     },
     {
       "id": "IH-044",
@@ -615,8 +615,8 @@
       "component": "media-web library browser",
       "target": "apps/media-web/src/components/dashboard/FileDetailDialog.vue",
       "testId": "app/browse",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-29",
+      "status": "verified"
     },
     {
       "id": "IH-045",
@@ -699,8 +699,8 @@
       "component": "media-web library browser",
       "target": "apps/media-web/src/components/dashboard/MoveFileDialog.vue",
       "testId": "app/browse",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-29",
+      "status": "verified"
     },
     {
       "id": "IH-051",
@@ -1329,8 +1329,8 @@
       "component": "media-web upload page",
       "target": "apps/media-web/src/utils/upload/directoryTraversal.js",
       "testId": "app/upload",
-      "taskKey": null,
-      "status": "planned"
+      "taskKey": "PV-29",
+      "status": "verified"
     },
     {
       "id": "IH-096",

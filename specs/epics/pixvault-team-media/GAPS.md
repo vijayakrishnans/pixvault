@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-28._
+_Last updated: 2026-11-28, PV-29._
 
 ## Blocked
 
@@ -48,6 +48,8 @@ _Last updated: 2026-11-28, PV-28._
 | G74 | — | A bulk "make public" starts at most 200 safety checks itself | Each start is a subrequest | On a free plan, files past the first 200 stay `processing` until the index's sweep starts them (about 10 minutes) | Workflows `createBatch` if needed |
 | G75 | WebSocket `/live` with the session cookie checked by api-edge, then a ticket | The app asks the API for a one-use ticket (60 s, kept in the library's index, never a secret); the socket presents it in its URL. The edge forwards the upgrade untouched | The app authenticates with a bearer token, not a cookie, and browsers can't set headers on a WebSocket | A removed member's open socket keeps hearing change events (ids, folder, status; never names) until it expires, after at most an hour | Close sockets on member removal, with notifications (later in PV5) |
 | G76 | Live events carry the file | Events carry only file ids, folder and status; clients refetch through the API | Every read stays behind policy, and an uploader-only member never sees others' files | One extra API call per change, debounced in the app | Kept |
+| G77 | Thumbnails for every file in the grid | Public images show serving's `thumb` preset; private files show an icon for their type in the grid, and a 10-minute signed preview in the file drawer | A signed link per private file per page would be an API call each | Private images have no thumbnail in the grid | Signed thumbnail batches, PV10 |
+| G78 | Playwright tests in CI | Two-browser and app flows run against stage from a script (results in the ledger), not in CI | The repo's CI has no browser and no stage credentials lane yet | A UI regression is caught only by the stage run after merge | A browser lane in CI, PV11 |
 
 ## Missing (in the design for a closed milestone, not built)
 
@@ -58,11 +60,9 @@ _Last updated: 2026-11-28, PV-28._
 | G18 | **DO size alarm at 70%** | §1.3 | Libraries are far from 10 GB of metadata. | No early warning. | PV10 (imports are the first big writers) |
 | G19 | **URL upload** (`functions/api/fetchRes.js`, IB-032) | §6 screen 2 | Needs an SSRF guard (no private ranges, a size cap); not on PV2's acceptance list. | You can't paste a URL to upload. | PV5 |
 | G20 | **File expiry ("expires at")** (`functions/api/manage/expiry.js`, IB-052) | §4.4 | It goes with the purge Workflows. | No per-file expiry. | PV4 |
-| G21 | **Folder upload** (`directoryTraversal.js`, IH-095) | §6 screen 2 | Needs the folder tree UI. | Dropping a folder uploads nothing (files only). | PV5 |
 | G22 | **Link formats** (URL, Markdown, HTML, BBCode; `urlBuilder.js`, IH-098) | §6 screen 2 | **Built in PV-20**: a Links dialog per file with all four formats, each escaped for its format (upstream inserted names raw), images embedded and other files linked; signed links (1 h, 1 day, 7 days) for private files; a public/private switch for editors and managers. | No custom link prefix (upstream `rootUrl`), and the upload queue doesn't show links (open them from the file list). | Custom domains PV10; queue links PV5 |
-| G23 | **Upload history and the upload settings dialog** (IH-057, IH-058) | §6 screen 2 | Not on PV2's acceptance list. | No per-user history panel or naming options. | PV5 |
+| G23 | **Upload history and the upload settings dialog** (IH-057, IH-058) | §6 screen 2 | The browser (PV5) lists every upload with filters by uploader and date, which covers most of what the history panel did. | No per-user history panel; no naming options (rename on upload). | PV11 (polish) |
 | G24 | **Image compression and format conversion before upload** (`fileFormat.js`, `animatedImage.js`, `FileFormatSettings.vue`) | ImgBed client options | Server-side transforms (PV3) cover most of the need. | No client-side compression or WebP conversion. | PV9 (with the ImgBed-compatible options) |
-| G25 | **Version history in the app** | §6 screen 4 (file drawer) | The API exists (`GET …/versions`, `POST …/versions/{n}/restore`); the drawer is PV5. | Versions can be restored only through the API. | PV5 |
 | G26 | **Webhook and activity events per file** (`file.uploaded`, …) | §4.7, §4.8 | Library-level actions are audited, but per-file events need the outbox (G16). | No webhooks and no file activity yet. | PV3 (outbox), PV5 (activity) |
 | G27 | **Library settings enforcement**: referrer and IP rules, random API toggle | §2.5 | **Enforced by serve-worker in PV-17**: referrer allow list (subdomains included; direct visits allowed), IP allow and block lists (exact IPv4/IPv6, IPv4 CIDR), the random API toggle and the preset list. | IPv6 CIDR ranges aren't matched, only exact IPv6 addresses. Direct visits with no Referer are always allowed (the upstream behaviour too). | IPv6 CIDR: PV11 |
 | G28 | **Blocked executable types for free orgs** | §4.9 | Part of the safety pipeline. | Any MIME type can be uploaded unless the library restricts types. | PV4 |
@@ -86,7 +86,7 @@ _Last updated: 2026-11-28, PV-28._
 | G36 | **Archiving a library archives its project best-effort** | A manager who isn't an org admin leaves the project active. | The library is hidden either way. | An admin-side sweep, PV11 |
 | G37 | **2 GB commits take ~87 s to verify** | A long-running request (within limits). | Streamed through `crypto.DigestStream` (PV-13). | If it nears limits: per-part checksums plus an asynchronous whole-file check (risk PV-M) |
 | G38 | **Members and invitations tables scroll sideways at 390 px** | Usable but cramped on phones. | Every control stays reachable. | PV5 (responsive tables) |
-| G39 | **No accessibility checks in CI (axe)** | WCAG 2.2 AA isn't enforced. | Labelled forms, real buttons, visible focus, keyboard flow checked in browser runs. | PV5 and PV11 |
+| G39 | **No accessibility checks in CI (axe)** | WCAG 2.2 AA isn't enforced. | Labelled controls (search, filters, view toggle, cards, tree), real buttons, visible focus and keyboard opening of cards are in the browser; checked in stage browser runs. CI has no browser yet (G78). | PV11 |
 | G40 | **Guest invitations send no email** | The manager shares the app link by hand. | The invitation is created and accepted on sign-in by email match. | PV6 (notifications) |
 | G41 | **Baseline test failures**: `tests/integrations-worker` (5 drain tests, also failing on clean `main`); an api-edge rate-limit DO test flaky under full parallel load | Noise in local full runs. CI's PR lanes don't run them. | Verified both against clean `main` and in isolation. | Report upstream to cirrus-baseline |
 | G42 | **No `orun/compliance` check is posted on this repo** | Lineage isn't enforced by CI. | Branch, trailer, manifest and contract are kept by hand; `orun task check` runs before every push. | Check the repo link's compliance mode in the console |
@@ -104,7 +104,7 @@ _Last updated: 2026-11-28, PV-28._
 | G55 | **Blocked list (451)** | — | **Built in PV-25**: an operator's takedown sets the file `removed`, and serve-worker answers 451 with a notice that says nothing about the file. A suspended team's whole library answers 451. | Closed |
 | G56 | **Workflows instead of Queues (decided by the user, 2026-11-27)** | Design §4.3 has Queues with a dead-letter queue. Orunbase can't mint a Queues scope (W-3). | `ProcessFileWorkflow`: each step retries on its own (3 times, exponential); a run that still fails **holds** the file and writes a row to `media_pipeline_failures` (the dead-letter list); `POST …/files/{fil}/reprocess` replays it; the index sweeps files still processing after 10 minutes and starts a new run. | No platform-wide failure view yet (per-library only), PV-24 with the admin tools. Queues stay possible once W-3 is decided |
 | G57 | **Location removal covers JPEG, PNG and WebP only** | HEIC, AVIF, TIFF and GIF keep any location metadata. IPTC location fields (city or country names) and XMP that doesn't mention GPS are kept in JPEGs. Images over 64 MiB are held for a person instead of being cleaned. | JPEG: the GPS IFD is emptied in place (orientation and camera data stay) and XMP mentioning GPS is dropped, and unreadable EXIF is dropped whole; PNG: eXIf and XMP chunks dropped; WebP: EXIF and XMP chunks dropped. Fail closed. | HEIC/AVIF via a decoder or the Images binding's metadata stripping, IPTC, and streaming large JPEGs: PV9 |
-| G58 | **No blurhash or stored thumbnails** | The design's pipeline makes a thumbnail and a blurhash. | Thumbnails are served on demand by the preset transforms (PV3), and nothing reads a blurhash until the library browser. | PV5 (library browser) |
+| G58 | **No blurhash or stored thumbnails** | The design's pipeline makes a thumbnail and a blurhash. | The browser's grid uses serving's `thumb` preset for public images (PV-29), cached at the edge; private files show a type icon (G77). No blurhash placeholder while a thumbnail loads. | PV10 (performance) |
 | G59 | **"Free plan" means no active or trialing subscription to a priced plan** | Orgs with per-org overrides or a zero-price paid plan count as free. If the plan can't be read, the org is treated as free (the safer side). | `orgIsOnFreePlan` reads `billing_subscriptions` and `billing_plans`. | A plan feature flag for "trusted uploads", PV11 |
 | G60 | **Files wait for the pipeline before they are served** | An image is `processing` (404 on its link) for the seconds a run takes, or up to 10 minutes if the run is lost and the sweep restarts it. | Deliberate: an image is never served before its location data is removed. | Measure on stage; a progress indicator in the app, PV5 |
 | G61 | **Only images are moderated** | A public non-image on a free plan (a PDF, a video) goes through the pipeline but isn't classified (`moderation: not_applicable`) and is served afterwards. Videos and PDFs could carry unsafe content. | Image moderation covers the brief's main risk (an image host). Video and PDF need frame or page extraction, which the Workers runtime doesn't offer. | Video frames via Stream or a container, PDFs via page rendering: PV9; meanwhile abuse reports and takedown (PV-24) cover them |
@@ -122,6 +122,8 @@ _Last updated: 2026-11-28, PV-28._
 
 | # | Item | Closed by |
 |---|---|---|
+| G21 | Folder upload (IH-095) | PV-29: drop or pick a folder; files keep their structure under the open folder |
+| G25 | Version history in the app | PV-29: the file drawer lists versions and makes one current |
 | — | Workers Paid plan unknown (W-4) | Measured: a 200 MB commit hashes in one request (PV2, #15) |
 | — | Commits over ~128 MB ran out of memory | PV-13, #14 |
 | — | Deployed app rendered blank under its CSP | PV-8, #10 |

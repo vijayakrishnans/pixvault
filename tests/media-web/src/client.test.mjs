@@ -86,3 +86,34 @@ test("review, reprocess and the review list call their routes", async () => {
   await c.libraries.files("org_1", "lib_2", { review: true });
   assert.equal(f.calls[2].url, "https://edge/v1/organizations/org_1/libraries/lib_2/files?review=1");
 });
+
+test("the browser's calls: search and filters, moves, batches, folders, tags, versions and live tickets", async () => {
+  const f = fakeFetch(200, { data: {} });
+  const c = createClient({ base: "https://edge", fetchImpl: f.fn, token: () => "tok" });
+  const L = "https://edge/v1/organizations/org_1/libraries/lib_2";
+  await c.libraries.files("org_1", "lib_2", { folder: "/a b", q: "  sun set ", type: "image", tag: "tabby cat", visibility: "public", status: "", cursor: "c1" });
+  assert.equal(f.calls[0].url, `${L}/files?folder=%2Fa+b&q=sun+set&type=image&tag=tabby+cat&visibility=public&cursor=c1`);
+  await c.libraries.files("org_1", "lib_2", { q: "   " });
+  assert.equal(f.calls[1].url, `${L}/files`);
+  const calls = [
+    [() => c.libraries.moveFile("org_1", "lib_2", "fil_3", { folder: "/x", name: "y.png" }), "PATCH", `${L}/files/fil_3`, { folder: "/x", name: "y.png" }],
+    [() => c.libraries.batch("org_1", "lib_2", { action: "move", ids: ["fil_3"], folder: "/x" }), "POST", `${L}/files:batch`, { action: "move", ids: ["fil_3"], folder: "/x" }],
+    [() => c.libraries.folders("org_1", "lib_2"), "GET", `${L}/folders`, undefined],
+    [() => c.libraries.createFolder("org_1", "lib_2", "/new"), "POST", `${L}/folders`, { path: "/new" }],
+    [() => c.libraries.moveFolder("org_1", "lib_2", "/a", "/b"), "POST", `${L}/folders/move`, { from: "/a", to: "/b" }],
+    [() => c.libraries.trashFolder("org_1", "lib_2", "/a"), "POST", `${L}/folders/trash`, { path: "/a" }],
+    [() => c.libraries.tags("org_1", "lib_2"), "GET", `${L}/tags`, undefined],
+    [() => c.libraries.versions("org_1", "lib_2", "fil_3"), "GET", `${L}/files/fil_3/versions`, undefined],
+    [() => c.libraries.restoreVersion("org_1", "lib_2", "fil_3", 2), "POST", `${L}/files/fil_3/versions/2/restore`, undefined],
+    [() => c.libraries.liveTicket("org_1", "lib_2"), "POST", `${L}/live-tickets`, undefined],
+    [() => c.libraries.file("org_1", "lib_2", "fil_3"), "GET", `${L}/files/fil_3`, undefined],
+  ];
+  for (const [call, method, url, body] of calls) {
+    const n = f.calls.length;
+    await call();
+    assert.equal(f.calls[n].url, url);
+    assert.equal(f.calls[n].init.method, method);
+    assert.deepEqual(f.calls[n].init.body === undefined ? undefined : JSON.parse(f.calls[n].init.body), body);
+  }
+  assert.equal(c.base, "https://edge");
+});

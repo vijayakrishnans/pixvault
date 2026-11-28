@@ -95,6 +95,10 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
   run held it (`moderation_unavailable`): the binding returns the answer already parsed, fixed in PV-24.
 - PV4 takedown (2026-11-28): report through `/_report` → case listed for a temporary stage operator → takedown →
   **451 after 3.3 s** at a warmed edge; reinstate → public. The operator row was removed afterwards (0 operators).
+- PV-28 stage (2026-11-28): two members' sockets on one library; the owner uploads 5 files. The teammate's socket
+  heard each commit 944–1,325 ms after the commit request was sent (about 0.6 s before the owner's own commit
+  response returned). A used ticket was refused; presence showed both people and the owner's folder, and dropped a
+  closed socket; events carried no file names (7/7).
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

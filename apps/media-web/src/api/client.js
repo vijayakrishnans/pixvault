@@ -80,6 +80,7 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
   }
 
   return {
+    base,
     request,
     download,
     auth: {
@@ -106,11 +107,13 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
       revokeInvitation: (org, id, invitationId) => request("DELETE", `${lib(org, id)}/invitations/${encodeURIComponent(invitationId)}`),
       guestLibraries: () => request("GET", "/v1/media/libraries"),
       usage: (org) => request("GET", `/v1/organizations/${encodeURIComponent(org)}/media-usage`),
-      files: (org, id, { folder, trash, review, cursor } = {}) => {
+      files: (org, id, { folder, trash, review, cursor, q: text, type, tag, uploader, status, visibility, from, to, limit } = {}) => {
         const q = new URLSearchParams();
         if (folder) q.set("folder", folder);
         if (trash) q.set("trash", "1");
         if (review) q.set("review", "1");
+        if (text && String(text).trim()) q.set("q", String(text).trim());
+        for (const [k, v] of Object.entries({ type, tag, uploader, status, visibility, from, to, limit })) if (v) q.set(k, String(v));
         if (cursor) q.set("cursor", cursor);
         const qs = q.toString();
         return request("GET", `${lib(org, id)}/files${qs ? `?${qs}` : ""}`);
@@ -123,6 +126,18 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
       review: (org, id, fileId, decision) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/review`, { decision }),
       reprocess: (org, id, fileId) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/reprocess`),
       acceptInvitations: () => request("POST", "/v1/media/invitations/accept"),
+      // PV5: the library browser
+      file: (org, id, fileId) => request("GET", `${lib(org, id)}/files/${encodeURIComponent(fileId)}`),
+      moveFile: (org, id, fileId, to) => request("PATCH", `${lib(org, id)}/files/${encodeURIComponent(fileId)}`, to),
+      versions: (org, id, fileId) => request("GET", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/versions`),
+      restoreVersion: (org, id, fileId, version) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/versions/${Number(version)}/restore`),
+      batch: (org, id, body) => request("POST", `${lib(org, id)}/files:batch`, body),
+      folders: (org, id) => request("GET", `${lib(org, id)}/folders`),
+      createFolder: (org, id, path) => request("POST", `${lib(org, id)}/folders`, { path }),
+      moveFolder: (org, id, from, to) => request("POST", `${lib(org, id)}/folders/move`, { from, to }),
+      trashFolder: (org, id, path) => request("POST", `${lib(org, id)}/folders/trash`, { path }),
+      tags: (org, id) => request("GET", `${lib(org, id)}/tags`),
+      liveTicket: (org, id) => request("POST", `${lib(org, id)}/live-tickets`),
     },
   };
 }

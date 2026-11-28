@@ -5,7 +5,10 @@ import { createApp } from "vue";
 import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
 import "element-plus/theme-chalk/dark/css-vars.css";
-import { ChatLineRound, Folder, Menu, Plus, Setting, Share, SwitchButton, Upload } from "@element-plus/icons-vue";
+import {
+  ChatLineRound, Close, Delete, Document, Files, Folder, FolderAdd, FolderOpened, Grid, Headset, Hide, List, Menu, Picture, Plus, Search, Setting, Share,
+  SwitchButton, Upload, VideoCamera, View,
+} from "@element-plus/icons-vue";
 
 import App from "./App.vue";
 import router from "./router";
@@ -40,6 +43,10 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", (
 
 const app = createApp(App);
 // Only the icons the app uses (registering all of them added ~300 kB).
-for (const [key, component] of Object.entries({ ChatLineRound, Folder, Menu, Plus, Setting, Share, SwitchButton, Upload })) app.component(key, component);
+const icons = {
+  ChatLineRound, Close, Delete, Document, Files, Folder, FolderAdd, FolderOpened, Grid, Headset, Hide, List, Menu, Picture, Plus, Search, Setting, Share,
+  SwitchButton, Upload, VideoCamera, View,
+};
+for (const [key, component] of Object.entries(icons)) app.component(key, component);
 app.use(store).use(router).use(ElementPlus).use(i18n);
 router.isReady().finally(() => app.mount("#app"));
