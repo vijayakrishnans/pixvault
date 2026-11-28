@@ -37,8 +37,8 @@ const MAX_AGE = "86400";
 export function isAllowedOrigin(origin: string | null, env: Env): boolean {
   if (!origin) return false;
 
-  if (LOCALHOST_RE.test(origin)) return true;
-  if (VITE_DEV_RE.test(origin)) return true;
+  // Local dev servers may call dev and stage, never prod (OWASP A05: no development allowances in production).
+  if ((LOCALHOST_RE.test(origin) || VITE_DEV_RE.test(origin)) && env.ENVIRONMENT !== "prod") return true;
 
   const environment = env.ENVIRONMENT;
   const customDomain = env.CONSOLE_CUSTOM_DOMAIN;

@@ -379,17 +379,19 @@ describe("IdentityRepository", () => {
 
       expect(queries[0]!.text).toContain("code_hash = $2");
       expect(queries[0]!.text).toContain("consumed_at IS NULL");
-      expect(queries[0]!.params).toEqual(["ch-001", "sha256-hashed-code", NOW.toISOString()]);
+      expect(queries[0]!.text).toContain("expires_at > $3");
+      expect(queries[0]!.text).toContain("failed_attempts < $4");
+      expect(queries[0]!.params).toEqual(["ch-001", "sha256-hashed-code", NOW.toISOString(), 5]);
     });
 
-    it("returns already_consumed when no rows affected", async () => {
+    it("returns not_found when nothing matches and the challenge doesn't exist", async () => {
       const { executor } = createFakeExecutor({ rows: [], rowCount: 0 });
       const repo = createIdentityRepository(executor);
 
       const result = await repo.consumeLoginChallenge("ch-001", "sha256-hashed-code", NOW);
 
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error.kind).toBe("already_consumed");
+      if (!result.ok) expect(result.error.kind).toBe("not_found");
     });
 
     it("does not expose codeHash in returned challenge", async () => {

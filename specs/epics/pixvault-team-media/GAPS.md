@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-30 (PV5 closed)._
+_Last updated: 2026-11-28, PV-31 (OWASP review)._
 
 ## Blocked
 
@@ -23,7 +23,7 @@ _Last updated: 2026-11-28, PV-30 (PV5 closed)._
 |---|---|---|---|---|---|
 | G1 | **Cloudflare scopes for Queues and custom hostnames** (WAITING W-3) | Orunbase's Cloudflare scope templates mint only Workers, KV, R2, D1 and DNS tokens. There's no template for Queues Write, SSL and Certificates Write, or Zone Settings Write, and `workers-deploy` lacks KV Read (G44). | PV4's `file-committed` queue and DLQ; PV8's custom domains; Image Transformations on our own zone. | Recorded with exact steps. Raised to the user, who needs to decide on a platform change in orun-cloud (`apps/integrations-worker/src/providers/cloudflare.ts`). PV4 can use Workflows (deployable today) until Queues are mintable. | PV4 and PV8, after the decision |
 | G2 | **CSAM scanning** (W-5) | It's enabled per zone in the Cloudflare dashboard and isn't available on `workers.dev`. | No CSAM scanning on any serving host. | **Public sharing stays off in prod** until W-5 and W-6 are done (risk PV-A). | PV4 / PV8 |
-| G3 | **Product domain `pixvault.app`** (W-6) | It isn't registered, and there's no zone. | Everything is served on `*.vijayakrishnan12994.workers.dev`: no `i.`/`app.`/`dav.` hosts, and no CSAM scanning (G2). | `productdomain` was left empty at bootstrap; the parked custom-domain component can be switched on later. | When the domain exists |
+| G3 | **Product domain** (W-6) | The user will choose a unique name later; `pixvault.app` was a placeholder. Nothing is registered. | Everything is served on `*.vijayakrishnan12994.workers.dev`: no `i.`/`app.`/`dav.` hosts, and no CSAM scanning (G2). | `productdomain` was left empty at bootstrap; the parked custom-domain component can be switched on later. | When the domain exists |
 | G4 | **Grievance officer details and legal review** (W-1, W-2) | They need a person and a lawyer. | `ABUSE.md` has a placeholder section; terms and privacy pages aren't written. | Policy text and process are in `ABUSE.md`. | PV11 |
 | G5 | **BYO test bucket** (W-7) and **Docker for MinIO** (W-9) | Credentials and a local daemon. | No end-to-end BYO test against a real S3 endpoint yet. | — | PV7 |
 | G6 | **`nexo` connection and the `openproduct-sms84q22` account** (W-8) | `nexo` is revoked on `openproduct-6ny98czp`, and the brief's account gives this login no account role. | Pixvault runs on the user's own Cloudflare account, not Nexo's. | The user chose `openproduct-6ny98czp`; the active connection `int_4da71819…` is used. Moving to Nexo is a redeploy, not a code change. | If the user asks |
@@ -50,6 +50,10 @@ _Last updated: 2026-11-28, PV-30 (PV5 closed)._
 | G76 | Live events carry the file | Events carry only file ids, folder and status; clients refetch through the API | Every read stays behind policy, and an uploader-only member never sees others' files | One extra API call per change, debounced in the app | Kept |
 | G77 | Thumbnails for every file in the grid | Public images show serving's `thumb` preset; private files show an icon for their type in the grid, and a 10-minute signed preview in the file drawer | A signed link per private file per page would be an API call each | Private images have no thumbnail in the grid | Signed thumbnail batches, PV10 |
 | G78 | Playwright tests in CI | Two-browser and app flows run against stage from a script (results in the ledger), not in CI | The repo's CI has no browser and no stage credentials lane yet | A UI regression is caught only by the stage run after merge | A browser lane in CI, PV11 |
+| G79 | Current, patched dependencies (OWASP A03) | The baseline admin console runs Next 15.0.3 and OpenNext 1.0.4, which have critical and high advisories (the middleware authorisation bypass among them); `pnpm audit --prod` lists 91, almost all via the console | Found in the PV-31 review | The console (live in prod) is exposed until upgraded | PV-32, next |
+| G80 | A dependency gate in CI | No `pnpm audit` in CI | Not in the baseline | A vulnerable package can land unnoticed | PV-32, with the upgrade |
+| G81 | Actions pinned by commit SHA | Workflows pin actions by tag | orun generates the workflows | A moved tag could change what CI runs | When the generator supports SHA pins |
+| G82 | Security alerting (OWASP A09) | Login failures are recorded as security events; nothing alerts on spikes, takedown bursts or failed runs | No alerting channel yet | Attacks are seen only by looking | PV11 |
 
 ## Missing (in the design for a closed milestone, not built)
 
@@ -122,6 +126,7 @@ _Last updated: 2026-11-28, PV-30 (PV5 closed)._
 
 | # | Item | Closed by |
 |---|---|---|
+| — | Expired email login codes were accepted; no wrong-code limit (OWASP A07, found in review) | PV-31: expiry enforced in the consume query, 5 wrong codes burn the challenge |
 | G21 | Folder upload (IH-095) | PV-29: drop or pick a folder; files keep their structure under the open folder |
 | G25 | Version history in the app | PV-29: the file drawer lists versions and makes one current |
 | — | Workers Paid plan unknown (W-4) | Measured: a 200 MB commit hashes in one request (PV2, #15) |

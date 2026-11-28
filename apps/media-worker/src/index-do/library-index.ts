@@ -18,7 +18,7 @@ export type IndexOp =
   | { op: "getFile"; id: string }
   | { op: "getFileWithKey"; id: string }
   | ({ op: "listFiles" } & ListFilter)
-  | { op: "listFolders" }
+  | { op: "listFolders"; uploadedBy?: string }
   | { op: "listTags" }
   | { op: "createFolder"; folder: string; actor: string; nowIso: string }
   | { op: "moveFile"; id: string; folder?: string; name?: string; actor: string; nowIso: string }
@@ -68,7 +68,7 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
       case "listFiles":
         return { ok: true, value: core.listFiles(req) };
       case "listFolders":
-        return { ok: true, value: core.listFolders() };
+        return { ok: true, value: req.uploadedBy ? core.listFoldersOf(req.uploadedBy) : core.listFolders() };
       case "listTags":
         return { ok: true, value: core.listTags() };
       case "createFolder":

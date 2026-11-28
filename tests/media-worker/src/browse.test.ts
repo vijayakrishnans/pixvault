@@ -69,9 +69,15 @@ describe("library browser: folders, search, moves and batches", () => {
     await upload(editor, "c.bin", "/photos");
     expect((await w.call(editor, "POST", `${base}/folders`, { path: "/drafts" })).status).toBe(201);
     expect(await folders()).toEqual(["/drafts:0", "/photos:1", "/photos/2026:0", "/photos/2026/may:2"]);
-    // a viewer sees the tree; a guest uploader too (they can list their own files)
+    // (the guest's own upload comes below)
+    // a viewer sees the whole tree; a guest uploader sees only the folders holding their own files (OWASP A01)
     expect((await w.call(viewer, "GET", `${base}/folders`)).status).toBe(200);
-    expect((await w.call(guest, "GET", `${base}/folders`)).status).toBe(200);
+    const g0 = await w.call(guest, "GET", `${base}/folders`);
+    expect(g0.status).toBe(200);
+    expect(g0.json.data.folders).toEqual([]);
+    await upload(guest, "mine.bin", "/inbox/guest");
+    const g1 = (await w.call(guest, "GET", `${base}/folders`)).json.data.folders.map((f: { path: string; files: number }) => `${f.path}:${f.files}`);
+    expect(g1).toEqual(["/inbox:0", "/inbox/guest:1"]);
     expect((await w.call(viewer, "POST", `${base}/folders`, { path: "/nope" })).status).toBe(404);
     expect((await w.call(editor, "POST", `${base}/folders`, { path: "/_system" })).status).toBe(422);
     expect((await w.call(editor, "POST", `${base}/folders`, { path: "/a/../b" })).status).toBe(422);

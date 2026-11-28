@@ -127,6 +127,8 @@ function safeError(message: string): IdentityResult<never> {
   return { ok: false, error: { kind: "internal", message } };
 }
 
+/** Wrong codes allowed per email login challenge before it stops working (OWASP A07). */
+export const MAX_LOGIN_CODE_ATTEMPTS = 5;
 
 export function createIdentityRepository(executor: SqlExecutor): IdentityRepository {
   return {
@@ -289,17 +291,30 @@ export function createIdentityRepository(executor: SqlExecutor): IdentityReposit
 
     async consumeLoginChallenge(id: string, codeHash: string, consumedAt: Date): Promise<IdentityResult<LoginChallenge>> {
       try {
+        const at = consumedAt.toISOString();
+        // Only an unused, unexpired challenge with fewer than MAX_LOGIN_CODE_ATTEMPTS wrong codes can be consumed.
         const result = await executor.execute<Record<string, unknown>>(
           `UPDATE identity_login_challenges
            SET consumed_at = $3
-           WHERE id = $1 AND code_hash = $2 AND consumed_at IS NULL
+           WHERE id = $1 AND code_hash = $2 AND consumed_at IS NULL AND expires_at > $3 AND failed_attempts < $4
            RETURNING *`,
-          [id, codeHash, consumedAt.toISOString()],
+          [id, codeHash, at, MAX_LOGIN_CODE_ATTEMPTS],
         );
-        if (result.rowCount === 0) {
-          return { ok: false, error: { kind: "already_consumed" } };
-        }
-        return { ok: true, value: mapLoginChallenge(result.rows[0]!) };
+        if (result.rowCount > 0) return { ok: true, value: mapLoginChallenge(result.rows[0]!) };
+        // Say why, and count a wrong code against a challenge that could still have been used.
+        const row = await executor.execute<{ consumed_at: string | null; expires_at: string; failed_attempts: number }>(
+          `SELECT consumed_at, expires_at, failed_attempts FROM identity_login_challenges WHERE id = $1`,
+          [id],
+        );
+        const c = row.rows[0];
+        if (!c) return { ok: false, error: { kind: "not_found" } };
+        if (c.consumed_at) return { ok: false, error: { kind: "already_consumed" } };
+        if (c.expires_at <= at || Number(c.failed_attempts) >= MAX_LOGIN_CODE_ATTEMPTS) return { ok: false, error: { kind: "expired" } };
+        await executor.execute(
+          `UPDATE identity_login_challenges SET failed_attempts = failed_attempts + 1 WHERE id = $1 AND consumed_at IS NULL`,
+          [id],
+        );
+        return { ok: false, error: { kind: "not_found" } };
       } catch {
         return safeError("Failed to consume login challenge");
       }

@@ -62,17 +62,16 @@ export async function moveOneFile(ctx: Ctx, l: Extract<Awaited<ReturnType<typeof
   }
 }
 
-/** GET …/folders: the library's folder tree (every folder, with its direct file count). */
+/** GET …/folders: the library's folder tree (every folder, with its direct file count); for uploader-only members, only the folders holding their files. */
 export async function handleListFolders(ctx: Ctx, orgId: string, libraryId: string): Promise<Response> {
   const a = await loadAuthorized(ctx, orgId, libraryId, "library.read");
   if (!a.ok) return a.response;
-  if (
-    !(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list", a.lib, a.facts, ctx.requestId)) &&
-    !(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list.own", a.lib, a.facts, ctx.requestId))
-  ) {
-    return nf(ctx);
+  let own = false;
+  if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list", a.lib, a.facts, ctx.requestId))) {
+    if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list.own", a.lib, a.facts, ctx.requestId))) return nf(ctx);
+    own = true; // only the folders holding their own uploads
   }
-  const folders = await indexFor(ctx.env, { orgId, libraryId }).call<FolderRow[]>({ op: "listFolders" });
+  const folders = await indexFor(ctx.env, { orgId, libraryId }).call<FolderRow[]>({ op: "listFolders", ...(own ? { uploadedBy: ctx.actor.subjectId } : {}) });
   return successResponse({ folders }, ctx.requestId);
 }
 
