@@ -1,0 +1,15 @@
+# PV-33: redeploy identity-worker for PV-31. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-33
+spec:
+  goal: "identity-worker redeploys with PV-31's repository change, so stage and prod refuse expired login codes and codes after 5 wrong ones."
+  affects:
+    - default/pixvault/identity-worker
+    - apps/identity-worker/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "on stage, the right code after 5 wrong ones is refused"
+  gates: []

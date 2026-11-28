@@ -133,3 +133,6 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 - **OWASP review (PV-31, 2026-11-28)**, at the user's request: `docs/security/owasp-review.md` covers the OWASP Top 10
   (2025) for PV0–PV5 and sets a checklist every later task answers in its PR. Fixed: expired login codes were accepted
   and codes had no wrong-guess limit (baseline identity), API security headers, prod CORS, vue-i18n, folder privacy.
+- **PV-31's login fix needed a redeploy (PV-33):** the change was in `packages/db`, and a package change doesn't
+  redeploy the workers that use it. Stage still accepted a right code after 5 wrong ones until identity-worker's
+  component was bumped. Any later change to a shared package must bump its consumers' components.
