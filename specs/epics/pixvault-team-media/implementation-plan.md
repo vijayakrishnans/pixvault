@@ -132,7 +132,7 @@ drawer with versions, folder uploads (PV-29, PV-30; G21 and G25 closed, G77, G78
 one shown in the other before the uploader's own queue reported it done; a socket hears a commit 0.9–1.3 s after the
 request. The concurrency and 1,000-file properties are tested in the index. Ledger: *Measured*.
 
-## PV6: sharing
+## PV6: sharing ✅
 
 This milestone adds share links (view or download, expiry, password, download limit, open trail), upload links
 with review, collections and public gallery pages, comments with mentions and email, and activity per file and
@@ -144,6 +144,17 @@ per library.
 - revoking a link makes the next request 404 (no caching of the grant)
 - upload-link size, type, count and expiry limits are enforced (tests)
 - a guest holding a link sees only the shared target on every route (test)
+
+**As built (2026-11-28):** first an OWASP review of PV0–PV5 with fixes (PV-31 to PV-33, `docs/security/owasp-review.md`),
+patched console dependencies and a CI dependency gate (PV-32), and public sharing enforced off in prod until CSAM
+scanning and the domain exist (PV-34, GAPS G2). Then share links for a file, folder or collection, with view or
+download, expiry, PBKDF2 password and download limit, on serve-worker's `/_s/` pages (PV-35, G83–G85); upload links
+with limits and review, through a script-free form on `/_u/` (PV-36, G86–G88); collections and server-rendered public
+galleries (PV-37, G89, G90); comments with mentions emailed through notifications-worker (PV-38, PV-39; delivery waits
+for the domain, G91, G92); the app's screens (PV-40) and activity per file and library (PV-41, G93). Stage: share links
+13/13, upload link 7/7, gallery 6/6, mention queued, and the deployed app 11/11 (comment, share and open, upload link,
+collection, gallery, activity). Each Done-when item is tested in `shares.test.ts`, `uploadlinks.test.ts` and
+`collections.test.ts`. Ledger: *Measured*.
 
 ## PV7: BYO storage
 
