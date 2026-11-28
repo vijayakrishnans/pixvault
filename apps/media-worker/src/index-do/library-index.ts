@@ -29,7 +29,11 @@ export type IndexOp =
   | { op: "batch"; ids: string[]; act: BatchAction; actor: string; nowIso: string }
   | { op: "issueTicket"; subject: string; scope: LiveScope; nowIso: string }
   | { op: "versions"; id: string }
-  | { op: "beginStorageSwitch"; nowIso: string; untilIso: string }
+  | { op: "beginStorageSwitch"; nowIso: string; untilIso: string; allowFiles?: boolean }
+  | { op: "extendStorageLock"; untilIso: string }
+  | { op: "blobsPage"; after: string; limit: number }
+  | { op: "migration" }
+  | { op: "setMigration"; migration: Record<string, unknown> }
   | { op: "endStorageSwitch"; backend?: string | null }
   | { op: "noteStorageCheck"; nowIso: string }
   | { op: "openSession"; session: Parameters<LibraryIndexCore["openSession"]>[0] }
@@ -39,7 +43,7 @@ export type IndexOp =
   | { op: "commit"; input: Parameters<LibraryIndexCore["commit"]>[0] }
   | { op: "trash"; id: string; nowIso: string }
   | { op: "restore"; id: string; nowIso: string }
-  | { op: "purge"; id: string }
+  | { op: "purge"; id: string; nowIso?: string }
   | { op: "restoreVersion"; id: string; version: number; actor: string; nowIso: string; processing?: boolean }
   | { op: "setRetentionDays"; days: number }
   | { op: "setVisibility"; id: string; visibility: "public" | "private"; nowIso: string; requireSafety?: boolean }
@@ -125,7 +129,17 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
       case "versions":
         return { ok: true, value: core.versions(req.id) };
       case "beginStorageSwitch":
-        return { ok: true, value: core.beginStorageSwitch(req.nowIso, req.untilIso) };
+        return { ok: true, value: core.beginStorageSwitch(req.nowIso, req.untilIso, { allowFiles: req.allowFiles === true }) };
+      case "extendStorageLock":
+        core.extendStorageLock(req.untilIso);
+        return { ok: true, value: true };
+      case "blobsPage":
+        return { ok: true, value: core.blobsPage(req.after, req.limit) };
+      case "migration":
+        return { ok: true, value: core.migration() };
+      case "setMigration":
+        core.setMigration(req.migration);
+        return { ok: true, value: true };
       case "endStorageSwitch":
         core.endStorageSwitch(req.backend ?? null);
         return { ok: true, value: true };
@@ -146,7 +160,7 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
       case "restore":
         return { ok: true, value: core.restore(req.id, req.nowIso) };
       case "purge":
-        return { ok: true, value: core.purge(req.id) };
+        return { ok: true, value: core.purge(req.id, req.nowIso) };
       case "restoreVersion":
         return { ok: true, value: core.restoreVersion(req.id, req.version, req.actor, req.nowIso, req.processing ?? false) };
       case "setRetentionDays":
@@ -339,8 +353,9 @@ export class LibraryIndex extends DurableObject<Env> {
     }
     const cutoff = new Date(now.getTime() - this.core.retentionDays() * DAY).toISOString();
     let released = 0;
-    for (const id of this.core.trashedBefore(cutoff)) {
-      const r = this.core.purge(id);
+    const purgeIds = this.core.storageLocked(now.toISOString()) ? [] : this.core.trashedBefore(cutoff);
+    for (const id of purgeIds) {
+      const r = this.core.purge(id, now.toISOString());
       if (bucket) for (const key of r.deleteKeys) await bucket.delete(key);
       released += r.releasedBytes;
     }

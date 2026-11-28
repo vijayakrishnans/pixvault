@@ -27,6 +27,8 @@ export interface Env {
   APP_BASE?: string;
   /** storage-worker (service binding): customer buckets (PV7). */
   STORAGE_WORKER?: Fetcher;
+  /** MigrateStorageWorkflow (PV-47): moving a library's files between stores. */
+  MIGRATE_STORAGE?: Workflow<import("./storage/migrate.js").MigrationParams>;
   /** "on" | "off": public files, share links, upload links, galleries (off in prod until W-5/W-6; see sharing.ts). */
   PUBLIC_SHARING?: string;
 }

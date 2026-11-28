@@ -8,10 +8,10 @@
 import type { StorageBackend } from "@saas/db/media";
 import { audit, type Ctx } from "../ctx.js";
 import { errorResponse, successResponse, validationError } from "../http.js";
-import { indexFor } from "../index-do/client.js";
+import { IndexCallError, indexFor } from "../index-do/client.js";
 import { logError } from "../log.js";
 import { orgSuspended, publishLibraryMap } from "../serving.js";
-import { forgetStore } from "../storage/stores.js";
+import { backendKey, forgetStore, storeChoice } from "../storage/stores.js";
 import { loadAuthorized } from "./libraries.js";
 
 export const SWITCH_LOCK_MS = 60_000;
@@ -23,6 +23,16 @@ export function parseBackendPublicId(s: string): string | null {
   if (!s.startsWith(BACKEND_PREFIX)) return null;
   const h = s.slice(BACKEND_PREFIX.length);
   return HEX32.test(h) ? `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}` : null;
+}
+
+/** A storage change already under way answers 409, not 503. */
+async function begin<T>(ctx: Ctx, call: () => Promise<T>): Promise<T | Response> {
+  try {
+    return await call();
+  } catch (e) {
+    if (e instanceof IndexCallError && e.code === "conflict") return errorResponse("storage_changing", "A storage change is already in progress", 409, ctx.requestId);
+    throw e;
+  }
 }
 
 /** What a manager sees: never the sealed credentials. */
@@ -79,8 +89,10 @@ export async function handleGetStorage(ctx: Ctx, orgId: string, libraryId: strin
   if (!a.ok) return a.response;
   const r = await ctx.repo.listStorageBackends(orgId, libraryId);
   if (!r.ok) return errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
-  const current = r.value.find((b) => b.status !== "retired") ?? null;
-  return successResponse({ current: current ? backendView(current) : null, history: r.value.map(backendView) }, ctx.requestId);
+  const current = r.value.find((b) => b.status === "active" || b.status === "error") ?? null;
+  const m = await indexFor(ctx.env, { orgId, libraryId }).call<Record<string, unknown> | null>({ op: "migration" });
+  const migration = m ? { id: m.id, state: m.state, copied: m.copied ?? 0, missing: m.missing ?? 0, total: m.total ?? null, error: m.error ?? null, at: m.at ?? null, to: m.to === "managed" ? "managed" : backendPublicId(String(m.to)) } : null;
+  return successResponse({ current: current ? backendView(current) : null, history: r.value.map(backendView), migration }, ctx.requestId);
 }
 
 /** POST …/libraries/{lib}/storage/check: test a bucket without attaching it. */
@@ -108,13 +120,14 @@ export async function handleAttachBucket(ctx: Ctx, request: Request, orgId: stri
     return errorResponse("rate_limited", "Too many bucket checks for this library; try again within the hour", 429, ctx.requestId);
   }
   const now = ctx.now();
-  const begun = await idx.call<{ ok: true } | { ok: false; files: number; blobs: number; uploads: number }>({
+  const begun = await begin(ctx, () => idx.call<{ ok: true } | { ok: false; files: number; blobs: number; uploads: number }>({
     op: "beginStorageSwitch",
     nowIso: now.toISOString(),
     untilIso: new Date(now.getTime() + SWITCH_LOCK_MS).toISOString(),
-  });
+  }));
+  if (begun instanceof Response) return begun;
   if (!begun.ok) {
-    return errorResponse("library_not_empty", "Storage can only be changed while the library is empty; moving files comes with migration", 409, ctx.requestId, { files: begun.files, uploads: begun.uploads });
+    return errorResponse("library_not_empty", "Storage can only be changed this way while the library is empty; move its files with a migration (POST …/storage/migrations)", 409, ctx.requestId, { files: begun.files, uploads: begun.uploads });
   }
   let newBackend: string | null = null;
   try {
@@ -136,6 +149,55 @@ export async function handleAttachBucket(ctx: Ctx, request: Request, orgId: stri
       await publishLibraryMap(ctx.env, a.lib, await orgSuspended(ctx, orgId));
       await audit(ctx, a.lib, "library.storage_attached", `Moved library "${a.lib.name}" to a customer bucket`, { backend: backendPublicId(newBackend) });
     }
+  }
+}
+
+export const MIGRATION_LOCK_MS = 30 * 60_000;
+
+/**
+ * POST …/libraries/{lib}/storage/migrations { target: "managed" } | { target: "bucket", …bucket fields }:
+ * move every file to another store (PV-47). The target bucket is tested and stored pending; the copy runs in the
+ * background (MigrateStorageWorkflow); uploads and purges wait until it ends.
+ */
+export async function handleStartMigration(ctx: Ctx, request: Request, orgId: string, libraryId: string): Promise<Response> {
+  const a = await loadAuthorized(ctx, orgId, libraryId, "storage.manage");
+  if (!a.ok) return a.response;
+  const body = await readBody(request);
+  if (!body || (body.target !== "managed" && body.target !== "bucket")) return validationError(ctx.requestId, { target: ["Must be managed or bucket"] });
+  if (!ctx.env.MIGRATE_STORAGE) return errorResponse("internal_error", "Migration is unavailable right now", 503, ctx.requestId);
+  const idx = indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId });
+  const current = await storeChoice(ctx.env, orgId, libraryId, { fresh: true });
+  const from = backendKey(current);
+  if (body.target === "managed" && from === "managed") return errorResponse("conflict", "This library already uses managed storage", 409, ctx.requestId);
+  if (body.target === "bucket" && !(await idx.call<boolean>({ op: "noteStorageCheck", nowIso: ctx.now().toISOString() }))) {
+    return errorResponse("rate_limited", "Too many bucket checks for this library; try again within the hour", 429, ctx.requestId);
+  }
+  const now = ctx.now();
+  const begun = await begin(ctx, () => idx.call<{ ok: true; blobs: number; bytes: number } | { ok: false; files: number; uploads: number }>({
+    op: "beginStorageSwitch",
+    nowIso: now.toISOString(),
+    untilIso: new Date(now.getTime() + MIGRATION_LOCK_MS).toISOString(),
+    allowFiles: true,
+  }));
+  if (begun instanceof Response) return begun;
+  if (!begun.ok) return errorResponse("uploads_open", "Wait for uploads in progress to finish (or expire), then try again", 409, ctx.requestId, { uploads: begun.uploads });
+  let started = false;
+  try {
+    let to = "managed";
+    if (body.target === "bucket") {
+      const r = await callStorage(ctx, "/v1/storage/backends", { orgId, libraryId, ...bucketFields(body), pending: true });
+      if (!r) return errorResponse("internal_error", "Storage is unavailable right now", 503, ctx.requestId);
+      if (r.status !== 201) return relay(ctx, r);
+      to = (r.json.data as { backend: { id: string } }).backend.id;
+    }
+    const migrationId = crypto.randomUUID();
+    await idx.call({ op: "setMigration", migration: { id: migrationId, from, to, state: "copying", copied: 0, missing: 0, total: begun.blobs, bytes: begun.bytes, at: now.toISOString() } });
+    await ctx.env.MIGRATE_STORAGE.create({ id: `m${migrationId.replace(/-/g, "")}`, params: { migrationId, orgId, libraryId, from, to } });
+    started = true;
+    await audit(ctx, a.lib, "library.storage_migration_started", `Started moving library "${a.lib.name}" to ${to === "managed" ? "managed storage" : "a customer bucket"}`, { files: begun.blobs, to: to === "managed" ? "managed" : backendPublicId(to) });
+    return successResponse({ migration: { id: migrationId, state: "copying", total: begun.blobs, to: to === "managed" ? "managed" : backendPublicId(to) } }, ctx.requestId, 202);
+  } finally {
+    if (!started) await idx.call({ op: "endStorageSwitch", backend: null });
   }
 }
 
@@ -167,8 +229,9 @@ export async function handleDetachBucket(ctx: Ctx, orgId: string, libraryId: str
   if (!own.ok || own.value.kind !== "s3-compatible" || own.value.status === "retired") return errorResponse("not_found", "Not found", 404, ctx.requestId);
   const idx = indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId });
   const now = ctx.now();
-  const begun = await idx.call<{ ok: true } | { ok: false; files: number; uploads: number }>({ op: "beginStorageSwitch", nowIso: now.toISOString(), untilIso: new Date(now.getTime() + SWITCH_LOCK_MS).toISOString() });
-  if (!begun.ok) return errorResponse("library_not_empty", "Storage can only be changed while the library is empty; moving files comes with migration", 409, ctx.requestId, { files: begun.files, uploads: begun.uploads });
+  const begun = await begin(ctx, () => idx.call<{ ok: true } | { ok: false; files: number; uploads: number }>({ op: "beginStorageSwitch", nowIso: now.toISOString(), untilIso: new Date(now.getTime() + SWITCH_LOCK_MS).toISOString() }));
+  if (begun instanceof Response) return begun;
+  if (!begun.ok) return errorResponse("library_not_empty", "Storage can only be changed this way while the library is empty; move its files with a migration (POST …/storage/migrations)", 409, ctx.requestId, { files: begun.files, uploads: begun.uploads });
   let done = false;
   try {
     const r = await ctx.repo.retireStorageBackend(orgId, libraryId, id, now);

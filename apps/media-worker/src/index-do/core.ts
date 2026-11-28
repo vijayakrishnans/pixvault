@@ -492,6 +492,8 @@ export class LibraryIndexCore {
     storedBytes: number;
     releasedBytes: number;
   } {
+    // New bytes written during a migration could land behind its copy; the pipeline step retries after it.
+    if (this.switchLocked(input.nowIso)) throw new IndexError("invalid_state", "This library's storage is changing");
     return this.sql.transaction(() => {
       const f = this.getFile(input.id);
       // A retried step whose swap already happened: nothing more to do.
@@ -1107,16 +1109,50 @@ export class LibraryIndexCore {
    * open upload). Until endStorageSwitch or `untilIso`, new uploads and commits are refused, so nothing can land in
    * the old store meanwhile.
    */
-  beginStorageSwitch(nowIso: string, untilIso: string): { ok: true } | { ok: false; files: number; blobs: number; uploads: number } {
+  beginStorageSwitch(nowIso: string, untilIso: string, opts: { allowFiles?: boolean } = {}): { ok: true; blobs: number; bytes: number } | { ok: false; files: number; blobs: number; uploads: number } {
     if (this.switchLocked(nowIso)) throw new IndexError("conflict", "A storage change is already in progress");
     const n = (q: string) => Number(one(this.sql.exec<{ n: number }>(q).toArray())?.n ?? 0);
     const files = n(`SELECT COUNT(*) AS n FROM files`);
     const blobs = n(`SELECT COUNT(*) AS n FROM blobs`);
-    const uploads = n(`SELECT COUNT(*) AS n FROM sessions WHERE state = 'open'`);
-    if (files + blobs + uploads > 0) return { ok: false, files, blobs, uploads };
+    const uploads = Number(one(this.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM sessions WHERE state = 'open' AND expires_at > ?`, nowIso).toArray())?.n ?? 0);
+    // A migration (PV-47) moves files, so it may start with some; an open upload would write to the old place.
+    if (uploads > 0 || (!opts.allowFiles && files + blobs > 0)) return { ok: false, files, blobs, uploads };
+    const bytes = n(`SELECT COALESCE(SUM(size), 0) AS n FROM blobs`);
     this.setMeta("storage_lock_until", untilIso);
-    return { ok: true };
+    return { ok: true, blobs, bytes };
   }
+
+  /** Keep a long storage change locked (a migration extends it as it goes). */
+  extendStorageLock(untilIso: string): void {
+    if (this.meta("storage_lock_until")) this.setMeta("storage_lock_until", untilIso);
+  }
+
+  /** Whether a storage change is under way now (the alarm skips trash purges meanwhile). */
+  storageLocked(nowIso: string): boolean {
+    return this.switchLocked(nowIso);
+  }
+
+  /** Blobs in key order, for a migration to copy page by page. */
+  blobsPage(afterKey: string, limit: number): { object_key: string; size: number; sha256: string }[] {
+    return this.sql
+      .exec<{ object_key: string; size: number; sha256: string }>(`SELECT object_key, size, sha256 FROM blobs WHERE object_key > ? ORDER BY object_key LIMIT ?`, afterKey, Math.min(Math.max(limit, 1), 500))
+      .toArray();
+  }
+
+  /** The current or last migration's progress (JSON kept in meta). */
+  migration(): Record<string, unknown> | null {
+    const v = this.meta("storage_migration");
+    try {
+      return v ? (JSON.parse(v) as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  setMigration(m: Record<string, unknown>): void {
+    this.setMeta("storage_migration", JSON.stringify(m));
+  }
+
 
   /** Finish a storage change: record the new backend (or keep the old one when `backend` is null) and unlock. */
   endStorageSwitch(backend: string | null): void {
@@ -1340,7 +1376,9 @@ export class LibraryIndexCore {
   }
 
   /** Delete a trashed file for good: every version releases its blob; blobs at refcount 0 are returned. */
-  purge(id: string): { deleteKeys: string[]; releasedBytes: number } {
+  purge(id: string, nowIso = new Date().toISOString()): { deleteKeys: string[]; releasedBytes: number } {
+    // During a storage change a purge could delete from one store while the copy writes the other.
+    if (this.switchLocked(nowIso)) throw new IndexError("invalid_state", "This library's storage is changing; try again later");
     return this.sql.transaction(() => {
       const f = this.getFile(id);
       if (!f || f.status !== "trashed") throw new IndexError("not_found", "File not in trash");

@@ -144,7 +144,8 @@ export async function handle(request: Request, env: Env, baseDeps: Deps = {}): P
     const id = crypto.randomUUID();
     const sealed = await seal(kek, s.value, aadFor(orgId, libraryId, id));
     const repo = createMediaRepository(createSqlExecutor(env.PLATFORM_DB));
-    const r = await repo.createStorageBackend({ id, orgId, libraryId, ...b.value, credentialRef: sealed, status: "active", at: now() });
+    // pending: a migration target, not the library's store until the copy finishes (PV-47).
+    const r = await repo.createStorageBackend({ id, orgId, libraryId, ...b.value, credentialRef: sealed, status: body.pending === true ? "pending" : "active", at: now() });
     if (!r.ok) return fail(503, "unavailable", "Storage unavailable");
     return json({ backend: publicBackend(r.value), steps: check.steps }, 201);
   }

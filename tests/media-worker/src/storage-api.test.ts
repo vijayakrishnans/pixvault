@@ -137,7 +137,7 @@ describe("library storage API", () => {
   it("during a switch no upload can start or commit; a commit into a store that is no longer current is refused", async () => {
     const idx = indexFor(w.env, { orgId: A.id, libraryId: libId });
     const now = w.now;
-    expect(await idx.call({ op: "beginStorageSwitch", nowIso: now.toISOString(), untilIso: new Date(now.getTime() + 60_000).toISOString() })).toEqual({ ok: true });
+    expect(await idx.call({ op: "beginStorageSwitch", nowIso: now.toISOString(), untilIso: new Date(now.getTime() + 60_000).toISOString() })).toMatchObject({ ok: true });
     const r = await w.call(editor, "POST", `${base}/uploads`, { name: "c.bin", size: 10, sha256: sha256hex(randomBytes(10)), mime: "application/octet-stream" });
     expect(r.status).toBe(409);
     expect(r.json.error.code).toBe("storage_changing");

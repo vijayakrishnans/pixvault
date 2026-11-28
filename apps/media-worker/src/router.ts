@@ -40,7 +40,7 @@ import {
 } from "./handlers/files.js";
 import { handleListPipelineFailures, handleReprocess } from "./handlers/pipeline.js";
 import { handleListActivity } from "./handlers/activity.js";
-import { handleAttachBucket, handleCheckBucket, handleDetachBucket, handleGetStorage, handleRecheckBucket } from "./handlers/storage.js";
+import { handleAttachBucket, handleCheckBucket, handleStartMigration, handleDetachBucket, handleGetStorage, handleRecheckBucket } from "./handlers/storage.js";
 import { handleAddComment, handleDeleteComment, handleListComments, handleUpdateComment } from "./handlers/comments.js";
 import { handleCollectionItems, handleCreateCollection, handleDeleteCollection, handleGetCollection, handleListCollections, handleUpdateCollection } from "./handlers/collections.js";
 import { handleCreateUploadLink, handleListUploadLinks, handleRevokeUploadLink, handleUploadLinkOpen, handleUploadLinkUpload } from "./handlers/uploadlinks.js";
@@ -104,6 +104,7 @@ const SHARE_LINK_RE = new RegExp(`${LIB}\\/share-links\\/([^/]+)$`);
 const ACTIVITY_RE = new RegExp(`${LIB}\\/activity$`);
 const STORAGE_RE = new RegExp(`${LIB}\\/storage$`);
 const STORAGE_CHECK_RE = new RegExp(`${LIB}\\/storage\\/check$`);
+const STORAGE_MIGRATIONS_RE = new RegExp(`${LIB}\\/storage\\/migrations$`);
 const STORAGE_BACKEND_RE = new RegExp(`${LIB}\\/storage\\/(stb_[0-9a-f]{32})$`);
 const STORAGE_BACKEND_CHECK_RE = new RegExp(`${LIB}\\/storage\\/(stb_[0-9a-f]{32})\\/check$`);
 const FILE_COMMENTS_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/comments$`);
@@ -265,7 +266,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     // Files and uploads need the bucket and the index.
-    const fileRoute = [STORAGE_RE, STORAGE_CHECK_RE, STORAGE_BACKEND_RE, STORAGE_BACKEND_CHECK_RE, ACTIVITY_RE, FILE_COMMENTS_RE, FILE_COMMENT_RE, COLLECTIONS_RE, COLLECTION_RE, COLLECTION_ITEMS_RE, UPLOAD_LINKS_RE, UPLOAD_LINK_RE, SHARE_LINKS_RE, SHARE_LINK_RE, LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
+    const fileRoute = [STORAGE_RE, STORAGE_CHECK_RE, STORAGE_MIGRATIONS_RE, STORAGE_BACKEND_RE, STORAGE_BACKEND_CHECK_RE, ACTIVITY_RE, FILE_COMMENTS_RE, FILE_COMMENT_RE, COLLECTIONS_RE, COLLECTION_RE, COLLECTION_ITEMS_RE, UPLOAD_LINKS_RE, UPLOAD_LINK_RE, SHARE_LINKS_RE, SHARE_LINK_RE, LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
     if (fileRoute) {
       if (!env.MEDIA_BUCKET || !env.LIBRARY_INDEX) return errorResponse("internal_error", "Service unavailable", 503, requestId);
       const lm = path.match(new RegExp(LIB))!;
@@ -300,6 +301,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
       if ((m = path.match(FOLDERS_MOVE_RE))) return method === "POST" ? await handleMoveFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
       if ((m = path.match(FOLDERS_TRASH_RE))) return method === "POST" ? await handleTrashFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
       if (STORAGE_RE.test(path)) return method === "GET" ? await handleGetStorage(ctx, orgId, libId) : method === "POST" ? await handleAttachBucket(ctx, request, orgId, libId) : methodNotAllowed(requestId);
+      if (STORAGE_MIGRATIONS_RE.test(path)) return method === "POST" ? await handleStartMigration(ctx, request, orgId, libId) : methodNotAllowed(requestId);
       if (STORAGE_CHECK_RE.test(path)) return method === "POST" ? await handleCheckBucket(ctx, request, orgId, libId) : methodNotAllowed(requestId);
       if ((m = path.match(STORAGE_BACKEND_CHECK_RE))) return method === "POST" ? await handleRecheckBucket(ctx, orgId, libId, m[3]!) : methodNotAllowed(requestId);
       if ((m = path.match(STORAGE_BACKEND_RE))) return method === "DELETE" ? await handleDetachBucket(ctx, orgId, libId, m[3]!) : methodNotAllowed(requestId);

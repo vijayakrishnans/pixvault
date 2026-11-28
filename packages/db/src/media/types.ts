@@ -183,6 +183,10 @@ export interface MediaRepository {
   /** Record a health check: active with no error, or error with the S3 code. */
   recordStorageCheck(id: string, ok: boolean, errorCode: string | null, at: Date): Promise<MediaResult<true>>;
   retireStorageBackend(orgId: string, libraryId: string, id: string, at: Date): Promise<MediaResult<true>>;
+  /** Make a backend the library's current one (end of a migration, PV-47). */
+  activateStorageBackend(orgId: string, libraryId: string, id: string, at: Date): Promise<MediaResult<true>>;
+  /** A pending backend whose migration failed: retired, with the error code. */
+  failStorageBackend(orgId: string, libraryId: string, id: string, errorCode: string, at: Date): Promise<MediaResult<true>>;
 
   /** Fill in a library's org slug and signing key where they're missing (never overwrites). */
   setServingIdentity(orgId: string, libraryId: string, orgSlug: string, signingKey: string, at: Date): Promise<MediaResult<Library>>;

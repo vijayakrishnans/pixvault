@@ -1,0 +1,29 @@
+# PV-47: PV7, storage migration. Minted under milestone PV7; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-47
+spec:
+  goal: "Library managers can move a library's files to a customer bucket, back to managed storage, or between buckets: MigrateStorageWorkflow copies every blob page by page (large ones in parts), checks each SHA-256, then switches the library's store and tells serving. Uploads, purges and pipeline swaps wait while it runs; reads continue; a failure leaves the library where it was."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/storage-worker
+    - default/pixvault/api-edge
+    - default/pixvault/db
+    - default/pixvault/media-worker-tests
+    - apps/media-worker/**
+    - apps/storage-worker/**
+    - apps/api-edge/**
+    - packages/db/**
+    - tests/media-worker/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "managed → bucket → managed moves every file; files stay readable throughout and come from the new store after (test)"
+    - "uploads and purges are refused while a migration runs (test)"
+    - "a failed copy leaves the library on its old store, unlocked, with the error code shown (test)"
+    - "only managers start one; open uploads block it; one at a time (test)"
+    - "objects over 32 MiB copy in parts and are checked by SHA-256 (test)"
+  gates: []
