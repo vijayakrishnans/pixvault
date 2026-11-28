@@ -192,7 +192,8 @@
       "flagged": "被审核标记：{categories}",
       "failed": "处理失败：请重新处理",
       "unavailable": "审核无法判断",
-      "tooLarge": "文件过大，无法检查位置信息"
+      "tooLarge": "文件过大，无法检查位置信息",
+      "uploadLink": "通过上传链接发送：使用前请检查"
     }
   },
   "browse": {
@@ -261,6 +262,7 @@
       "connecting": "正在连接实时更新",
       "open": "实时：队友的更改会显示在这里",
       "closed": "实时更新已暂停，正在重连"
-    }
+    },
+    "viaUploadLink": "团队外部人员（通过上传链接）"
   }
 }

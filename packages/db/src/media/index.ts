@@ -1,4 +1,7 @@
 export type {
+  UploadLink,
+  UploadLinkInput,
+  UploadLinkLimits,
   ShareLink,
   ShareLinkInput,
   Library,

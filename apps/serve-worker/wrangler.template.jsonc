@@ -21,7 +21,8 @@
       "ratelimits": [
         { "name": "SERVE_RL", "namespace_id": "7301", "simple": { "limit": 600, "period": 60 } },
         { "name": "SERVE_REPORT_RL", "namespace_id": "7303", "simple": { "limit": 5, "period": 60 } },
-        { "name": "SERVE_SHARE_RL", "namespace_id": "7305", "simple": { "limit": 5, "period": 60 } }
+        { "name": "SERVE_SHARE_RL", "namespace_id": "7305", "simple": { "limit": 5, "period": 60 } },
+        { "name": "SERVE_UPLOAD_RL", "namespace_id": "7307", "simple": { "limit": 10, "period": 60 } }
       ],
       // Abuse reports and share-link pages go to media-worker, which has no public route.
       "services": [{ "binding": "MEDIA_WORKER", "service": "pixvault-media-worker-stage" }],
@@ -42,7 +43,8 @@
       "ratelimits": [
         { "name": "SERVE_RL", "namespace_id": "7302", "simple": { "limit": 600, "period": 60 } },
         { "name": "SERVE_REPORT_RL", "namespace_id": "7304", "simple": { "limit": 5, "period": 60 } },
-        { "name": "SERVE_SHARE_RL", "namespace_id": "7306", "simple": { "limit": 5, "period": 60 } }
+        { "name": "SERVE_SHARE_RL", "namespace_id": "7306", "simple": { "limit": 5, "period": 60 } },
+        { "name": "SERVE_UPLOAD_RL", "namespace_id": "7308", "simple": { "limit": 10, "period": 60 } }
       ],
       // Abuse reports and share-link pages go to media-worker, which has no public route.
       "services": [{ "binding": "MEDIA_WORKER", "service": "pixvault-media-worker-prod" }],

@@ -39,6 +39,7 @@ import {
   handleReviewFile,
 } from "./handlers/files.js";
 import { handleListPipelineFailures, handleReprocess } from "./handlers/pipeline.js";
+import { handleCreateUploadLink, handleListUploadLinks, handleRevokeUploadLink, handleUploadLinkOpen, handleUploadLinkUpload } from "./handlers/uploadlinks.js";
 import { handleCreateShareLink, handleListShareLinks, handleRevokeShareLink, handleShareContent, handleShareOpen } from "./handlers/shares.js";
 import { handleLiveTicket, handleBatch, handleCreateFolder, handleListFolders, handleListTags, handleMoveFolder, handleTrashFolder } from "./handlers/browse.js";
 import {
@@ -62,6 +63,7 @@ import {
   parseOrgPublicId,
   parseSessionPublicId,
   parseShareLinkPublicId,
+  parseUploadLinkPublicId,
 } from "./ids.js";
 
 export interface ActorContext {
@@ -93,6 +95,10 @@ const LIVE_TICKETS_RE = new RegExp(`${LIB}\\/live-tickets$`);
 const SHARE_LINKS_RE = new RegExp(`${LIB}\\/share-links$`);
 const SHARE_LINK_RE = new RegExp(`${LIB}\\/share-links\\/([^/]+)$`);
 // Guests' share pages, from serve-worker over the service binding (api-edge doesn't forward these).
+const UPLOAD_LINKS_RE = new RegExp(`${LIB}\\/upload-links$`);
+const UPLOAD_LINK_RE = new RegExp(`${LIB}\\/upload-links\\/([^/]+)$`);
+const UPLOAD_LINK_OPEN = "/v1/media/upload-links/open";
+const UPLOAD_LINK_UPLOAD = "/v1/media/upload-links/upload";
 const SHARE_OPEN = "/v1/media/shares/open";
 const SHARE_CONTENT = "/v1/media/shares/content";
 const LIVE_RE = new RegExp(`${LIB}\\/live$`);
@@ -156,6 +162,16 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     return method === "POST" ? await handleAbuseIntake(env, request, requestId, (deps?.now ?? (() => new Date()))()) : methodNotAllowed(requestId);
   }
 
+  if (path === UPLOAD_LINK_OPEN || path === UPLOAD_LINK_UPLOAD) {
+    if (method !== "POST") return methodNotAllowed(requestId);
+    const now = (deps?.now ?? (() => new Date()))();
+    try {
+      return path === UPLOAD_LINK_OPEN ? await handleUploadLinkOpen(env, request, requestId, now) : await handleUploadLinkUpload(env, request, url, requestId, now);
+    } catch (e) {
+      logError(requestId, `POST ${path}`, e);
+      return errorResponse("internal_error", "Service unavailable", 503, requestId);
+    }
+  }
   if (path === SHARE_OPEN || path === SHARE_CONTENT) {
     if (method !== "POST") return methodNotAllowed(requestId);
     const now = (deps?.now ?? (() => new Date()))();
@@ -233,7 +249,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     // Files and uploads need the bucket and the index.
-    const fileRoute = [SHARE_LINKS_RE, SHARE_LINK_RE, LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
+    const fileRoute = [UPLOAD_LINKS_RE, UPLOAD_LINK_RE, SHARE_LINKS_RE, SHARE_LINK_RE, LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
     if (fileRoute) {
       if (!env.MEDIA_BUCKET || !env.LIBRARY_INDEX) return errorResponse("internal_error", "Service unavailable", 503, requestId);
       const lm = path.match(new RegExp(LIB))!;
@@ -267,6 +283,16 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
       }
       if ((m = path.match(FOLDERS_MOVE_RE))) return method === "POST" ? await handleMoveFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
       if ((m = path.match(FOLDERS_TRASH_RE))) return method === "POST" ? await handleTrashFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
+      if ((m = path.match(UPLOAD_LINKS_RE))) {
+        if (method === "GET") return await handleListUploadLinks(ctx, orgId, libId);
+        if (method === "POST") return await handleCreateUploadLink(ctx, request, orgId, libId);
+        return methodNotAllowed(requestId);
+      }
+      if ((m = path.match(UPLOAD_LINK_RE))) {
+        const upl = parseUploadLinkPublicId(m[3]!);
+        if (!upl) return nf();
+        return method === "DELETE" ? await handleRevokeUploadLink(ctx, orgId, libId, upl) : methodNotAllowed(requestId);
+      }
       if ((m = path.match(SHARE_LINKS_RE))) {
         if (method === "GET") return await handleListShareLinks(ctx, url, orgId, libId);
         if (method === "POST") return await handleCreateShareLink(ctx, request, orgId, libId);

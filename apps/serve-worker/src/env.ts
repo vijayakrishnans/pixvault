@@ -14,6 +14,8 @@ export interface Env {
   SERVE_RL?: RateLimit;
   /** media-worker (service binding): abuse reports from the report form. */
   MEDIA_WORKER?: Fetcher;
+  /** Upload-link submissions per address. */
+  SERVE_UPLOAD_RL?: RateLimit;
   /** Password tries on a share link: per address and link. */
   SERVE_SHARE_RL?: RateLimit;
   /** Per-IP limit on abuse reports. */

@@ -186,8 +186,55 @@ export interface MediaRepository {
   recordShareOpen(id: string, at: Date): Promise<MediaResult<true>>;
   /** Count one download if the link is live and under its limit; false when the limit is reached. */
   consumeShareDownload(id: string, at: Date): Promise<MediaResult<boolean>>;
+  // upload links (PV6)
+  createUploadLink(input: UploadLinkInput): Promise<MediaResult<UploadLink>>;
+  listUploadLinks(orgId: string, libraryId: string, limit: number): Promise<MediaResult<UploadLink[]>>;
+  getUploadLinkByTokenHash(tokenHash: string): Promise<MediaResult<UploadLink>>;
+  revokeUploadLink(orgId: string, libraryId: string, id: string, at: Date): Promise<MediaResult<UploadLink>>;
+  /** Reserve one file of `bytes` against the link's limits; false when a limit would be passed or the link is gone. */
+  reserveUpload(link: UploadLink, bytes: number, at: Date): Promise<MediaResult<boolean>>;
+  /** Give back a reservation whose upload failed. */
+  releaseUpload(id: string, bytes: number): Promise<MediaResult<true>>;
   /** Mark a file's open failures replayed or resolved. */
   settlePipelineFailures(orgId: string, libraryId: string, fileId: string, status: "replayed" | "resolved", at: Date): Promise<MediaResult<true>>;
+}
+
+export interface UploadLinkLimits {
+  maxFiles: number;
+  maxFileBytes: number;
+  maxTotalBytes: number;
+  /** MIME patterns like "image/*" or "application/pdf"; empty means any type the library allows. */
+  allowedTypes: string[];
+}
+
+export interface UploadLink {
+  id: string;
+  orgId: string;
+  libraryId: string;
+  folderPath: string;
+  label: string;
+  tokenHash: string;
+  limits: UploadLinkLimits;
+  requiresReview: boolean;
+  uploads: number;
+  bytes: number;
+  createdBy: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface UploadLinkInput {
+  orgId: string;
+  libraryId: string;
+  folderPath: string;
+  label: string;
+  tokenHash: string;
+  limits: UploadLinkLimits;
+  requiresReview: boolean;
+  expiresAt: Date | null;
+  createdBy: string;
+  at: Date;
 }
 
 export interface ShareLink {

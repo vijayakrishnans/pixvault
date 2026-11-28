@@ -105,6 +105,11 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
   *before* the owner's queue reports "Uploaded". Then a new folder, a bulk move into it (the viewer's tree follows
   live), search, the drawer with its version and folder, list view, and a phone width with no sideways scroll and no
   page errors (13/13). With PV-29's build the first run failed: no live refresh (PV-30's fix).
+- PV-35 stage (2026-11-28): share links over HTTP, 13/13. A folder link lists only what's under it (not the sibling
+  `/tripod`) and downloads byte-for-byte; a file outside is 404; a password link refuses a wrong password, sets a
+  path-scoped HttpOnly cookie on the right one, allows its one download and refuses the second (410). After a revoke
+  the very next request was 404 (2.2 s for the DELETE plus the GET).
+- PV-34: the Cloudflare API shows prod media-worker and serve-worker with PUBLIC_SHARING=off, stage on.
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

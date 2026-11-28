@@ -736,6 +736,7 @@ export default {
       if (n.startsWith("failed:")) return this.$t("review.reason.failed");
       if (n === "moderation_unavailable") return this.$t("review.reason.unavailable");
       if (n === "too_large_to_check_location") return this.$t("review.reason.tooLarge");
+      if (n === "review:upload_link") return this.$t("review.reason.uploadLink");
       return "";
     },
     // Without a live connection, refresh every few seconds while files process (for up to two minutes).

@@ -73,6 +73,8 @@ describe("api-edge media facade", () => {
     [`/v1/organizations/${ORG}/libraries/${LIB}/live`],
     [`/v1/organizations/${ORG}/libraries/${LIB}/share-links`],
     [`/v1/organizations/${ORG}/libraries/${LIB}/share-links/shl_1`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/upload-links`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/upload-links/upl_1`],
   ])("routes %s to media-worker, not the project or org facades", (path) => {
     expect(isMediaRoute(path)).toBe(true);
     expect(isProjectRoute(path)).toBe(false);
@@ -87,6 +89,7 @@ describe("api-edge media facade", () => {
     // guests' share pages reach media-worker only through serve-worker, never the edge
     expect(isMediaRoute("/v1/media/shares/open")).toBe(false);
     expect(isMediaRoute("/v1/media/shares/content")).toBe(false);
+    expect(isMediaRoute("/v1/media/upload-links/upload")).toBe(false);
   });
 
   it("refuses methods a route doesn't take (405) without calling anything", async () => {

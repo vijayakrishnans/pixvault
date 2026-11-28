@@ -246,5 +246,14 @@ export const manifest: MigrationManifest = {
       description:
         "Share links (PV6): target label and the open trail (counts and time) on media_share_links",
     },
+    {
+      id: "270_media_upload_links",
+      context: "media",
+      path: "270_media_upload_links/up.sql",
+      checksum:
+        "279badef1189a111a0db2968a9b705da96c366dad82d4b327e7b59622635885d",
+      description:
+        "Upload links (PV6): upload and byte counters, and a label, on media_upload_links",
+    },
   ],
 };

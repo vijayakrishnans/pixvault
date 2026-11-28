@@ -192,7 +192,8 @@
       "flagged": "Flagged by moderation: {categories}",
       "failed": "Processing failed: process it again",
       "unavailable": "Moderation couldn't decide",
-      "tooLarge": "Too large to check for location data"
+      "tooLarge": "Too large to check for location data",
+      "uploadLink": "Sent through an upload link: check it before using it"
     }
   },
   "browse": {
@@ -261,6 +262,7 @@
       "connecting": "Connecting for live updates",
       "open": "Live: changes by teammates appear here",
       "closed": "Live updates paused; reconnecting"
-    }
+    },
+    "viaUploadLink": "Someone outside the team, through an upload link"
   }
 }

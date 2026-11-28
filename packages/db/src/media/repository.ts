@@ -3,6 +3,8 @@ import { executeBatch } from "../d1/executor.js";
 import { isUniqueViolation } from "../d1/errors.js";
 import type {
   ShareLink,
+  UploadLink,
+  UploadLinkLimits,
   AbuseCase,
   PipelineFailure,
   CreateInvitationInput,
@@ -79,6 +81,31 @@ function internal<T>(message: string): MediaResult<T> {
 const notFound = <T>(): MediaResult<T> => ({ ok: false, error: { kind: "not_found" } });
 
 /** The managed-R2 prefix for a library. Every managed object key starts with it (design §1.1). */
+function toUploadLink(r: Row): UploadLink {
+  let limits: UploadLinkLimits = { maxFiles: 0, maxFileBytes: 0, maxTotalBytes: 0, allowedTypes: [] };
+  try {
+    limits = { ...limits, ...(JSON.parse(String(r.limits_json ?? "{}")) as Partial<UploadLinkLimits>) };
+  } catch {
+    /* a link with unreadable limits accepts nothing */
+  }
+  return {
+    id: String(r.id),
+    orgId: String(r.org_id),
+    libraryId: String(r.library_id),
+    folderPath: String(r.folder_path),
+    label: String(r.label ?? ""),
+    tokenHash: String(r.token_hash),
+    limits,
+    requiresReview: Number(r.requires_review) === 1,
+    uploads: Number(r.uploads ?? 0),
+    bytes: Number(r.bytes ?? 0),
+    createdBy: String(r.created_by),
+    expiresAt: r.expires_at == null ? null : String(r.expires_at),
+    revokedAt: r.revoked_at == null ? null : String(r.revoked_at),
+    createdAt: String(r.created_at),
+  };
+}
+
 function toShareLink(r: Row): ShareLink {
   return {
     id: String(r.id),
@@ -646,6 +673,83 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
         return { ok: true, value: r.rowCount > 0 };
       } catch {
         return internal("Failed to read operators");
+      }
+    },
+
+    async createUploadLink(input) {
+      try {
+        const id = crypto.randomUUID();
+        const r = await executor.execute<Row>(
+          `INSERT INTO media_upload_links (id, org_id, library_id, folder_path, label, token_hash, limits_json, requires_review, created_by,
+             expires_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11) RETURNING *`,
+          [id, input.orgId, input.libraryId, input.folderPath, input.label, input.tokenHash, JSON.stringify(input.limits), input.requiresReview ? 1 : 0,
+            input.createdBy, input.expiresAt ? input.expiresAt.toISOString() : null, input.at.toISOString()],
+        );
+        return { ok: true, value: toUploadLink(r.rows[0]!) };
+      } catch {
+        return internal("Failed to create the upload link");
+      }
+    },
+
+    async listUploadLinks(orgId, libraryId, limit) {
+      try {
+        const r = await executor.execute<Row>(
+          `SELECT * FROM media_upload_links WHERE org_id = $1 AND library_id = $2 ORDER BY created_at DESC LIMIT $3`,
+          [orgId, libraryId, Math.min(200, Math.max(1, limit))],
+        );
+        return { ok: true, value: r.rows.map(toUploadLink) };
+      } catch {
+        return internal("Failed to list upload links");
+      }
+    },
+
+    async getUploadLinkByTokenHash(tokenHash) {
+      try {
+        const r = await executor.execute<Row>(`SELECT * FROM media_upload_links WHERE token_hash = $1`, [tokenHash]);
+        if (r.rowCount === 0) return { ok: false, error: { kind: "not_found", entity: "upload_link" } };
+        return { ok: true, value: toUploadLink(r.rows[0]!) };
+      } catch {
+        return internal("Failed to read the upload link");
+      }
+    },
+
+    async revokeUploadLink(orgId, libraryId, id, at) {
+      try {
+        const r = await executor.execute<Row>(
+          `UPDATE media_upload_links SET revoked_at = COALESCE(revoked_at, $4), updated_at = $4 WHERE id = $1 AND org_id = $2 AND library_id = $3 RETURNING *`,
+          [id, orgId, libraryId, at.toISOString()],
+        );
+        if (r.rowCount === 0) return { ok: false, error: { kind: "not_found", entity: "upload_link" } };
+        return { ok: true, value: toUploadLink(r.rows[0]!) };
+      } catch {
+        return internal("Failed to revoke the upload link");
+      }
+    },
+
+    async reserveUpload(link, bytes, at) {
+      try {
+        const r = await executor.execute<Row>(
+          `UPDATE media_upload_links SET uploads = uploads + 1, bytes = bytes + $2, updated_at = $3
+           WHERE id = $1 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > $3)
+             AND uploads < $4 AND bytes + $2 <= $5 RETURNING id`,
+          [link.id, bytes, at.toISOString(), link.limits.maxFiles, link.limits.maxTotalBytes],
+        );
+        return { ok: true, value: r.rowCount > 0 };
+      } catch {
+        return internal("Failed to reserve the upload");
+      }
+    },
+
+    async releaseUpload(id, bytes) {
+      try {
+        await executor.execute(
+          `UPDATE media_upload_links SET uploads = MAX(uploads - 1, 0), bytes = MAX(bytes - $2, 0) WHERE id = $1`,
+          [id, bytes],
+        );
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to release the upload");
       }
     },
 
