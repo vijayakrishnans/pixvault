@@ -21,6 +21,10 @@ export interface Env {
   /** One SQLite LibraryIndex Durable Object per library. */
   LIBRARY_INDEX?: DurableObjectNamespace;
   ENVIRONMENT: string;
+  /** notifications-worker (service binding): mention emails (PV6). */
+  NOTIFICATIONS_WORKER?: Fetcher;
+  /** The media app's origin, for links in emails (e.g. https://pixvault-media-web-stage.<sub>.workers.dev). */
+  APP_BASE?: string;
   /** "on" | "off": public files, share links, upload links, galleries (off in prod until W-5/W-6; see sharing.ts). */
   PUBLIC_SHARING?: string;
 }

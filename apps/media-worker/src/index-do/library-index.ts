@@ -55,7 +55,13 @@ export type IndexOp =
   | { op: "collectionItems"; id: string; action: "add" | "remove"; fileIds: string[]; nowIso: string }
   | { op: "collectionFiles"; id: string; servedOnly?: boolean; limit: number }
   | { op: "inCollection"; id: string; fileId: string }
-  | { op: "gallery"; id: string };
+  | { op: "gallery"; id: string }
+  | { op: "listComments"; fileId: string }
+  | { op: "getComment"; id: string }
+  | { op: "addComment"; input: Parameters<LibraryIndexCore["addComment"]>[0] }
+  | { op: "editComment"; id: string; fileId: string; body: string; nowIso: string }
+  | { op: "resolveComment"; id: string; fileId: string; resolved: boolean; by: string; nowIso: string }
+  | { op: "deleteComment"; id: string; fileId: string };
 
 export type IndexResult = { ok: true; value: unknown } | { ok: false; code: string; message: string };
 
@@ -150,6 +156,19 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
         return { ok: true, value: core.collectionFiles(req.id, { servedOnly: req.servedOnly ?? false, limit: req.limit }) };
       case "inCollection":
         return { ok: true, value: core.inCollection(req.id, req.fileId) };
+      case "listComments":
+        return { ok: true, value: core.listComments(req.fileId) };
+      case "getComment":
+        return { ok: true, value: core.getComment(req.id) };
+      case "addComment":
+        return { ok: true, value: core.addComment(req.input) };
+      case "editComment":
+        return { ok: true, value: core.editComment(req.id, req.fileId, req.body, req.nowIso) };
+      case "resolveComment":
+        return { ok: true, value: core.resolveComment(req.id, req.fileId, req.resolved, req.by, req.nowIso) };
+      case "deleteComment":
+        core.deleteComment(req.id, req.fileId);
+        return { ok: true, value: true };
       case "gallery":
         return { ok: true, value: core.gallery(req.id) };
       case "randomPublic":

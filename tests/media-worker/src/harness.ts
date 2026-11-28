@@ -82,6 +82,8 @@ export class World {
   /** What the moderation model answers next (its raw text), or an error it throws. */
   aiVerdict: string | Error = '```json\n{"verdict":"safe","categories":[]}\n```';
   readonly aiCalls: { model: string }[] = [];
+  /** Emails queued with notifications-worker (mentions, PV6). */
+  readonly notifications: { headers: Record<string, string>; body: any }[] = [];
   /** Make the next Workflow create calls fail (a lost start). */
   failWorkflowStarts = false;
   readonly env: Env;
@@ -108,6 +110,11 @@ export class World {
         delete: async (k: string) => void self.kv.delete(k),
       } as unknown as KVNamespace,
       SERVE_BASE: "https://serve.test",
+      APP_BASE: "https://app.test",
+      NOTIFICATIONS_WORKER: fetcher(async (req) => {
+        self.notifications.push({ headers: Object.fromEntries(req.headers), body: await req.json() });
+        return json({ notificationId: `ntf_${self.notifications.length}`, outcome: "created" }, 201);
+      }),
       PROCESS_FILE: {
         create: async ({ id, params }: { id: string; params: PipelineParams }) => {
           if (self.failWorkflowStarts) throw new Error("workflow create failed");

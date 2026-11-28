@@ -142,6 +142,18 @@ Each PR says which of these it touches and what it did:
 - **Pages:** server-rendered with no script, a deny-all CSP (images from self), no framing; names and descriptions escaped; each file links to its own serving URL, which carries the report link.
 - **Bounds:** 500 collections a library, 5,000 files a collection, 500 ids a call, 100-character names, 2,000-character descriptions.
 
+### Comments and mentions (PV-38): how the checklist was met
+- **Access:** comments follow the file. Whoever may read the file reads and writes its comments (an uploader-only member on their own files only); everyone else gets 404. Only the author edits words. The author or an editor or manager (`file.update`) resolves or deletes. A comment id from another file is 404.
+- **Mentions** are checked against the library's members, and an uploader-only member is mentionable only on their own file. Others are dropped silently, so nobody can probe who exists. At most 10 per comment.
+- **Email** (notifications-worker `media.comment_mention`):
+  - every field is HTML-escaped, and a link that isn't plain `https://` is dropped;
+  - the email carries the commenter, the file and library names, a 140-character excerpt and a link to the library in the app;
+  - never the file, a file URL or a signed link;
+  - one per person per comment, through an idempotency key;
+  - best effort, so a failed email never fails the comment.
+- **Live events** say only which file's comments changed (no words), and only to sockets that see every file.
+- **Bounds:** 4,000 characters, no control characters, 1,000 comments a file. A purged file takes its comments with it.
+
 ### Ahead: what the next milestones must design in
 - **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;

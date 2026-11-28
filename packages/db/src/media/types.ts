@@ -176,6 +176,8 @@ export interface MediaRepository {
   isPlatformOperator(subjectId: string): Promise<MediaResult<boolean>>;
   getOrgSuspension(orgId: string): Promise<MediaResult<{ suspendedAt: string; reason: string | null } | null>>;
   setOrgSuspension(orgId: string, suspended: boolean, reason: string | null, decidedBy: string, at: Date): Promise<MediaResult<true>>;
+  /** Emails of platform users by id (uuid), for mention emails. Unknown ids are left out. */
+  userEmails(userIds: string[]): Promise<MediaResult<Map<string, string>>>;
   // share links (PV6)
   createShareLink(input: ShareLinkInput): Promise<MediaResult<ShareLink>>;
   listShareLinks(orgId: string, libraryId: string, filter: { targetKind?: ShareLink["targetKind"]; targetId?: string; limit: number }): Promise<MediaResult<ShareLink[]>>;

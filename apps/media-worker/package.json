@@ -21,6 +21,7 @@
   "dependencies": {
     "@saas/contracts": "workspace:*",
     "@saas/db": "workspace:*",
+    "@saas/notifications-client": "workspace:*",
     "@saas/policy-engine": "workspace:*",
     "@saas/shared": "workspace:*"
   }

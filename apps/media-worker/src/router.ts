@@ -39,6 +39,7 @@ import {
   handleReviewFile,
 } from "./handlers/files.js";
 import { handleListPipelineFailures, handleReprocess } from "./handlers/pipeline.js";
+import { handleAddComment, handleDeleteComment, handleListComments, handleUpdateComment } from "./handlers/comments.js";
 import { handleCollectionItems, handleCreateCollection, handleDeleteCollection, handleGetCollection, handleListCollections, handleUpdateCollection } from "./handlers/collections.js";
 import { handleCreateUploadLink, handleListUploadLinks, handleRevokeUploadLink, handleUploadLinkOpen, handleUploadLinkUpload } from "./handlers/uploadlinks.js";
 import { handleCreateShareLink, handleListShareLinks, handleRevokeShareLink, handleShareContent, handleShareOpen } from "./handlers/shares.js";
@@ -66,6 +67,7 @@ import {
   parseShareLinkPublicId,
   parseUploadLinkPublicId,
   parseCollectionPublicId,
+  parseCommentPublicId,
 } from "./ids.js";
 
 export interface ActorContext {
@@ -97,6 +99,8 @@ const LIVE_TICKETS_RE = new RegExp(`${LIB}\\/live-tickets$`);
 const SHARE_LINKS_RE = new RegExp(`${LIB}\\/share-links$`);
 const SHARE_LINK_RE = new RegExp(`${LIB}\\/share-links\\/([^/]+)$`);
 // Guests' share pages, from serve-worker over the service binding (api-edge doesn't forward these).
+const FILE_COMMENTS_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/comments$`);
+const FILE_COMMENT_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/comments\\/([^/]+)$`);
 const COLLECTIONS_RE = new RegExp(`${LIB}\\/collections$`);
 const COLLECTION_RE = new RegExp(`${LIB}\\/collections\\/([^/]+)$`);
 const COLLECTION_ITEMS_RE = new RegExp(`${LIB}\\/collections\\/([^/]+)\\/items$`);
@@ -254,7 +258,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     // Files and uploads need the bucket and the index.
-    const fileRoute = [COLLECTIONS_RE, COLLECTION_RE, COLLECTION_ITEMS_RE, UPLOAD_LINKS_RE, UPLOAD_LINK_RE, SHARE_LINKS_RE, SHARE_LINK_RE, LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
+    const fileRoute = [FILE_COMMENTS_RE, FILE_COMMENT_RE, COLLECTIONS_RE, COLLECTION_RE, COLLECTION_ITEMS_RE, UPLOAD_LINKS_RE, UPLOAD_LINK_RE, SHARE_LINKS_RE, SHARE_LINK_RE, LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
     if (fileRoute) {
       if (!env.MEDIA_BUCKET || !env.LIBRARY_INDEX) return errorResponse("internal_error", "Service unavailable", 503, requestId);
       const lm = path.match(new RegExp(LIB))!;
@@ -333,6 +337,18 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
         return fm ? parseFilePublicId(fm[3]!) : null;
       })();
       if (!fid) return nf();
+      if ((m = path.match(FILE_COMMENTS_RE))) {
+        if (method === "GET") return await handleListComments(ctx, orgId, libId, fid);
+        if (method === "POST") return await handleAddComment(ctx, request, orgId, libId, fid);
+        return methodNotAllowed(requestId);
+      }
+      if ((m = path.match(FILE_COMMENT_RE))) {
+        const cmt = parseCommentPublicId(m[4]!);
+        if (!cmt) return nf();
+        if (method === "PATCH") return await handleUpdateComment(ctx, request, orgId, libId, fid, cmt);
+        if (method === "DELETE") return await handleDeleteComment(ctx, orgId, libId, fid, cmt);
+        return methodNotAllowed(requestId);
+      }
       if ((m = path.match(FILE_CONTENT_RE))) return method === "GET" ? await handleFileContent(ctx, orgId, libId, fid) : methodNotAllowed(requestId);
       if ((m = path.match(FILE_RESTORE_RE))) return method === "POST" ? await handleRestoreFile(ctx, orgId, libId, fid) : methodNotAllowed(requestId);
       if ((m = path.match(FILE_SIGNED_URL_RE))) return method === "POST" ? await handleSignedUrl(ctx, request, orgId, libId, fid) : methodNotAllowed(requestId);

@@ -34,6 +34,8 @@ export function actorUuid(subjectId: string): string {
 /** Upload sessions: `ups_<32 hex>`. Files: `fil_<32 hex>`. */
 export const sessionPublicId = pub("ups");
 export const parseSessionPublicId = parse("ups");
+export const commentPublicId = pub("cmt");
+export const parseCommentPublicId = parse("cmt");
 export const collectionPublicId = pub("col");
 export const parseCollectionPublicId = parse("col");
 export const uploadLinkPublicId = pub("upl");

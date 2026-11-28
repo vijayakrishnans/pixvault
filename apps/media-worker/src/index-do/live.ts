@@ -40,6 +40,8 @@ export interface Change {
   files: ChangedFile[];
   /** The folder tree changed (a folder was made, moved or removed, or a file landed in a new one). */
   tree: boolean;
+  /** This file's comments changed (only sockets that see every file hear of it). */
+  comments?: string;
 }
 
 export const SOCKET_TTL_MS = 60 * 60_000;
@@ -77,6 +79,11 @@ export function changeFor(req: IndexOp, value: unknown): Change | null {
     case "moveFolder":
     case "trashFolder":
       return { op: req.op, files: [], tree: true };
+    case "addComment":
+    case "editComment":
+    case "resolveComment":
+      // Says which file's comments changed; the app refetches them through the API (which checks access).
+      return { op: "comment", files: [], tree: false, comments: filePublicId(req.op === "addComment" ? req.input.fileId : req.fileId) };
     default:
       return null;
   }
@@ -97,8 +104,15 @@ export function deliver(sockets: LiveSocket[], change: Change, now: number): voi
       continue;
     }
     const files = a.scope === "all" ? change.files : change.files.filter((f) => f.by === a.sub);
+    if (change.comments && a.scope !== "all") continue;
     if (a.scope === "own" && files.length === 0 && !change.tree) continue;
-    safeSend(ws, { t: "change", op: change.op, files: files.map(({ id, folder, status }) => ({ id, folder, status })), tree: change.tree });
+    safeSend(ws, {
+      t: "change",
+      op: change.op,
+      files: files.map(({ id, folder, status }) => ({ id, folder, status })),
+      tree: change.tree,
+      ...(change.comments ? { comments: change.comments } : {}),
+    });
   }
 }
 

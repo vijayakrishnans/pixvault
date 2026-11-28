@@ -169,6 +169,10 @@ CREATE TABLE IF NOT EXISTS collection_items (
   PRIMARY KEY (collection_id, file_id));
 CREATE INDEX IF NOT EXISTS collection_items_order ON collection_items (collection_id, position);
 CREATE INDEX IF NOT EXISTS collection_items_file ON collection_items (file_id);
+CREATE TABLE IF NOT EXISTS comments (
+  id TEXT PRIMARY KEY, file_id TEXT NOT NULL, author TEXT NOT NULL, body TEXT NOT NULL, mentions_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL, edited_at TEXT, resolved_at TEXT, resolved_by TEXT);
+CREATE INDEX IF NOT EXISTS comments_file ON comments (file_id, created_at);
 CREATE TABLE IF NOT EXISTS live_tickets (
   ticket TEXT PRIMARY KEY, subject TEXT NOT NULL, scope TEXT NOT NULL, expires_at TEXT NOT NULL);
 `;
@@ -259,6 +263,19 @@ export interface CollectionRow {
   cover_file_id: string | null;
 }
 
+export interface CommentRow {
+  id: string;
+  file_id: string;
+  author: string;
+  body: string;
+  mentions_json: string;
+  created_at: string;
+  edited_at: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+}
+
+export const MAX_COMMENTS_PER_FILE = 1000;
 export const MAX_COLLECTION_ITEMS = 5000;
 export const MAX_COLLECTIONS = 500;
 
@@ -648,6 +665,57 @@ export class LibraryIndexCore {
     const page = rows.slice(0, opts.limit);
     const last = page[page.length - 1];
     return { files: page, nextCursor: rows.length > opts.limit && last ? `${last.created_at}|${last.id}` : null };
+  }
+
+  // ── comments (PV6) ────────────────────────────────────────
+
+  listComments(fileId: string): CommentRow[] {
+    // rowid breaks ties between comments made in the same millisecond: insertion order.
+    return this.sql.exec<CommentRow>(`SELECT * FROM comments WHERE file_id = ? ORDER BY created_at, rowid LIMIT ?`, fileId, MAX_COMMENTS_PER_FILE).toArray();
+  }
+
+  getComment(id: string): CommentRow | null {
+    return one(this.sql.exec<CommentRow>(`SELECT * FROM comments WHERE id = ?`, id).toArray());
+  }
+
+  addComment(input: { id: string; fileId: string; author: string; body: string; mentions: string[]; nowIso: string }): CommentRow {
+    return this.sql.transaction(() => {
+      const f = this.getFile(input.fileId);
+      if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
+      const n = Number(one(this.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM comments WHERE file_id = ?`, input.fileId).toArray())?.n ?? 0);
+      if (n >= MAX_COMMENTS_PER_FILE) throw new IndexError("invalid_state", `At most ${MAX_COMMENTS_PER_FILE} comments on a file`);
+      this.sql.exec(
+        `INSERT INTO comments (id, file_id, author, body, mentions_json, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        input.id, input.fileId, input.author, input.body, JSON.stringify(input.mentions), input.nowIso,
+      );
+      return this.getComment(input.id)!;
+    });
+  }
+
+  editComment(id: string, fileId: string, body: string, nowIso: string): CommentRow {
+    return this.sql.transaction(() => {
+      const c = this.getComment(id);
+      if (!c || c.file_id !== fileId) throw new IndexError("not_found", "Comment not found");
+      this.sql.exec(`UPDATE comments SET body = ?, edited_at = ? WHERE id = ?`, body, nowIso, id);
+      return this.getComment(id)!;
+    });
+  }
+
+  resolveComment(id: string, fileId: string, resolved: boolean, by: string, nowIso: string): CommentRow {
+    return this.sql.transaction(() => {
+      const c = this.getComment(id);
+      if (!c || c.file_id !== fileId) throw new IndexError("not_found", "Comment not found");
+      this.sql.exec(`UPDATE comments SET resolved_at = ?, resolved_by = ? WHERE id = ?`, resolved ? nowIso : null, resolved ? by : null, id);
+      return this.getComment(id)!;
+    });
+  }
+
+  deleteComment(id: string, fileId: string): void {
+    this.sql.transaction(() => {
+      const c = this.getComment(id);
+      if (!c || c.file_id !== fileId) throw new IndexError("not_found", "Comment not found");
+      this.sql.exec(`DELETE FROM comments WHERE id = ?`, id);
+    });
   }
 
   // ── collections (PV6): ordered sets of files; a public one is a gallery ──
@@ -1171,6 +1239,7 @@ export class LibraryIndexCore {
       }
       this.sql.exec(`DELETE FROM files WHERE id = ?`, id);
       this.sql.exec(`DELETE FROM collection_items WHERE file_id = ?`, id);
+      this.sql.exec(`DELETE FROM comments WHERE file_id = ?`, id);
       return { deleteKeys, releasedBytes };
     });
   }

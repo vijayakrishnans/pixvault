@@ -169,7 +169,36 @@ const renderInvitationAccepted: TemplateRenderer = (data, opts) => {
   return { subject, html, text };
 };
 
+/**
+ * Pixvault (PV6): someone mentioned the recipient in a comment on a file. Carries the commenter's name, the file
+ * and library names, a short excerpt of the comment and a link to the library in the app; never the file, a file
+ * URL or a signed link.
+ */
+const renderCommentMention: TemplateRenderer = (data, opts) => {
+  const who = str(data, "actorName") || "A teammate";
+  const file = str(data, "fileName");
+  const library = str(data, "libraryName");
+  const excerpt = str(data, "excerpt");
+  const link = str(data, "link");
+  const safeLink = /^https:\/\/[^\s"<>]+$/.test(link) ? link : "";
+  const brand = opts.brandName ?? "";
+  const subject = `${who} mentioned you${file ? ` on ${file}` : ""}`.slice(0, 200);
+  const lead = `${who} mentioned you in a comment${file ? ` on ${file}` : ""}${library ? ` in ${library}` : ""}.`;
+  const text = [lead, excerpt ? `"${excerpt}"` : "", safeLink ? `Open it: ${safeLink}` : ""].filter(Boolean).join("\n\n");
+  const html = htmlShell(
+    "You were mentioned",
+    [
+      `<p style="margin:0 0 16px;font-size:14px;">${escapeHtml(lead)}</p>`,
+      excerpt ? `<blockquote style="margin:0 0 16px;padding:8px 12px;border-left:3px solid #c7c7d1;font-size:14px;color:#3a3a4e;">${escapeHtml(excerpt)}</blockquote>` : "",
+      safeLink ? `<p style="margin:0;font-size:14px;"><a href="${escapeHtml(safeLink)}">Open the library</a></p>` : "",
+    ].join(""),
+    escapeHtml(brand ? `Sent by ${brand}. You get these when a teammate mentions you.` : "You get these when a teammate mentions you."),
+  );
+  return { subject, html, text };
+};
+
 const TEMPLATES: Record<string, TemplateRenderer> = {
+  "media.comment_mention": renderCommentMention,
   "auth.magic_link": renderMagicLink,
   "invitation.created": renderInvitationCreated,
   "invitation.accepted": renderInvitationAccepted,
