@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-46._
+_Last updated: 2026-11-28, PV-47._
 
 ## Blocked
 
@@ -131,15 +131,17 @@ _Last updated: 2026-11-28, PV-46._
 | G94 | **No DNS-time check on customer endpoints** | The review asked for private and metadata ranges to be refused after DNS resolution. A Worker can't resolve a name before `fetch`, so a public name pointing at 10.0.0.1 passes validation. | Endpoints must be https host names: IP literals, local and internal names, user info and odd ports are refused; no redirects are followed; every request has a deadline (15 s checks, 120 s objects). Workers' outbound traffic reaches the public internet only, so a private address leads nowhere. | A DNS-over-HTTPS lookup before saving a backend, refusing private answers (still racy against DNS rebinding) | PV7 hardening |
 | G95 | **No screen to attach a bucket** | The API exists (PV-46: `GET/POST …/storage`, `POST …/storage/check`, `POST …/storage/{stb}/check`, `DELETE …/storage/{stb}`), but the app has no wizard yet. | Managers can use the API. | — | PV-48 (wizard) |
 | G96 | **One key-encryption key, no rotation tooling** | `STORAGE_KEK` is set once by CI. Each sealed value records its key id (`kid`) so a second key can be added, but nothing re-seals old values yet. Losing the secret means every customer re-enters their bucket keys. | The runbook forbids deleting it; CI only creates it when missing. | A rotation run: add `STORAGE_KEK_2`, re-seal every row, retire the first | PV11 |
-| G97 | **A store decision can be up to 30 s old for reads** | Each isolate caches which store a library uses. Upload steps always ask fresh, so new bytes never go to the old place; reads, deletes and the pipeline may use a 30 s old answer. | Switching is only allowed while a library holds no files, under a lock in the library's index; commits carry the store they wrote to and are refused if it's no longer current (PV-46). A stale read finds nothing either way; pipeline steps retry. | Invalidation through the library's index object | PV-47 (migration needs it) |
+| G97 | **A store decision can be up to 30 s old for reads** | Each isolate caches which store a library uses. Upload steps always ask fresh; reads and deletes may use a 30 s old answer. | Changes happen under a lock in the library's index; commits name the store they wrote to; a migration leaves the old copies in place, so a stale read still finds the bytes. | Invalidation through the library's index object | Later, if a stale read ever matters |
 | G98 | **Bring-your-own storage isn't tied to a plan** | Any library manager can attach a bucket, on any plan. The design may want it on paid plans. | Managers only; 10 checks an hour per library. | A plan entitlement read like moderation's free-plan check | PV11 (billing) |
-| G99 | **A library with files can't change storage yet** | `library_not_empty` until migration exists. | The error says so and counts the files. | — | PV-47 (migration) |
+| G100 | **Old copies stay after a migration** | Moving a library leaves its files in the old store: managed R2 keeps using space (not counted against the team), and the old bucket is the team's to empty. | Deliberate: files are deleted only through trash and retention. | A cleanup run for managed copies after a grace period, with the team's say | PV11 |
+| G101 | **Uploads wait during a migration** | Uploads, purges and the pipeline's location-stripping swaps are refused until the copy ends (the lock renews every page, 30 min at a time). A pipeline run that hits the lock retries and may end held; replay fixes it. | Reads continue from the old store; the app shows progress (PV-48). | Dual writes during a copy | Later |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed
 
 | # | Item | Closed by |
 |---|---|---|
+| G99 | A library with files couldn't change storage | PV-47: storage migration (`POST …/storage/migrations`, MigrateStorageWorkflow) |
 | G8 | A separate storage-worker (§0, §4.4) | PV-44: `apps/storage-worker`, the only place BYO credentials are opened; internal-only, envelope-encrypted keys |
 | — | Expired email login codes were accepted; no wrong-code limit (OWASP A07, found in review) | PV-31: expiry enforced in the consume query, 5 wrong codes burn the challenge |
 | G79 | Console on Next 15.0.3 / OpenNext 1.0.4 with critical advisories | PV-32: Next 15.5.29, OpenNext 1.20.16, zod 4, overrides; 0 critical, 0 high |

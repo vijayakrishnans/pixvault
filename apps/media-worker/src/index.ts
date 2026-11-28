@@ -9,3 +9,4 @@ export default {
 
 export { LibraryIndex } from "./index-do/library-index.js";
 export { ProcessFileWorkflow } from "./pipeline/workflow.js";
+export { MigrateStorageWorkflow } from "./storage/workflow.js";

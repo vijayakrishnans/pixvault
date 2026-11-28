@@ -59,7 +59,7 @@
         }
       ],
       // ProcessFileWorkflow (PV4): Workflows instead of a queue (GAPS G56).
-      "workflows": [{ "name": "pixvault-process-file-stage", "binding": "PROCESS_FILE", "class_name": "ProcessFileWorkflow" }],
+      "workflows": [{ "name": "pixvault-process-file-stage", "binding": "PROCESS_FILE", "class_name": "ProcessFileWorkflow" }, { "name": "pixvault-migrate-storage-stage", "binding": "MIGRATE_STORAGE", "class_name": "MigrateStorageWorkflow" }],
       "images": { "binding": "IMAGES" },
       "ai": { "binding": "AI" },
       "durable_objects": {
@@ -122,7 +122,7 @@
         }
       ],
       // ProcessFileWorkflow (PV4): Workflows instead of a queue (GAPS G56).
-      "workflows": [{ "name": "pixvault-process-file-prod", "binding": "PROCESS_FILE", "class_name": "ProcessFileWorkflow" }],
+      "workflows": [{ "name": "pixvault-process-file-prod", "binding": "PROCESS_FILE", "class_name": "ProcessFileWorkflow" }, { "name": "pixvault-migrate-storage-prod", "binding": "MIGRATE_STORAGE", "class_name": "MigrateStorageWorkflow" }],
       "images": { "binding": "IMAGES" },
       "ai": { "binding": "AI" },
       "durable_objects": {

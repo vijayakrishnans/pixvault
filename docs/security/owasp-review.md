@@ -178,6 +178,11 @@ Each PR says which of these it touches and what it did:
 - **A10 SSRF and abuse:** endpoints are validated in storage-worker (PV-44); each library may run 10 bucket checks (including attaches and re-checks) an hour, since each one sends requests to an address a manager typed.
 - **A02/A09:** only the bucket fields are forwarded; keys pass to storage-worker once and are never stored, returned or logged here. Attach and detach are audited without them.
 
+### Storage migration (PV-47): how the checklist was met
+- **A01:** managers only (`storage.manage`); the target bucket goes through storage-worker's checks and is stored pending, so it isn't the library's store until the copy finishes.
+- **A04/A08 integrity:** every copied object is read back from the target and its SHA-256 compared with the index before the page counts; large objects are copied in 32 MiB ranged parts. Uploads, purges and the pipeline's blob swaps are refused while the lock is held, so nothing changes behind the copy. A failed run releases the lock and retires the pending target with its error code.
+- **Data handling:** old copies are kept (files are deleted only through trash and retention); the run never logs keys or contents.
+
 ### Ahead: what the next milestones must design in
 - **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;

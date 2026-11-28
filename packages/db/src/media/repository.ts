@@ -721,7 +721,7 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
 
     async listStorageBackends(orgId, libraryId) {
       try {
-        const r = await executor.execute<Row>(`SELECT * FROM media_storage_backends WHERE org_id = $1 AND library_id = $2 ORDER BY created_at DESC LIMIT 20`, [orgId, libraryId]);
+        const r = await executor.execute<Row>(`SELECT * FROM media_storage_backends WHERE org_id = $1 AND library_id = $2 ORDER BY created_at DESC, CASE kind WHEN 's3-compatible' THEN 0 ELSE 1 END LIMIT 20`, [orgId, libraryId]);
         return { ok: true, value: r.rows.map(toStorageBackend) };
       } catch {
         return internal("Failed to list storage backends");
@@ -744,13 +744,32 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
     async recordStorageCheck(id, ok, errorCode, at) {
       try {
         await executor.execute(
-          `UPDATE media_storage_backends SET status = CASE WHEN status = 'retired' THEN status WHEN $2 = 1 THEN 'active' ELSE 'error' END,
+          `UPDATE media_storage_backends SET status = CASE WHEN status IN ('retired', 'pending') THEN status WHEN $2 = 1 THEN 'active' ELSE 'error' END,
              last_error = $3, last_check_at = $4, updated_at = $4 WHERE id = $1`,
           [id, ok ? 1 : 0, ok ? null : errorCode, at.toISOString()],
         );
         return { ok: true, value: true };
       } catch {
         return internal("Failed to record the check");
+      }
+    },
+
+    async activateStorageBackend(orgId, libraryId, id, at) {
+      try {
+        // created_at moves to now so this row is the newest live one, ahead of any older managed row (PV-47).
+        await executor.execute(`UPDATE media_storage_backends SET status = 'active', last_error = NULL, created_at = $4, updated_at = $4 WHERE id = $1 AND org_id = $2 AND library_id = $3`, [id, orgId, libraryId, at.toISOString()]);
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to activate the storage backend");
+      }
+    },
+
+    async failStorageBackend(orgId, libraryId, id, errorCode, at) {
+      try {
+        await executor.execute(`UPDATE media_storage_backends SET status = 'retired', last_error = $4, updated_at = $5 WHERE id = $1 AND org_id = $2 AND library_id = $3 AND status = 'pending'`, [id, orgId, libraryId, errorCode, at.toISOString()]);
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to record the failure");
       }
     },
 
@@ -959,8 +978,8 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
     async getStorageBackend(orgId, libraryId) {
       try {
         const r = await executor.execute<Row>(
-          `SELECT * FROM media_storage_backends WHERE org_id = $1 AND library_id = $2 AND status != 'retired'
-           ORDER BY created_at DESC LIMIT 1`,
+          `SELECT * FROM media_storage_backends WHERE org_id = $1 AND library_id = $2 AND status IN ('active', 'error')
+           ORDER BY created_at DESC, CASE kind WHEN 's3-compatible' THEN 0 ELSE 1 END LIMIT 1`,
           [orgId, libraryId],
         );
         if (r.rowCount === 0) return notFound();

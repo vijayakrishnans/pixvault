@@ -198,7 +198,7 @@ export async function handleDeleteFile(ctx: Ctx, url: URL, orgId: string, librar
   const now = ctx.now();
   try {
     if (url.searchParams.get("permanent") === "1") {
-      const r = await l.idx.call<{ deleteKeys: string[]; releasedBytes: number }>({ op: "purge", id: fileId });
+      const r = await l.idx.call<{ deleteKeys: string[]; releasedBytes: number }>({ op: "purge", id: fileId, nowIso: now.toISOString() });
       const store = await storeFor(ctx.env, orgId, libraryId);
       for (const key of r.deleteKeys) await store.delete(key);
       if (r.releasedBytes > 0) await ctx.repo.releaseStorage(orgId, r.releasedBytes, now);
@@ -208,6 +208,7 @@ export async function handleDeleteFile(ctx: Ctx, url: URL, orgId: string, librar
     return successResponse({ file: toPublicFile(f, l.a.lib, ctx.env) }, ctx.requestId);
   } catch (e) {
     if (e instanceof IndexCallError && e.code === "not_found") return nf(ctx);
+    if (e instanceof IndexCallError && e.code === "invalid_state") return errorResponse("storage_changing", e.message, 409, ctx.requestId);
     throw e;
   }
 }
