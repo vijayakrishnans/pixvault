@@ -10,7 +10,7 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 | PV2: index, storage, uploads | ✅ done 2026-11-27: PV-9 R2 bucket; PV-10 LibraryIndex DO, streamed multipart uploads, dedup, versions, trash, quotas; PV-12 Workers Logs; PV-13 streamed commit hash; PV-11 upload page. Stage acceptance 14/14 incl. 2 GB | #11, #12 (`74c78e5`), #13, #14 (`c4de4c4`), PV-11 (this PR) |
 | PV3: serving | ✅ done 2026-11-27: PV-14 gaps register and path correction; PV-15 routes KV (own root); PV-16 serving data plane; PV-17 serve-worker; PV-18 and PV-19 smoke and Server-Timing; PV-20 links in the app | #16, #17, #18, #19, #20, #21, PV-20 (this PR) |
 | PV4: pipeline and safety | ✅ done 2026-11-28: PV-22 ProcessFileWorkflow, location removal, held failures and replay; PV-23 moderation, tags, review queue; PV-24 moderation answer shape; PV-25 abuse reports, takedown, suspension, runbook; PV-26 app states and Review tab | #24, #25, #26, #27, PV-26 (this PR) |
-| PV5: browser and live collaboration | in progress: PV-27 folders, search, filters, moves and batches; PV-28 live updates and presence; PV-29 the browser in the app | #29, #30, PV-29 (this PR) |
+| PV5: browser and live collaboration | ✅ done 2026-11-28: PV-27 folders, search, filters, moves and batches; PV-28 live updates and presence; PV-29 the browser in the app; PV-30 live refresh fix | #29, #30, #31, PV-30 (this PR) |
 | PV6: sharing | | |
 | PV7: BYO storage | | |
 | PV8: custom domains | | |
@@ -127,3 +127,6 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
   free plan are moderated; an unclear answer holds the file, and a person decides in the review queue (GAPS G61–G64).
 - **Abuse cases reuse PV1's `media_abuse_cases`** (migration 240 extends it) instead of a new table; platform
   operators live in `platform_media_operators`, outside the `media_` tenancy rule (GAPS G65).
+- **PV-29 shipped a debounce that browsers reject** (`setTimeout` called as a method: "Illegal invocation"), so live
+  changes didn't refresh the page; node tests injected timers and missed it. The stage two-browser run caught it;
+  PV-30 fixed it and added a test that makes `setTimeout` throw the way a browser does.

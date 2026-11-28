@@ -110,7 +110,7 @@ file (G61, G62). Abuse cases, takedown (451) and suspension through operator API
 a serving zone (W-5, G69). Stage: GPS removed and served clean in 14 s; the real model passed a safe synthetic image;
 a takedown answered 451 after 3.3 s. Ledger: *Measured*.
 
-## PV5: library browser and live collaboration
+## PV5: library browser and live collaboration ✅
 
 This milestone adds folders, grid and list, FTS5 search, filters (type, tag, uploader, date, visibility,
 status), bulk actions, the file drawer, and WebSocket live updates and presence through the DO hibernation API.
@@ -123,6 +123,14 @@ status), bulk actions, the file drawer, and WebSocket live updates and presence 
 - a two-browser Playwright test shows an upload in one browser appearing in the other within 2 s
 - two concurrent moves of the same folder end in one consistent tree
 - a bulk move of 1,000 files completes and the index stays consistent
+
+**As built (2026-11-28):** folders keyed by path, FTS5 over names, folders and tags kept current by triggers, and
+filters, moves, folder moves and 1,000-file batches in one index transaction (PV-27; GAPS G70–G74). Live updates and
+presence on the index's hibernating WebSockets, opened with a one-use ticket instead of a cookie; events carry ids,
+folders and states only (PV-28; G75, G76). The app's browser: tree, search, filters, grid and list, bulk bar, file
+drawer with versions, folder uploads (PV-29, PV-30; G21 and G25 closed, G77, G78). Stage: two browsers, an upload in
+one shown in the other before the uploader's own queue reported it done; a socket hears a commit 0.9–1.3 s after the
+request. The concurrency and 1,000-file properties are tested in the index. Ledger: *Measured*.
 
 ## PV6: sharing
 

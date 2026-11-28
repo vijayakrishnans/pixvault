@@ -305,6 +305,7 @@ export default {
     liveState: "connecting",
     presence: [],
     names: {},
+    namesAt: 0,
     searchTimer: null,
     loadSeq: 0,
   }),
@@ -417,6 +418,7 @@ export default {
       const me = this.$store.state.user;
       if (me?.id) names[me.id] = me.email ?? this.$t("browse.you");
       this.names = names;
+      this.namesAt = Date.now();
     },
     query(more) {
       const cursor = more ? this.nextCursor : undefined;
@@ -483,7 +485,11 @@ export default {
         base: api.base,
         getTicket: () => api.libraries.liveTicket(this.org, this.lib),
         onChange: debounce((changes) => this.onLiveChanges(changes), 250, 1000),
-        onPresence: (users) => (this.presence = users),
+        onPresence: (users) => {
+          this.presence = users;
+          // Someone who joined after the page loaded: fetch the member list again to show their name.
+          if (users.some((u) => !this.names[u.sub]) && Date.now() - this.namesAt > 10_000) this.loadNames();
+        },
         onState: (s) => (this.liveState = s),
       });
       this.live.where(this.folder ?? "/");
