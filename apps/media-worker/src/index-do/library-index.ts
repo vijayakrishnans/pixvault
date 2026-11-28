@@ -6,7 +6,7 @@ import { DurableObject } from "cloudflare:workers";
 import { createSqlExecutor } from "@saas/db/d1";
 import { createMediaRepository } from "@saas/db/media";
 import type { Env } from "../env.js";
-import { IndexError, LibraryIndexCore, type ProcessingResult, type Scope, type Sql } from "./core.js";
+import { IndexError, LibraryIndexCore, type BatchAction, type ListFilter, type ProcessingResult, type Scope, type Sql } from "./core.js";
 import { startPipeline } from "../pipeline/start.js";
 import { abortUpload } from "../storage/object-store.js";
 import { drainOutbox } from "./routes.js";
@@ -16,7 +16,14 @@ export type IndexOp =
   | { op: "liveFileAt"; path: string }
   | { op: "getFile"; id: string }
   | { op: "getFileWithKey"; id: string }
-  | { op: "listFiles"; folder?: string; status?: "live" | "trashed" | "review"; uploadedBy?: string; cursor?: string; limit: number }
+  | ({ op: "listFiles" } & ListFilter)
+  | { op: "listFolders" }
+  | { op: "listTags" }
+  | { op: "createFolder"; folder: string; actor: string; nowIso: string }
+  | { op: "moveFile"; id: string; folder?: string; name?: string; actor: string; nowIso: string }
+  | { op: "moveFolder"; from: string; to: string; actor: string; nowIso: string }
+  | { op: "trashFolder"; folder: string; nowIso: string }
+  | { op: "batch"; ids: string[]; act: BatchAction; actor: string; nowIso: string }
   | { op: "versions"; id: string }
   | { op: "openSession"; session: Parameters<LibraryIndexCore["openSession"]>[0] }
   | { op: "getSession"; id: string }
@@ -58,6 +65,20 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
       }
       case "listFiles":
         return { ok: true, value: core.listFiles(req) };
+      case "listFolders":
+        return { ok: true, value: core.listFolders() };
+      case "listTags":
+        return { ok: true, value: core.listTags() };
+      case "createFolder":
+        return { ok: true, value: core.createFolder(req.folder, req.actor, req.nowIso) };
+      case "moveFile":
+        return { ok: true, value: core.moveFile(req.id, { ...(req.folder !== undefined ? { folder: req.folder } : {}), ...(req.name !== undefined ? { name: req.name } : {}) }, req.actor, req.nowIso) };
+      case "moveFolder":
+        return { ok: true, value: core.moveFolder(req.from, req.to, req.actor, req.nowIso) };
+      case "trashFolder":
+        return { ok: true, value: core.trashFolder(req.folder, req.nowIso) };
+      case "batch":
+        return { ok: true, value: core.batch(req.ids, req.act, req.actor, req.nowIso) };
       case "versions":
         return { ok: true, value: core.versions(req.id) };
       case "openSession":
@@ -109,6 +130,7 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
 }
 
 const STUCK_MS = 10 * 60_000;
+const DRAIN_PER_ALARM = 600;
 const DAY = 86_400_000;
 
 export class LibraryIndex extends DurableObject<Env> {
@@ -128,7 +150,7 @@ export class LibraryIndex extends DurableObject<Env> {
     const result = dispatch(this.core, scope, req);
     // The outbox drains on an alarm right away, so the request isn't held up by KV writes; sessions expire and
     // trash ages out on later alarms.
-    if (result.ok && (this.core.outboxSize() > 0 || req.op === "openSession" || req.op === "trash" || req.op === "commit" || req.op === "setVisibility" || req.op === "reprocess" || req.op === "restoreVersion" || req.op === "review")) {
+    if (result.ok && (this.core.outboxSize() > 0 || req.op === "openSession" || req.op === "trash" || req.op === "commit" || req.op === "setVisibility" || req.op === "reprocess" || req.op === "restoreVersion" || req.op === "review" || req.op === "batch" || req.op === "trashFolder")) {
       await this.scheduleAlarm();
     }
     return result;
@@ -155,7 +177,9 @@ export class LibraryIndex extends DurableObject<Env> {
   async alarm(): Promise<void> {
     const now = new Date();
     const libraryId = this.metaValue("library_id");
-    if (this.env.ROUTES_KV && libraryId) await drainOutbox(this.core, this.env.ROUTES_KV, libraryId);
+    // At most DRAIN_PER_ALARM KV writes per alarm (a bulk move queues two per file); the rest go on the next alarm,
+    // which scheduleAlarm sets for now while the outbox isn't empty.
+    if (this.env.ROUTES_KV && libraryId) await drainOutbox(this.core, this.env.ROUTES_KV, libraryId, 200, DRAIN_PER_ALARM);
     const bucket = this.env.MEDIA_BUCKET;
     for (const s of this.core.expiredSessions(now.toISOString())) {
       if (bucket) await abortUpload(bucket, s.object_key, s.mode, s.multipart_upload_id);

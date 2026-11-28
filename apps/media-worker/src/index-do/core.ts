@@ -152,7 +152,99 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions (state, expires_at);
 CREATE TABLE IF NOT EXISTS outbox (
   seq INTEGER PRIMARY KEY AUTOINCREMENT, op TEXT NOT NULL, path TEXT NOT NULL, value TEXT, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS folders (
+  path TEXT PRIMARY KEY, parent TEXT, name TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS folders_parent ON folders (parent);
+CREATE TABLE IF NOT EXISTS fts_map (file_id TEXT PRIMARY KEY, fts_rowid INTEGER NOT NULL);
 `;
+
+// Search (PV5): FTS5 over each file's name, folder and tags, kept in step with `files` by triggers, so every write
+// path (commit, move, pipeline tags, purge) updates it in the same transaction. fts_map ties a file to its FTS row,
+// so an update touches one row instead of scanning the index. Triggers hold semicolons, so these run one by one.
+const SEARCH_DDL = [
+  `CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(name, folder, tags, tokenize = "unicode61 remove_diacritics 2")`,
+  `CREATE TRIGGER IF NOT EXISTS files_fts_ai AFTER INSERT ON files BEGIN
+     INSERT INTO files_fts (name, folder, tags) VALUES (new.name, new.folder, COALESCE(new.tags, ''));
+     INSERT INTO fts_map (file_id, fts_rowid) VALUES (new.id, last_insert_rowid());
+   END`,
+  `CREATE TRIGGER IF NOT EXISTS files_fts_au AFTER UPDATE OF name, folder, tags ON files BEGIN
+     UPDATE files_fts SET name = new.name, folder = new.folder, tags = COALESCE(new.tags, '')
+       WHERE rowid = (SELECT fts_rowid FROM fts_map WHERE file_id = new.id);
+   END`,
+  `CREATE TRIGGER IF NOT EXISTS files_fts_ad AFTER DELETE ON files BEGIN
+     DELETE FROM files_fts WHERE rowid = (SELECT fts_rowid FROM fts_map WHERE file_id = old.id);
+     DELETE FROM fts_map WHERE file_id = old.id;
+   END`,
+];
+
+/** The most files one batch request may name. */
+export const MAX_BATCH = 1000;
+
+export type FileType = "image" | "video" | "audio" | "document" | "other";
+
+const DOCUMENT_MIME = `(mime = 'application/pdf' OR mime LIKE 'text/%' OR mime = 'application/msword' OR mime LIKE 'application/vnd.%' OR mime = 'application/rtf')`;
+const TYPE_SQL: Record<FileType, string> = {
+  image: `mime LIKE 'image/%'`,
+  video: `mime LIKE 'video/%'`,
+  audio: `mime LIKE 'audio/%'`,
+  document: DOCUMENT_MIME,
+  other: `NOT (mime LIKE 'image/%' OR mime LIKE 'video/%' OR mime LIKE 'audio/%' OR ${DOCUMENT_MIME})`,
+};
+
+export interface ListFilter {
+  folder?: string;
+  status?: "live" | "trashed" | "review";
+  uploadedBy?: string;
+  /** Words to search for in names, folders and tags (each one a prefix). */
+  q?: string;
+  type?: FileType;
+  tag?: string;
+  /** One exact status among live files. */
+  fileStatus?: Exclude<FileRow["status"], "trashed">;
+  visibility?: "public" | "private";
+  /** created_at bounds, ISO. */
+  from?: string;
+  to?: string;
+  cursor?: string;
+  limit: number;
+}
+
+export interface FolderRow {
+  path: string;
+  parent: string | null;
+  name: string;
+  /** Live files directly in this folder. */
+  files: number;
+}
+
+export type BatchAction =
+  | { action: "move"; folder: string }
+  | { action: "trash" }
+  | { action: "restore" }
+  | { action: "visibility"; visibility: "public" | "private"; requireSafety: boolean };
+
+export interface BatchResult {
+  done: FileRow[];
+  failed: { id: string; code: string }[];
+}
+
+/** "/a/b" → ["/a", "/a/b"]; "/" → []. */
+export function folderChain(folder: string): string[] {
+  const parts = folder.split("/").filter(Boolean);
+  return parts.map((_, i) => `/${parts.slice(0, i + 1).join("/")}`);
+}
+
+export const joinPath = (folder: string, name: string) => (folder === "/" ? `/${name}` : `${folder}/${name}`);
+
+/** Turn free text into an FTS5 query: each word quoted, as a prefix, all of them required. */
+export function ftsQuery(q: string): string | null {
+  const words = q
+    .normalize("NFKC")
+    .split(/[\s"*^():{}\[\]+\-.,/\\_]+/u)
+    .filter((w) => w.length > 0)
+    .slice(0, 8);
+  return words.length ? words.map((w) => `"${w.replace(/"/g, "")}"*`).join(" ") : null;
+}
 
 // Columns added after a library's index was created. CREATE TABLE IF NOT EXISTS never adds columns, so each index
 // adds the ones it lacks when it starts.
@@ -178,6 +270,21 @@ export class LibraryIndexCore {
       }
     }
     this.sql.exec(`CREATE INDEX IF NOT EXISTS files_status ON files (status, updated_at)`);
+    for (const stmt of SEARCH_DDL) this.sql.exec(stmt);
+    // An index created before PV5: fill the search index and the folder table from the files it already has.
+    if (!one(this.sql.exec(`SELECT 1 AS x FROM meta WHERE key = 'browse_v' AND value = '1'`).toArray())) {
+      this.sql.transaction(() => {
+        this.sql.exec(`DELETE FROM files_fts`);
+        this.sql.exec(`DELETE FROM fts_map`);
+        for (const f of this.sql.exec<{ id: string; name: string; folder: string; tags: string | null }>(`SELECT id, name, folder, tags FROM files`).toArray()) {
+          this.sql.exec(`INSERT INTO files_fts (name, folder, tags) VALUES (?, ?, ?)`, f.name, f.folder, f.tags ?? "");
+          this.sql.exec(`INSERT INTO fts_map (file_id, fts_rowid) VALUES (?, last_insert_rowid())`, f.id);
+        }
+        const created = new Date().toISOString();
+        for (const r of this.sql.exec<{ folder: string }>(`SELECT DISTINCT folder FROM files`).toArray()) this.ensureFolders(r.folder, "system", created);
+        this.sql.exec(`INSERT INTO meta (key, value) VALUES ('browse_v', '1') ON CONFLICT (key) DO UPDATE SET value = '1'`);
+      });
+    }
   }
 
   // ── identity ──────────────────────────────────────────────
@@ -219,6 +326,10 @@ export class LibraryIndexCore {
     this.sql.exec(`INSERT INTO outbox (op, path, value, created_at) VALUES ('route.put', ?, ?, ?)`, f.path, JSON.stringify(value), nowIso);
   }
 
+  private enqueueRouteDelete(path: string, nowIso: string): void {
+    this.sql.exec(`INSERT INTO outbox (op, path, value, created_at) VALUES ('route.delete', ?, NULL, ?)`, path, nowIso);
+  }
+
   pendingOutbox(limit: number): OutboxRow[] {
     return this.sql.exec<OutboxRow>(`SELECT seq, op, path, value FROM outbox ORDER BY seq ASC LIMIT ?`, limit).toArray();
   }
@@ -245,7 +356,11 @@ export class LibraryIndexCore {
    * moderation goes through the pipeline first: it is `processing` until then, and the caller starts the pipeline.
    */
   setVisibility(id: string, visibility: "public" | "private", nowIso: string, requireSafety = false): FileRow {
-    return this.sql.transaction(() => {
+    return this.sql.transaction(() => this.setVisibilityTx(id, visibility, nowIso, requireSafety));
+  }
+
+  private setVisibilityTx(id: string, visibility: "public" | "private", nowIso: string, requireSafety: boolean): FileRow {
+    {
       const f = this.getFile(id);
       if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
       // Only files that are plainly public or private follow their visibility; processing, held, flagged and removed
@@ -257,7 +372,7 @@ export class LibraryIndexCore {
       const updated = this.getFile(id)!;
       this.enqueueRoute(updated, nowIso);
       return updated;
-    });
+    }
   }
 
   /** A random public image under `folder` (and its subfolders), for the random-image API. */
@@ -431,10 +546,7 @@ export class LibraryIndexCore {
     return this.findBlob(file.blob_sha256)?.object_key ?? null;
   }
 
-  listFiles(opts: { folder?: string; status?: "live" | "trashed" | "review"; uploadedBy?: string; cursor?: string; limit: number }): {
-    files: FileRow[];
-    nextCursor: string | null;
-  } {
+  listFiles(opts: ListFilter): { files: FileRow[]; nextCursor: string | null } {
     const where: string[] = [];
     const params: unknown[] = [];
     if (opts.status === "trashed") where.push(`status = 'trashed'`);
@@ -448,6 +560,34 @@ export class LibraryIndexCore {
       where.push(`uploaded_by = ?`);
       params.push(opts.uploadedBy);
     }
+    if (opts.q !== undefined) {
+      const match = ftsQuery(opts.q);
+      if (match) {
+        where.push(`id IN (SELECT m.file_id FROM fts_map m WHERE m.fts_rowid IN (SELECT rowid FROM files_fts WHERE files_fts MATCH ?))`);
+        params.push(match);
+      }
+    }
+    if (opts.type) where.push(TYPE_SQL[opts.type]);
+    if (opts.tag !== undefined) {
+      where.push(`EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(tags) THEN tags ELSE '[]' END) WHERE value = ?)`);
+      params.push(opts.tag);
+    }
+    if (opts.fileStatus !== undefined) {
+      where.push(`status = ?`);
+      params.push(opts.fileStatus);
+    }
+    if (opts.visibility !== undefined) {
+      where.push(`visibility = ?`);
+      params.push(opts.visibility);
+    }
+    if (opts.from !== undefined) {
+      where.push(`created_at >= ?`);
+      params.push(opts.from);
+    }
+    if (opts.to !== undefined) {
+      where.push(`created_at < ?`);
+      params.push(opts.to);
+    }
     if (opts.cursor) {
       const [created, id] = opts.cursor.split("|");
       where.push(`(created_at < ? OR (created_at = ? AND id < ?))`);
@@ -459,6 +599,160 @@ export class LibraryIndexCore {
     const page = rows.slice(0, opts.limit);
     const last = page[page.length - 1];
     return { files: page, nextCursor: rows.length > opts.limit && last ? `${last.created_at}|${last.id}` : null };
+  }
+
+  // ── folders, moves and batches (PV5) ──────────────────────
+
+  /** Make sure `folder` and each of its ancestors has a row. */
+  private ensureFolders(folder: string, actor: string, nowIso: string): void {
+    for (const path of folderChain(folder)) {
+      const cut = path.lastIndexOf("/");
+      const parent = cut === 0 ? "/" : path.slice(0, cut);
+      this.sql.exec(
+        `INSERT INTO folders (path, parent, name, created_by, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (path) DO NOTHING`,
+        path, parent, path.slice(cut + 1), actor, nowIso,
+      );
+    }
+  }
+
+  createFolder(folder: string, actor: string, nowIso: string): FolderRow {
+    if (folder === "/") throw new IndexError("invalid_state", "The root folder always exists");
+    this.sql.transaction(() => this.ensureFolders(folder, actor, nowIso));
+    return this.listFolders().find((f) => f.path === folder)!;
+  }
+
+  /** Every folder, with the number of live files directly in each. */
+  listFolders(limit = 5000): FolderRow[] {
+    return this.sql
+      .exec<FolderRow>(
+        `SELECT d.path, d.parent, d.name, COALESCE(c.n, 0) AS files FROM folders d
+           LEFT JOIN (SELECT folder, COUNT(*) AS n FROM files WHERE status != 'trashed' GROUP BY folder) c ON c.folder = d.path
+         ORDER BY d.path LIMIT ?`,
+        limit,
+      )
+      .toArray();
+  }
+
+  /** Tags on live files, most used first. */
+  listTags(limit = 200): { tag: string; files: number }[] {
+    return this.sql
+      .exec<{ tag: string; files: number }>(
+        `SELECT j.value AS tag, COUNT(*) AS files FROM files f, json_each(CASE WHEN json_valid(f.tags) THEN f.tags ELSE '[]' END) j
+         WHERE f.status != 'trashed' GROUP BY j.value ORDER BY files DESC, tag LIMIT ?`,
+        limit,
+      )
+      .toArray();
+  }
+
+  private folderExists(folder: string): boolean {
+    if (folder === "/") return true;
+    return !!one(this.sql.exec(`SELECT 1 AS x FROM folders WHERE path = ?`, folder).toArray());
+  }
+
+  /** Move and/or rename one file. Its old path stops serving and its new path starts, in the same transaction. */
+  moveFile(id: string, to: { folder?: string; name?: string }, actor: string, nowIso: string): FileRow {
+    return this.sql.transaction(() => this.moveFileTx(id, to, actor, nowIso));
+  }
+
+  private moveFileTx(id: string, to: { folder?: string; name?: string }, actor: string, nowIso: string): FileRow {
+    const f = this.getFile(id);
+    if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
+    if (f.status === "removed") throw new IndexError("forbidden", "This file was taken down");
+    const folder = to.folder ?? f.folder;
+    const name = to.name ?? f.name;
+    const path = joinPath(folder, name);
+    if (path === f.path) return f;
+    if (this.liveFileAt(path)) throw new IndexError("conflict", "A file already exists at this path");
+    this.sql.exec(`UPDATE files SET path = ?, folder = ?, name = ?, updated_at = ? WHERE id = ?`, path, folder, name, nowIso, id);
+    this.ensureFolders(folder, actor, nowIso);
+    this.enqueueRouteDelete(f.path, nowIso);
+    const moved = this.getFile(id)!;
+    this.enqueueRoute(moved, nowIso);
+    return moved;
+  }
+
+  /**
+   * Move (or rename) a folder and everything under it to `to`, which must not exist yet. One transaction: a
+   * concurrent move of the same folder runs after this one and finds its source gone.
+   */
+  moveFolder(from: string, to: string, actor: string, nowIso: string): { folder: FolderRow; moved: number } {
+    return this.sql.transaction(() => {
+      if (from === "/" || to === "/") throw new IndexError("invalid_state", "The root folder can't be moved");
+      if (to === from || to.startsWith(`${from}/`)) throw new IndexError("invalid_state", "A folder can't move into itself");
+      const under = `${from}/`;
+      const inside = `(folder = ? OR substr(folder, 1, ?) = ?)`;
+      const files = this.sql.exec<FileRow>(`SELECT * FROM files WHERE ${inside}`, from, under.length, under).toArray();
+      if (!this.folderExists(from) && files.length === 0) throw new IndexError("not_found", "Folder not found");
+      const toUnder = `${to}/`;
+      if (this.folderExists(to) || one(this.sql.exec(`SELECT 1 AS x FROM files WHERE (folder = ? OR substr(folder, 1, ?) = ?) AND status != 'trashed' LIMIT 1`, to, toUnder.length, toUnder).toArray())) {
+        throw new IndexError("conflict", "A folder already exists there");
+      }
+      if (files.some((f) => f.status === "removed")) throw new IndexError("forbidden", "A file in this folder was taken down");
+      const rebase = (p: string) => to + p.slice(from.length);
+      for (const f of files) {
+        const folder = rebase(f.folder);
+        const path = joinPath(folder, f.name);
+        this.sql.exec(`UPDATE files SET path = ?, folder = ?, updated_at = ? WHERE id = ?`, path, folder, nowIso, f.id);
+        if (f.status !== "trashed") {
+          this.enqueueRouteDelete(f.path, nowIso);
+          this.enqueueRoute({ ...f, path, folder }, nowIso);
+        }
+      }
+      const rows = this.sql.exec<{ path: string; created_by: string; created_at: string }>(
+        `SELECT path, created_by, created_at FROM folders WHERE path = ? OR substr(path, 1, ?) = ?`, from, under.length, under,
+      ).toArray();
+      this.sql.exec(`DELETE FROM folders WHERE path = ? OR substr(path, 1, ?) = ?`, from, under.length, under);
+      this.ensureFolders(to, actor, nowIso);
+      for (const r of rows) {
+        const path = rebase(r.path);
+        const cut = path.lastIndexOf("/");
+        this.sql.exec(
+          `INSERT INTO folders (path, parent, name, created_by, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (path) DO NOTHING`,
+          path, cut === 0 ? "/" : path.slice(0, cut), path.slice(cut + 1), r.created_by, r.created_at,
+        );
+      }
+      for (const f of files) this.ensureFolders(rebase(f.folder), actor, nowIso);
+      return { folder: this.listFolders().find((d) => d.path === to)!, moved: files.filter((f) => f.status !== "trashed").length };
+    });
+  }
+
+  /** Trash every live file under a folder and forget the folder and its subfolders. */
+  trashFolder(folder: string, nowIso: string): { trashed: number } {
+    return this.sql.transaction(() => {
+      if (folder === "/") throw new IndexError("invalid_state", "The root folder can't be deleted");
+      const under = `${folder}/`;
+      const ids = this.sql
+        .exec<{ id: string }>(`SELECT id FROM files WHERE (folder = ? OR substr(folder, 1, ?) = ?) AND status != 'trashed'`, folder, under.length, under)
+        .toArray();
+      if (!this.folderExists(folder) && ids.length === 0) throw new IndexError("not_found", "Folder not found");
+      for (const r of ids) this.trashTx(r.id, nowIso);
+      this.sql.exec(`DELETE FROM folders WHERE path = ? OR substr(path, 1, ?) = ?`, folder, under.length, under);
+      return { trashed: ids.length };
+    });
+  }
+
+  /**
+   * One action on many files, in one transaction. A file that can't take the action (gone, conflicting path, taken
+   * down) is reported in `failed` and the rest go ahead.
+   */
+  batch(ids: string[], act: BatchAction, actor: string, nowIso: string): BatchResult {
+    if (ids.length > MAX_BATCH) throw new IndexError("invalid_state", `At most ${MAX_BATCH} files at a time`);
+    return this.sql.transaction(() => {
+      const done: FileRow[] = [];
+      const failed: { id: string; code: string }[] = [];
+      for (const id of new Set(ids)) {
+        try {
+          if (act.action === "move") done.push(this.moveFileTx(id, { folder: act.folder }, actor, nowIso));
+          else if (act.action === "trash") done.push(this.trashTx(id, nowIso));
+          else if (act.action === "restore") done.push(this.restoreTx(id, nowIso));
+          else done.push(this.setVisibilityTx(id, act.visibility, nowIso, act.requireSafety));
+        } catch (e) {
+          if (!(e instanceof IndexError)) throw e;
+          failed.push({ id, code: e.code });
+        }
+      }
+      return { done, failed };
+    });
   }
 
   versions(fileId: string): { version: number; blob_sha256: string; size: number; created_by: string; created_at: string }[] {
@@ -585,6 +879,7 @@ export class LibraryIndexCore {
           fileId, input.path, input.name, input.folder, input.sha256, input.size, input.mime, input.visibility,
           status, input.actor, input.nowIso, input.nowIso,
         );
+        this.ensureFolders(input.folder, input.actor, input.nowIso);
       }
       this.sql.exec(
         `INSERT INTO versions (file_id, version, blob_sha256, size, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -626,29 +921,34 @@ export class LibraryIndexCore {
   // ── trash ─────────────────────────────────────────────────
 
   trash(id: string, nowIso: string): FileRow {
-    return this.sql.transaction(() => {
-      const f = this.getFile(id);
-      if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
-      this.sql.exec(`UPDATE files SET prev_status = status, status = 'trashed', trashed_at = ?, updated_at = ? WHERE id = ?`, nowIso, nowIso, id);
-      const trashed = this.getFile(id)!;
-      this.enqueueRoute(trashed, nowIso);
-      return trashed;
-    });
+    return this.sql.transaction(() => this.trashTx(id, nowIso));
+  }
+
+  private trashTx(id: string, nowIso: string): FileRow {
+    const f = this.getFile(id);
+    if (!f || f.status === "trashed") throw new IndexError("not_found", "File not found");
+    this.sql.exec(`UPDATE files SET prev_status = status, status = 'trashed', trashed_at = ?, updated_at = ? WHERE id = ?`, nowIso, nowIso, id);
+    const trashed = this.getFile(id)!;
+    this.enqueueRoute(trashed, nowIso);
+    return trashed;
   }
 
   restore(id: string, nowIso: string): FileRow {
-    return this.sql.transaction(() => {
-      const f = this.getFile(id);
-      if (!f || f.status !== "trashed") throw new IndexError("not_found", "File not in trash");
-      if (this.liveFileAt(f.path)) throw new IndexError("conflict", "Another file now uses this path");
-      this.sql.exec(
-        `UPDATE files SET status = COALESCE(prev_status, visibility), prev_status = NULL, trashed_at = NULL, updated_at = ? WHERE id = ?`,
-        nowIso, id,
-      );
-      const restored = this.getFile(id)!;
-      this.enqueueRoute(restored, nowIso);
-      return restored;
-    });
+    return this.sql.transaction(() => this.restoreTx(id, nowIso));
+  }
+
+  private restoreTx(id: string, nowIso: string): FileRow {
+    const f = this.getFile(id);
+    if (!f || f.status !== "trashed") throw new IndexError("not_found", "File not in trash");
+    if (this.liveFileAt(f.path)) throw new IndexError("conflict", "Another file now uses this path");
+    this.sql.exec(
+      `UPDATE files SET status = COALESCE(prev_status, visibility), prev_status = NULL, trashed_at = NULL, updated_at = ? WHERE id = ?`,
+      nowIso, id,
+    );
+    this.ensureFolders(f.folder, f.uploaded_by, nowIso);
+    const restored = this.getFile(id)!;
+    this.enqueueRoute(restored, nowIso);
+    return restored;
   }
 
   /** Delete a trashed file for good: every version releases its blob; blobs at refcount 0 are returned. */

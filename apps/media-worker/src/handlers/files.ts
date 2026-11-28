@@ -8,7 +8,7 @@ import { authorizeOnLibrary, hasAnyStanding, loadFacts } from "../access.js";
 import type { Ctx } from "../ctx.js";
 import { errorResponse, successResponse, validationError } from "../http.js";
 import { indexFor, IndexCallError } from "../index-do/client.js";
-import type { FileRow } from "../index-do/core.js";
+import type { FileRow, FileType, ListFilter } from "../index-do/core.js";
 import { filePublicId, libraryPublicId } from "../ids.js";
 import { loadAuthorized } from "./libraries.js";
 import type { Library } from "@saas/db/media";
@@ -16,6 +16,7 @@ import type { Env } from "../env.js";
 import { fileUrl, signedFileUrl } from "../serving.js";
 import { monthOf, normalizeFolder } from "./uploads.js";
 import { kickPipeline, pipelineFor } from "./pipeline.js";
+import { moveOneFile } from "./browse.js";
 
 export function toPublicFile(f: FileRow, lib: Library, env: Env): PublicFile {
   return {
@@ -62,7 +63,55 @@ async function canRead(ctx: Ctx, a: Awaited<ReturnType<typeof loadAuthorized>> &
   return f.uploaded_by === ctx.actor.subjectId && (await authorizeOnLibrary(ctx.env, ctx.actor, "file.read.own", a.lib, a.facts, ctx.requestId));
 }
 
-/** GET …/files?folder=&trash=1&review=1&cursor=&limit= */
+const FILE_TYPES: ReadonlySet<string> = new Set(["image", "video", "audio", "document", "other"]);
+const FILE_STATUSES: ReadonlySet<string> = new Set(["processing", "held", "public", "private", "flagged", "removed"]);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.]{2,15}Z)?$/;
+
+/** The search and filter parameters of a file listing, or the fields that are wrong. */
+function parseFilters(url: URL): { ok: true; f: Omit<ListFilter, "limit" | "status" | "folder" | "cursor"> } | { ok: false; fields: Record<string, string[]> } {
+  const p = url.searchParams;
+  const fields: Record<string, string[]> = {};
+  const f: Omit<ListFilter, "limit" | "status" | "folder" | "cursor"> = {};
+  const q = p.get("q");
+  if (q !== null && q.trim()) {
+    if (q.length > 200) fields.q = ["At most 200 characters"];
+    else f.q = q;
+  }
+  const type = p.get("type");
+  if (type !== null) {
+    if (FILE_TYPES.has(type)) f.type = type as FileType;
+    else fields.type = ["Must be image, video, audio, document or other"];
+  }
+  const tag = p.get("tag");
+  if (tag !== null) {
+    if (tag.length >= 1 && tag.length <= 100) f.tag = tag;
+    else fields.tag = ["Must be 1 to 100 characters"];
+  }
+  const uploader = p.get("uploader");
+  if (uploader !== null) {
+    if (/^[a-z]{2,8}_[0-9a-f]{32}$/.test(uploader)) f.uploadedBy = uploader;
+    else fields.uploader = ["Must be a user id"];
+  }
+  const status = p.get("status");
+  if (status !== null) {
+    if (FILE_STATUSES.has(status)) f.fileStatus = status as NonNullable<ListFilter["fileStatus"]>;
+    else fields.status = ["Must be processing, held, public, private, flagged or removed"];
+  }
+  const visibility = p.get("visibility");
+  if (visibility !== null) {
+    if (visibility === "public" || visibility === "private") f.visibility = visibility;
+    else fields.visibility = ["Must be public or private"];
+  }
+  for (const k of ["from", "to"] as const) {
+    const v = p.get(k);
+    if (v === null) continue;
+    if (DATE_RE.test(v) && !Number.isNaN(Date.parse(v))) f[k] = new Date(v).toISOString();
+    else fields[k] = ["Must be a date like 2026-11-28"];
+  }
+  return Object.keys(fields).length ? { ok: false, fields } : { ok: true, f };
+}
+
+/** GET …/files?folder=&q=&type=&tag=&uploader=&status=&visibility=&from=&to=&trash=1&review=1&cursor=&limit= */
 export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, libraryId: string): Promise<Response> {
   const a = await loadAuthorized(ctx, orgId, libraryId, "library.read");
   if (!a.ok) return a.response;
@@ -78,6 +127,10 @@ export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, library
     if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list.own", a.lib, a.facts, ctx.requestId))) return nf(ctx);
     uploadedBy = ctx.actor.subjectId;
   }
+  const filters = parseFilters(url);
+  if (!filters.ok) return validationError(ctx.requestId, filters.fields);
+  // Someone who may list only their own uploads can't widen that with the uploader filter.
+  if (uploadedBy) filters.f.uploadedBy = uploadedBy;
   const folderParam = url.searchParams.get("folder");
   const folder = folderParam === null ? undefined : normalizeFolder(folderParam);
   if (folder === null) return validationError(ctx.requestId, { folder: ["Invalid folder"] });
@@ -86,9 +139,9 @@ export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, library
   if (cursor !== undefined && !/^[\d\-T:.Z]{10,40}\|[0-9a-f-]{36}$/.test(cursor)) return validationError(ctx.requestId, { cursor: ["Invalid cursor"] });
   const r = await indexFor(ctx.env, { orgId, libraryId }).call<{ files: FileRow[]; nextCursor: string | null }>({
     op: "listFiles",
+    ...filters.f,
     ...(folder !== undefined ? { folder } : {}),
     status: review ? "review" : trash ? "trashed" : "live",
-    ...(uploadedBy ? { uploadedBy } : {}),
     ...(cursor ? { cursor } : {}),
     limit,
   });
@@ -225,20 +278,31 @@ export async function handleMediaUsage(ctx: Ctx, orgId: string): Promise<Respons
   );
 }
 
-/** PATCH …/files/{fil} { visibility } */
+/** PATCH …/files/{fil} { visibility?, folder?, name? }: change who can see it, and/or move or rename it. */
 export async function handleUpdateFile(ctx: Ctx, request: Request, orgId: string, libraryId: string, fileId: string): Promise<Response> {
-  let body: { visibility?: unknown } | undefined;
+  let body: { visibility?: unknown; folder?: unknown; name?: unknown } | undefined;
   try {
     body = (await request.json()) as { visibility?: unknown };
   } catch {
     body = undefined;
   }
-  if (!body || (body.visibility !== "public" && body.visibility !== "private") || Object.keys(body).some((k) => k !== "visibility")) {
+  const keys = body && typeof body === "object" ? Object.keys(body) : [];
+  if (!body || !keys.length || keys.some((k) => k !== "visibility" && k !== "folder" && k !== "name")) {
+    return validationError(ctx.requestId, { body: ["Give visibility, folder or name"] });
+  }
+  if (body.visibility !== undefined && body.visibility !== "public" && body.visibility !== "private") {
     return validationError(ctx.requestId, { visibility: ["Must be public or private"] });
   }
   const l = await loadFile(ctx, orgId, libraryId, fileId);
   if (!l.ok) return l.response;
   if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.update", l.a.lib, l.a.facts, ctx.requestId))) return nf(ctx);
+  if (body.folder !== undefined || body.name !== undefined) {
+    const moved = await moveOneFile(ctx, l, body.folder, body.name);
+    if (moved instanceof Response) return moved;
+    if (body.visibility === undefined) return successResponse({ file: toPublicFile(moved, l.a.lib, ctx.env) }, ctx.requestId);
+    l.file = moved;
+  }
+  if (body.visibility !== "public" && body.visibility !== "private") return nf(ctx);
   try {
     // Making a file public on a free plan puts it through the safety check first (it isn't served until it passes).
     const { requireSafety } = await pipelineFor(ctx, orgId, l.file.mime, body.visibility);

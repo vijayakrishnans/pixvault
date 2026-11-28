@@ -20,6 +20,10 @@ const ORG_LIBRARY_UPLOAD_RE = new RegExp(`${L}\\/uploads\\/[^/]+$`);
 const ORG_LIBRARY_UPLOAD_PART_RE = new RegExp(`${L}\\/uploads\\/[^/]+\\/parts\\/\\d{1,5}$`);
 const ORG_LIBRARY_UPLOAD_COMMIT_RE = new RegExp(`${L}\\/uploads\\/[^/]+\\/commit$`);
 const ORG_LIBRARY_FILES_RE = new RegExp(`${L}\\/files$`);
+const ORG_LIBRARY_FILES_BATCH_RE = new RegExp(`${L}\\/files:batch$`);
+const ORG_LIBRARY_FOLDERS_RE = new RegExp(`${L}\\/folders$`);
+const ORG_LIBRARY_FOLDERS_ACTION_RE = new RegExp(`${L}\\/folders\\/(move|trash)$`);
+const ORG_LIBRARY_TAGS_RE = new RegExp(`${L}\\/tags$`);
 const ORG_LIBRARY_FILE_RE = new RegExp(`${L}\\/files\\/[^/]+$`);
 const ORG_LIBRARY_FILE_CONTENT_RE = new RegExp(`${L}\\/files\\/[^/]+\\/content$`);
 const ORG_LIBRARY_FILE_RESTORE_RE = new RegExp(`${L}\\/files\\/[^/]+\\/restore$`);
@@ -52,6 +56,10 @@ const ALLOWED: ReadonlyArray<[RegExp | string, ReadonlySet<string>]> = [
   [ORG_LIBRARY_UPLOAD_PART_RE, new Set(["PUT"])],
   [ORG_LIBRARY_UPLOAD_COMMIT_RE, new Set(["POST"])],
   [ORG_LIBRARY_FILES_RE, new Set(["GET"])],
+  [ORG_LIBRARY_FILES_BATCH_RE, new Set(["POST"])],
+  [ORG_LIBRARY_FOLDERS_RE, new Set(["GET", "POST"])],
+  [ORG_LIBRARY_FOLDERS_ACTION_RE, new Set(["POST"])],
+  [ORG_LIBRARY_TAGS_RE, new Set(["GET"])],
   [ORG_LIBRARY_FILE_RE, new Set(["GET", "DELETE", "PATCH"])],
   [ORG_LIBRARY_FILE_SIGNED_URL_RE, new Set(["POST"])],
   [ORG_LIBRARY_FILE_REPROCESS_RE, new Set(["POST"])],

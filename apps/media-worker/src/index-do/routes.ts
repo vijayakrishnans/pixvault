@@ -17,11 +17,16 @@ export interface RouteKv {
   delete(key: string): Promise<unknown>;
 }
 
-/** Push pending outbox rows to KV, oldest first; acknowledge each one written. Returns how many were written. */
-export async function drainOutbox(core: LibraryIndexCore, kv: RouteKv, libraryId: string, batch = 200): Promise<number> {
+/**
+ * Push pending outbox rows to KV, oldest first; acknowledge each one written. Stops after about `max` rows (the
+ * caller drains again later). Returns how many were written.
+ */
+export async function drainOutbox(core: LibraryIndexCore, kv: RouteKv, libraryId: string, batch = 200, max = Infinity): Promise<number> {
   let written = 0;
   for (;;) {
-    const rows = core.pendingOutbox(batch);
+    if (written >= max) return written;
+    const want = Math.min(batch, max - written);
+    const rows = core.pendingOutbox(want);
     if (!rows.length) return written;
     const done: number[] = [];
     for (const r of rows) {
@@ -32,6 +37,6 @@ export async function drainOutbox(core: LibraryIndexCore, kv: RouteKv, libraryId
     }
     core.ackOutbox(done);
     written += done.length;
-    if (rows.length < batch) return written;
+    if (rows.length < want) return written;
   }
 }
