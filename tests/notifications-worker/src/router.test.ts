@@ -58,6 +58,19 @@ describe("router — internal-actor gate", () => {
     expect(res.status).toBe(403);
   });
 
+  it("accepts media-worker as an internal caller (Pixvault mention emails)", async () => {
+    const res = await route(
+      new Request("http://nf/v1/notifications", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-internal-actor": "media-worker", "x-actor-subject-id": "usr_x", "x-actor-subject-type": "user" },
+        body: JSON.stringify({}),
+      }),
+      env,
+    );
+    // past the caller check (no DB here, so 503, not 403)
+    expect(res.status).not.toBe(403);
+  });
+
   it("returns 503 when DB is not configured even for an authorized internal caller", async () => {
     const res = await route(
       new Request("http://nf/v1/notifications", {

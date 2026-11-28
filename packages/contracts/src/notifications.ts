@@ -295,6 +295,8 @@ export const NOTIFICATIONS_INTERNAL_ACTOR_VALUES = [
   "config-worker",
   "metering-worker",
   "notifications-worker",
+  // Pixvault (PV6): comment mention emails.
+  "media-worker",
   // The public edge forwards end-user preference reads/updates over the
   // service binding with the subject pinned to the resolved session actor.
   "api-edge",

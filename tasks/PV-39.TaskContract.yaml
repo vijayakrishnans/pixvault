@@ -1,0 +1,23 @@
+# PV-39: PV6, mention emails reach notifications-worker. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-39
+spec:
+  goal: "notifications-worker accepts media-worker as an internal caller (it answered 403, so PV-38's mention emails were never queued), redeploys with the change, and a media-worker test ties its fake to the real allow-list."
+  affects:
+    - default/pixvault/contracts
+    - default/pixvault/notifications-worker
+    - default/pixvault/notifications-worker-tests
+    - default/pixvault/media-worker-tests
+    - packages/contracts/**
+    - apps/notifications-worker/**
+    - tests/notifications-worker/**
+    - tests/media-worker/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "notifications-worker accepts x-internal-actor media-worker (test)"
+    - "media-worker's comment test fails if its caller name isn't on the allow-list"
+    - "on stage, a mention queues a media.comment_mention notification"
+  gates: []
