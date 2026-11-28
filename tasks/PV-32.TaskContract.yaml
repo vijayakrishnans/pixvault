@@ -1,0 +1,24 @@
+# PV-32: patch the console and gate CI on advisories. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-32
+spec:
+  goal: "The admin console runs patched dependencies (Next 15.5.29, OpenNext 1.20.16, React 19 stable, zod 4), transitive advisories are overridden within their majors, and a Security workflow fails CI on any unaccepted high or critical production advisory."
+  affects:
+    - default/pixvault/web-console-next
+    - default/pixvault/web-console-next-tests
+    - apps/web-console-next/**
+    - tests/web-console-next/**
+    - tooling/security/**
+    - .github/workflows/security.yml
+    - pnpm-workspace.yaml
+    - pnpm-lock.yaml
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "pnpm audit --prod reports no high or critical advisories"
+    - "the console builds and serves its pages on workerd with the new versions"
+    - "the Security workflow runs the gate on pull requests"
+  gates: []

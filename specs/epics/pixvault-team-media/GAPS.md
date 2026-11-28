@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-31 (OWASP review)._
+_Last updated: 2026-11-28, PV-32._
 
 ## Blocked
 
@@ -50,9 +50,7 @@ _Last updated: 2026-11-28, PV-31 (OWASP review)._
 | G76 | Live events carry the file | Events carry only file ids, folder and status; clients refetch through the API | Every read stays behind policy, and an uploader-only member never sees others' files | One extra API call per change, debounced in the app | Kept |
 | G77 | Thumbnails for every file in the grid | Public images show serving's `thumb` preset; private files show an icon for their type in the grid, and a 10-minute signed preview in the file drawer | A signed link per private file per page would be an API call each | Private images have no thumbnail in the grid | Signed thumbnail batches, PV10 |
 | G78 | Playwright tests in CI | Two-browser and app flows run against stage from a script (results in the ledger), not in CI | The repo's CI has no browser and no stage credentials lane yet | A UI regression is caught only by the stage run after merge | A browser lane in CI, PV11 |
-| G79 | Current, patched dependencies (OWASP A03) | The baseline admin console runs Next 15.0.3 and OpenNext 1.0.4, which have critical and high advisories (the middleware authorisation bypass among them); `pnpm audit --prod` lists 91, almost all via the console | Found in the PV-31 review | The console (live in prod) is exposed until upgraded | PV-32, next |
-| G80 | A dependency gate in CI | No `pnpm audit` in CI | Not in the baseline | A vulnerable package can land unnoticed | PV-32, with the upgrade |
-| G81 | Actions pinned by commit SHA | Workflows pin actions by tag | orun generates the workflows | A moved tag could change what CI runs | When the generator supports SHA pins |
+| G81 | Actions pinned by commit SHA | The Security workflow pins by SHA (PV-32); the generated `ci.yml` pins by tag | orun generates `ci.yml` | A moved tag could change what CI runs | When the generator supports SHA pins |
 | G82 | Security alerting (OWASP A09) | Login failures are recorded as security events; nothing alerts on spikes, takedown bursts or failed runs | No alerting channel yet | Attacks are seen only by looking | PV11 |
 
 ## Missing (in the design for a closed milestone, not built)
@@ -127,6 +125,8 @@ _Last updated: 2026-11-28, PV-31 (OWASP review)._
 | # | Item | Closed by |
 |---|---|---|
 | — | Expired email login codes were accepted; no wrong-code limit (OWASP A07, found in review) | PV-31: expiry enforced in the consume query, 5 wrong codes burn the challenge |
+| G79 | Console on Next 15.0.3 / OpenNext 1.0.4 with critical advisories | PV-32: Next 15.5.29, OpenNext 1.20.16, zod 4, overrides; 0 critical, 0 high |
+| G80 | No dependency gate in CI | PV-32: the Security workflow fails on unaccepted high or critical advisories |
 | G21 | Folder upload (IH-095) | PV-29: drop or pick a folder; files keep their structure under the open folder |
 | G25 | Version history in the app | PV-29: the file drawer lists versions and makes one current |
 | — | Workers Paid plan unknown (W-4) | Measured: a 200 MB commit hashes in one request (PV2, #15) |

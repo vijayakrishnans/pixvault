@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm, type DefaultValues, type FieldValues, type SubmitHandler, type Path } from "react-hook-form";
+import { useForm, type DefaultValues, type FieldValues, type Resolver, type SubmitHandler, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z, ZodType } from "zod";
 import { Label } from "./label";
@@ -19,7 +19,7 @@ export interface FieldSpec<T extends FieldValues> {
   autoComplete?: string;
 }
 
-interface ZodFormProps<S extends ZodType<FieldValues>> {
+interface ZodFormProps<S extends ZodType<FieldValues, FieldValues>> {
   schema: S;
   defaultValues: DefaultValues<z.infer<S>>;
   fields: FieldSpec<z.infer<S>>[];
@@ -41,7 +41,7 @@ interface ZodFormProps<S extends ZodType<FieldValues>> {
  * list. The verifier should treat this as the canonical proof that
  * contracts → forms is wired in this PR.
  */
-export function ZodForm<S extends ZodType<FieldValues>>({
+export function ZodForm<S extends ZodType<FieldValues, FieldValues>>({
   schema,
   defaultValues,
   fields,
@@ -59,7 +59,8 @@ export function ZodForm<S extends ZodType<FieldValues>>({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<Values>({
-    resolver: zodResolver(schema),
+    // zod 4 schemas through resolvers v5; the schema's output is the form's values.
+    resolver: zodResolver(schema) as unknown as Resolver<Values>,
     defaultValues,
   });
 
