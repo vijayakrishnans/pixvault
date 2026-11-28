@@ -87,6 +87,8 @@ export function handlePreflight(request: Request, env: Env): Response | null {
 export function applyCorsHeaders(response: Response, request: Request, env: Env): Response {
   const origin = request.headers.get("origin");
   if (!isAllowedOrigin(origin, env)) return response;
+  // A WebSocket upgrade (101) can't be re-wrapped, and CORS doesn't apply to it.
+  if (response.status === 101 || (response as Response & { webSocket?: unknown }).webSocket) return response;
 
   const headers = new Headers(response.headers);
   headers.set("access-control-allow-origin", origin!);

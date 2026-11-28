@@ -6,10 +6,11 @@ import { DurableObject } from "cloudflare:workers";
 import { createSqlExecutor } from "@saas/db/d1";
 import { createMediaRepository } from "@saas/db/media";
 import type { Env } from "../env.js";
-import { IndexError, LibraryIndexCore, type BatchAction, type ListFilter, type ProcessingResult, type Scope, type Sql } from "./core.js";
+import { IndexError, LibraryIndexCore, type BatchAction, type ListFilter, type LiveScope, type ProcessingResult, type Scope, type Sql } from "./core.js";
 import { startPipeline } from "../pipeline/start.js";
 import { abortUpload } from "../storage/object-store.js";
 import { drainOutbox } from "./routes.js";
+import { MAX_SOCKETS, SOCKET_TTL_MS, broadcastPresence, changeFor, deliver, onClientMessage, type Attachment, type LiveSocket } from "./live.js";
 
 export type IndexOp =
   | { op: "findBlob"; sha256: string }
@@ -24,6 +25,7 @@ export type IndexOp =
   | { op: "moveFolder"; from: string; to: string; actor: string; nowIso: string }
   | { op: "trashFolder"; folder: string; nowIso: string }
   | { op: "batch"; ids: string[]; act: BatchAction; actor: string; nowIso: string }
+  | { op: "issueTicket"; subject: string; scope: LiveScope; nowIso: string }
   | { op: "versions"; id: string }
   | { op: "openSession"; session: Parameters<LibraryIndexCore["openSession"]>[0] }
   | { op: "getSession"; id: string }
@@ -79,6 +81,8 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
         return { ok: true, value: core.trashFolder(req.folder, req.nowIso) };
       case "batch":
         return { ok: true, value: core.batch(req.ids, req.act, req.actor, req.nowIso) };
+      case "issueTicket":
+        return { ok: true, value: core.issueTicket(req.subject, req.scope, req.nowIso) };
       case "versions":
         return { ok: true, value: core.versions(req.id) };
       case "openSession":
@@ -144,16 +148,69 @@ export class LibraryIndex extends DurableObject<Env> {
       transaction: (fn) => storage.transactionSync(fn),
     };
     this.core = new LibraryIndexCore(sql);
+    // Keepalive pings are answered without waking the object.
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('{"t":"ping"}', '{"t":"pong"}'));
   }
 
   async call(scope: Scope, req: IndexOp): Promise<IndexResult> {
     const result = dispatch(this.core, scope, req);
+    if (result.ok) {
+      const change = changeFor(req, result.value);
+      if (change) {
+        const sockets = this.sockets();
+        if (sockets.length) deliver(sockets, change, Date.now());
+      }
+    }
     // The outbox drains on an alarm right away, so the request isn't held up by KV writes; sessions expire and
     // trash ages out on later alarms.
     if (result.ok && (this.core.outboxSize() > 0 || req.op === "openSession" || req.op === "trash" || req.op === "commit" || req.op === "setVisibility" || req.op === "reprocess" || req.op === "restoreVersion" || req.op === "review" || req.op === "batch" || req.op === "trashFolder")) {
       await this.scheduleAlarm();
     }
     return result;
+  }
+
+  private sockets(): LiveSocket[] {
+    return this.ctx.getWebSockets() as unknown as LiveSocket[];
+  }
+
+  /**
+   * The live socket (GET …/live?ticket=…, forwarded by media-worker). The ticket was issued by this index, minutes
+   * ago at most, to someone the API authorised, and works once. Anything else is 404.
+   */
+  async fetch(request: Request): Promise<Response> {
+    const notFound = () => new Response(JSON.stringify({ error: { code: "not_found", message: "Not found" } }), { status: 404, headers: { "content-type": "application/json" } });
+    if ((request.headers.get("upgrade") ?? "").toLowerCase() !== "websocket") return notFound();
+    const ticket = new URL(request.url).searchParams.get("ticket") ?? "";
+    if (!/^[0-9a-f]{64}$/.test(ticket)) return notFound();
+    const who = this.core.consumeTicket(ticket, new Date().toISOString());
+    if (!who) return notFound();
+    if (this.ctx.getWebSockets().length >= MAX_SOCKETS) {
+      return new Response(JSON.stringify({ error: { code: "unavailable", message: "Too many live connections to this library" } }), { status: 503, headers: { "content-type": "application/json" } });
+    }
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
+    this.ctx.acceptWebSocket(server, [who.subject]);
+    const attachment: Attachment = { sub: who.subject, scope: who.scope, folder: null, exp: Date.now() + SOCKET_TTL_MS };
+    server.serializeAttachment(attachment);
+    broadcastPresence(this.sockets());
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    if (onClientMessage(ws as unknown as LiveSocket, message)) broadcastPresence(this.sockets());
+  }
+
+  async webSocketClose(ws: WebSocket, code: number): Promise<void> {
+    try {
+      ws.close(code === 1005 || code === 1006 ? 1000 : code, "bye");
+    } catch {
+      /* already closed */
+    }
+    broadcastPresence(this.sockets(), ws as unknown as LiveSocket);
+  }
+
+  async webSocketError(ws: WebSocket): Promise<void> {
+    broadcastPresence(this.sockets(), ws as unknown as LiveSocket);
   }
 
   private async scheduleAlarm(): Promise<void> {

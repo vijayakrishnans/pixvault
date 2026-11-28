@@ -16,6 +16,12 @@ interface IndexStub {
   call(scope: Scope, req: IndexOp): Promise<IndexResult>;
 }
 
+/** The Durable Object itself, for the live socket (a fetch, not an RPC call). */
+export function indexStub(env: Env, scope: Scope): { fetch(request: Request): Promise<Response> } {
+  const ns = env.LIBRARY_INDEX!;
+  return ns.get(ns.idFromName(`org:${scope.orgId}:lib:${scope.libraryId}`)) as unknown as { fetch(request: Request): Promise<Response> };
+}
+
 /** The index of one library. The DO's name binds it to (org, library), and every call restates the scope. */
 export function indexFor(env: Env, scope: Scope): LibraryIndexClient {
   const ns = env.LIBRARY_INDEX!;

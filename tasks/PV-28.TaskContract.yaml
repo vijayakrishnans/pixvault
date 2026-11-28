@@ -1,0 +1,24 @@
+# PV-28: PV5, live updates and presence. Minted under milestone PV5; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-28
+spec:
+  goal: "Each library's index accepts WebSockets through the hibernation API, opened with a one-use ticket from the API; every write sends connected members a change event (file ids, folder, status; own-scope sockets only their uploads), and presence says who is in which folder."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/api-edge/**
+    - tests/api-edge/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "a ticket opens the socket once, without an actor, and members get the scope their role allows (test)"
+    - "change events never carry file names, and own-scope sockets hear only about their uploads (test)"
+    - "on stage, an upload by one client reaches another client's socket within 2 s"
+  gates: []

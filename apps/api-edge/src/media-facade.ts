@@ -24,6 +24,10 @@ const ORG_LIBRARY_FILES_BATCH_RE = new RegExp(`${L}\\/files:batch$`);
 const ORG_LIBRARY_FOLDERS_RE = new RegExp(`${L}\\/folders$`);
 const ORG_LIBRARY_FOLDERS_ACTION_RE = new RegExp(`${L}\\/folders\\/(move|trash)$`);
 const ORG_LIBRARY_TAGS_RE = new RegExp(`${L}\\/tags$`);
+const ORG_LIBRARY_LIVE_TICKETS_RE = new RegExp(`${L}\\/live-tickets$`);
+// The live socket: authenticated by a one-use ticket that media-worker's index checks, not by the bearer, and
+// forwarded as is (an upgrade can't be replayed, rate-limited per key or re-wrapped).
+const ORG_LIBRARY_LIVE_RE = new RegExp(`${L}\\/live$`);
 const ORG_LIBRARY_FILE_RE = new RegExp(`${L}\\/files\\/[^/]+$`);
 const ORG_LIBRARY_FILE_CONTENT_RE = new RegExp(`${L}\\/files\\/[^/]+\\/content$`);
 const ORG_LIBRARY_FILE_RESTORE_RE = new RegExp(`${L}\\/files\\/[^/]+\\/restore$`);
@@ -60,6 +64,8 @@ const ALLOWED: ReadonlyArray<[RegExp | string, ReadonlySet<string>]> = [
   [ORG_LIBRARY_FOLDERS_RE, new Set(["GET", "POST"])],
   [ORG_LIBRARY_FOLDERS_ACTION_RE, new Set(["POST"])],
   [ORG_LIBRARY_TAGS_RE, new Set(["GET"])],
+  [ORG_LIBRARY_LIVE_TICKETS_RE, new Set(["POST"])],
+  [ORG_LIBRARY_LIVE_RE, new Set(["GET"])],
   [ORG_LIBRARY_FILE_RE, new Set(["GET", "DELETE", "PATCH"])],
   [ORG_LIBRARY_FILE_SIGNED_URL_RE, new Set(["POST"])],
   [ORG_LIBRARY_FILE_REPROCESS_RE, new Set(["POST"])],
@@ -102,6 +108,21 @@ export async function handleMediaRoute(
   const methods = allowedMethods(pathname);
   if (!methods || !methods.has(request.method)) {
     return errorResponse("unsupported", "Method not allowed", 405, requestId);
+  }
+
+  if (ORG_LIBRARY_LIVE_RE.test(pathname)) {
+    if ((request.headers.get("upgrade") ?? "").toLowerCase() !== "websocket") {
+      return errorResponse("unsupported", "Expected a WebSocket upgrade", 426, requestId);
+    }
+    if (!env.MEDIA_WORKER) return errorResponse("internal_error", "Media service unavailable", 503, requestId);
+    const url = new URL(request.url);
+    const headers = new Headers();
+    for (const name of ["upgrade", "connection", "sec-websocket-key", "sec-websocket-version", "sec-websocket-protocol", "sec-websocket-extensions"]) {
+      const v = request.headers.get(name);
+      if (v) headers.set(name, v);
+    }
+    headers.set("x-request-id", requestId);
+    return env.MEDIA_WORKER.fetch(new URL(pathname + url.search, "https://media.internal").toString(), { method: "GET", headers });
   }
 
   // Upload traffic (sessions, parts, commits) has its own budget: a 2 GB file is 60 part requests.

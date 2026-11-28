@@ -156,6 +156,8 @@ CREATE TABLE IF NOT EXISTS folders (
   path TEXT PRIMARY KEY, parent TEXT, name TEXT NOT NULL, created_by TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS folders_parent ON folders (parent);
 CREATE TABLE IF NOT EXISTS fts_map (file_id TEXT PRIMARY KEY, fts_rowid INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS live_tickets (
+  ticket TEXT PRIMARY KEY, subject TEXT NOT NULL, scope TEXT NOT NULL, expires_at TEXT NOT NULL);
 `;
 
 // Search (PV5): FTS5 over each file's name, folder and tags, kept in step with `files` by triggers, so every write
@@ -222,6 +224,9 @@ export type BatchAction =
   | { action: "trash" }
   | { action: "restore" }
   | { action: "visibility"; visibility: "public" | "private"; requireSafety: boolean };
+
+/** What a live socket may see: every file's changes, or only the holder's own uploads. */
+export type LiveScope = "all" | "own";
 
 export interface BatchResult {
   done: FileRow[];
@@ -599,6 +604,31 @@ export class LibraryIndexCore {
     const page = rows.slice(0, opts.limit);
     const last = page[page.length - 1];
     return { files: page, nextCursor: rows.length > opts.limit && last ? `${last.created_at}|${last.id}` : null };
+  }
+
+  // ── live tickets (PV5): one-use passes for the library's WebSocket ──
+
+  /**
+   * A one-use ticket for opening this library's live socket, for someone the API has just authorised. Browsers can't
+   * send an Authorization header on a WebSocket, so the socket presents this instead. It lives in this index only.
+   */
+  issueTicket(subject: string, scope: LiveScope, nowIso: string, ttlMs = 60_000): { ticket: string; expiresAt: string } {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const ticket = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    const expiresAt = new Date(Date.parse(nowIso) + ttlMs).toISOString();
+    this.sql.exec(`DELETE FROM live_tickets WHERE expires_at <= ?`, nowIso);
+    this.sql.exec(`INSERT INTO live_tickets (ticket, subject, scope, expires_at) VALUES (?, ?, ?, ?)`, ticket, subject, scope, expiresAt);
+    return { ticket, expiresAt };
+  }
+
+  /** Use a ticket up: who it was for, or null if it is unknown, used or expired. */
+  consumeTicket(ticket: string, nowIso: string): { subject: string; scope: LiveScope } | null {
+    return this.sql.transaction(() => {
+      const t = one(this.sql.exec<{ subject: string; scope: LiveScope; expires_at: string }>(`SELECT subject, scope, expires_at FROM live_tickets WHERE ticket = ?`, ticket).toArray());
+      if (!t) return null;
+      this.sql.exec(`DELETE FROM live_tickets WHERE ticket = ?`, ticket);
+      return t.expires_at > nowIso ? { subject: t.subject, scope: t.scope } : null;
+    });
   }
 
   // ── folders, moves and batches (PV5) ──────────────────────
