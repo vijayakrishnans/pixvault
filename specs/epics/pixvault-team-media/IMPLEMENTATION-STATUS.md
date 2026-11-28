@@ -139,3 +139,6 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 - **Public sharing in prod is enforced off (PV-34).** The plan and GAPS G2 said prod sharing waits for CSAM scanning
   and the domain, but nothing enforced it: prod served public files. `PUBLIC_SHARING` (off in prod, on in dev and
   stage) now gates every public surface in media-worker and serve-worker, and the app hides the choices.
+- **PV-38's mention emails were refused (PV-39).** notifications-worker accepts only listed internal callers and
+  answered media-worker with 403; media-worker's tests faked notifications-worker at the binding and didn't see it.
+  PV-39 adds media-worker to the list and a test that ties the fake to the real list.
