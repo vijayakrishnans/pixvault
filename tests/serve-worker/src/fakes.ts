@@ -68,6 +68,10 @@ export interface World {
   /** Reports forwarded to media-worker. */
   reports: Record<string, unknown>[];
   reportLimited: Set<string>;
+  /** Share-link calls forwarded to media-worker, and how it answers them. */
+  shareCalls: { route: string; body: Record<string, unknown> }[];
+  shareAnswer: (route: string, body: Record<string, unknown>) => Response;
+  shareLimited: Set<string>;
 }
 
 export function world(): World {
@@ -76,7 +80,10 @@ export function world(): World {
   const images = new FakeImages();
   const ae: World["ae"] = [];
   const limited = new Set<string>();
-  const w: World = { env: {} as Env, kv, r2, images, ae, limited, randomCalls: [], randomResult: null, reports: [], reportLimited: new Set() };
+  const w: World = {
+    env: {} as Env, kv, r2, images, ae, limited, randomCalls: [], randomResult: null, reports: [], reportLimited: new Set(),
+    shareCalls: [], shareAnswer: () => new Response(null, { status: 404 }), shareLimited: new Set(),
+  };
   w.env = {
     ENVIRONMENT: "test",
     ROUTES_KV: kv as unknown as KVNamespace,
@@ -84,9 +91,16 @@ export function world(): World {
     IMAGES: images as unknown as ImagesBinding,
     SERVE_AE: { writeDataPoint: (p: { blobs: unknown[]; doubles: unknown[] }) => void ae.push(p) } as unknown as AnalyticsEngineDataset,
     SERVE_RL: { limit: async ({ key }: { key: string }) => ({ success: !limited.has(key) }) } as unknown as RateLimit,
+    SERVE_SHARE_RL: { limit: async ({ key }: { key: string }) => ({ success: !w.shareLimited.has(key) }) } as unknown as RateLimit,
     SERVE_REPORT_RL: { limit: async ({ key }: { key: string }) => ({ success: !w.reportLimited.has(key) }) } as unknown as RateLimit,
     MEDIA_WORKER: {
       fetch: async (url: string, init: RequestInit) => {
+        const m = String(url).match(/\/v1\/media\/shares\/(open|content)$/);
+        if (m) {
+          const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+          w.shareCalls.push({ route: m[1]!, body });
+          return w.shareAnswer(m[1]!, body);
+        }
         if (!String(url).endsWith("/v1/media/abuse-reports") || init.method !== "POST") return new Response(null, { status: 404 });
         w.reports.push(JSON.parse(String(init.body)));
         return new Response(JSON.stringify({ data: { received: true } }), { status: 202 });

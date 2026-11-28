@@ -20,9 +20,10 @@
       "analytics_engine_datasets": [{ "binding": "SERVE_AE", "dataset": "pixvault_serve_stage" }],
       "ratelimits": [
         { "name": "SERVE_RL", "namespace_id": "7301", "simple": { "limit": 600, "period": 60 } },
-        { "name": "SERVE_REPORT_RL", "namespace_id": "7303", "simple": { "limit": 5, "period": 60 } }
+        { "name": "SERVE_REPORT_RL", "namespace_id": "7303", "simple": { "limit": 5, "period": 60 } },
+        { "name": "SERVE_SHARE_RL", "namespace_id": "7305", "simple": { "limit": 5, "period": 60 } }
       ],
-      // Abuse reports go to media-worker, which has no public route.
+      // Abuse reports and share-link pages go to media-worker, which has no public route.
       "services": [{ "binding": "MEDIA_WORKER", "service": "pixvault-media-worker-stage" }],
       // media-worker's per-library index, for the random-image API (read-only op).
       "durable_objects": {
@@ -40,9 +41,10 @@
       "analytics_engine_datasets": [{ "binding": "SERVE_AE", "dataset": "pixvault_serve_prod" }],
       "ratelimits": [
         { "name": "SERVE_RL", "namespace_id": "7302", "simple": { "limit": 600, "period": 60 } },
-        { "name": "SERVE_REPORT_RL", "namespace_id": "7304", "simple": { "limit": 5, "period": 60 } }
+        { "name": "SERVE_REPORT_RL", "namespace_id": "7304", "simple": { "limit": 5, "period": 60 } },
+        { "name": "SERVE_SHARE_RL", "namespace_id": "7306", "simple": { "limit": 5, "period": 60 } }
       ],
-      // Abuse reports go to media-worker, which has no public route.
+      // Abuse reports and share-link pages go to media-worker, which has no public route.
       "services": [{ "binding": "MEDIA_WORKER", "service": "pixvault-media-worker-prod" }],
       // media-worker's per-library index, for the random-image API (read-only op).
       "durable_objects": {

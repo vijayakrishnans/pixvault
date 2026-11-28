@@ -9,6 +9,7 @@ import { verifyPath } from "@saas/shared/media-signing";
 import type { Env } from "./env.js";
 import { negotiateFormat, presetOptions, transformImage } from "./transform.js";
 import { ipAllowed, referrerAllowed } from "./rules.js";
+import { SHARE_PREFIX, handleShare, parseSharePath } from "./share.js";
 import { REPORT_PATH, reportForm, reportLink, reportReceived, submitReport, unavailable } from "./report.js";
 
 interface LibraryMap {
@@ -153,6 +154,12 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
   const url = new URL(request.url);
   if (url.pathname === "/health") return Response.json({ status: "ok", service: "serve-worker", environment: env.ENVIRONMENT ?? "local" });
   if (url.pathname === REPORT_PATH) return handleReport(request, env, url, now);
+  if (url.pathname.startsWith(SHARE_PREFIX)) {
+    const sp = parseSharePath(url.pathname);
+    // Share links are public sharing too: off while it is (prod, until W-5/W-6).
+    if (!sp || !publicSharingAllowed(env)) return notFound();
+    return handleShare(request, env, sp);
+  }
   if (request.method !== "GET" && request.method !== "HEAD") return text(405, "Method not allowed", { allow: "GET, HEAD" });
   if (!env.ROUTES_KV || !env.MEDIA_BUCKET) return text(503, "Unavailable");
 

@@ -262,6 +262,16 @@ export class World {
     return { status: res.status, bytes: new Uint8Array(await res.arrayBuffer()), headers: res.headers };
   }
 
+  /** A request without an actor, returning the raw Response (e.g. streamed bytes from an internal route). */
+  async raw(method: string, path: string, body?: unknown): Promise<Response> {
+    const req = new Request(`https://media.internal${path}`, {
+      method,
+      headers: { "content-type": "application/json", "x-request-id": "req_test" },
+      body: body === undefined ? null : JSON.stringify(body),
+    });
+    return route(req, this.env, { now: () => this.now });
+  }
+
   async call(user: User | null, method: string, path: string, body?: unknown): Promise<{ status: number; json: any }> {
     const headers = new Headers({ "content-type": "application/json", "x-request-id": "req_test" });
     if (user) {

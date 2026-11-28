@@ -2,6 +2,7 @@ import type { SqlExecutor, SqlStatement } from "../d1/executor.js";
 import { executeBatch } from "../d1/executor.js";
 import { isUniqueViolation } from "../d1/errors.js";
 import type {
+  ShareLink,
   AbuseCase,
   PipelineFailure,
   CreateInvitationInput,
@@ -78,6 +79,28 @@ function internal<T>(message: string): MediaResult<T> {
 const notFound = <T>(): MediaResult<T> => ({ ok: false, error: { kind: "not_found" } });
 
 /** The managed-R2 prefix for a library. Every managed object key starts with it (design §1.1). */
+function toShareLink(r: Row): ShareLink {
+  return {
+    id: String(r.id),
+    orgId: String(r.org_id),
+    libraryId: String(r.library_id),
+    targetKind: r.target_kind as ShareLink["targetKind"],
+    targetId: String(r.target_id),
+    targetLabel: String(r.target_label ?? ""),
+    mode: r.mode as ShareLink["mode"],
+    tokenHash: String(r.token_hash),
+    passwordHash: r.password_hash == null ? null : String(r.password_hash),
+    expiresAt: r.expires_at == null ? null : String(r.expires_at),
+    maxDownloads: r.max_downloads == null ? null : Number(r.max_downloads),
+    downloads: Number(r.downloads ?? 0),
+    opens: Number(r.opens ?? 0),
+    lastOpenedAt: r.last_opened_at == null ? null : String(r.last_opened_at),
+    createdBy: String(r.created_by),
+    revokedAt: r.revoked_at == null ? null : String(r.revoked_at),
+    createdAt: String(r.created_at),
+  };
+}
+
 export function managedPrefix(orgId: string, libraryId: string): string {
   return `org/${orgId}/lib/${libraryId}/`;
 }
@@ -623,6 +646,97 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
         return { ok: true, value: r.rowCount > 0 };
       } catch {
         return internal("Failed to read operators");
+      }
+    },
+
+    async createShareLink(input) {
+      try {
+        const id = crypto.randomUUID();
+        const r = await executor.execute<Row>(
+          `INSERT INTO media_share_links (id, org_id, library_id, target_kind, target_id, target_label, mode, token_hash, password_hash,
+             expires_at, max_downloads, created_by, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13) RETURNING *`,
+          [id, input.orgId, input.libraryId, input.targetKind, input.targetId, input.targetLabel, input.mode, input.tokenHash, input.passwordHash,
+            input.expiresAt ? input.expiresAt.toISOString() : null, input.maxDownloads, input.createdBy, input.at.toISOString()],
+        );
+        return { ok: true, value: toShareLink(r.rows[0]!) };
+      } catch {
+        return internal("Failed to create the share link");
+      }
+    },
+
+    async listShareLinks(orgId, libraryId, filter) {
+      try {
+        const where = [`org_id = $1`, `library_id = $2`];
+        const params: unknown[] = [orgId, libraryId];
+        if (filter.targetKind) {
+          params.push(filter.targetKind);
+          where.push(`target_kind = $` + params.length);
+        }
+        if (filter.targetId) {
+          params.push(filter.targetId);
+          where.push(`target_id = $` + params.length);
+        }
+        params.push(Math.min(200, Math.max(1, filter.limit)));
+        const r = await executor.execute<Row>(`SELECT * FROM media_share_links WHERE ` + where.join(" AND ") + ` ORDER BY created_at DESC LIMIT $` + params.length, params);
+        return { ok: true, value: r.rows.map(toShareLink) };
+      } catch {
+        return internal("Failed to list share links");
+      }
+    },
+
+    async getShareLink(orgId, libraryId, id) {
+      try {
+        const r = await executor.execute<Row>(`SELECT * FROM media_share_links WHERE id = $1 AND org_id = $2 AND library_id = $3`, [id, orgId, libraryId]);
+        if (r.rowCount === 0) return { ok: false, error: { kind: "not_found", entity: "share_link" } };
+        return { ok: true, value: toShareLink(r.rows[0]!) };
+      } catch {
+        return internal("Failed to read the share link");
+      }
+    },
+
+    async getShareLinkByTokenHash(tokenHash) {
+      try {
+        const r = await executor.execute<Row>(`SELECT * FROM media_share_links WHERE token_hash = $1`, [tokenHash]);
+        if (r.rowCount === 0) return { ok: false, error: { kind: "not_found", entity: "share_link" } };
+        return { ok: true, value: toShareLink(r.rows[0]!) };
+      } catch {
+        return internal("Failed to read the share link");
+      }
+    },
+
+    async revokeShareLink(orgId, libraryId, id, at) {
+      try {
+        const r = await executor.execute<Row>(
+          `UPDATE media_share_links SET revoked_at = COALESCE(revoked_at, $4), updated_at = $4 WHERE id = $1 AND org_id = $2 AND library_id = $3 RETURNING *`,
+          [id, orgId, libraryId, at.toISOString()],
+        );
+        if (r.rowCount === 0) return { ok: false, error: { kind: "not_found", entity: "share_link" } };
+        return { ok: true, value: toShareLink(r.rows[0]!) };
+      } catch {
+        return internal("Failed to revoke the share link");
+      }
+    },
+
+    async recordShareOpen(id, at) {
+      try {
+        await executor.execute(`UPDATE media_share_links SET opens = opens + 1, last_opened_at = $2 WHERE id = $1`, [id, at.toISOString()]);
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to record the open");
+      }
+    },
+
+    async consumeShareDownload(id, at) {
+      try {
+        const r = await executor.execute<Row>(
+          `UPDATE media_share_links SET downloads = downloads + 1, updated_at = $2
+           WHERE id = $1 AND revoked_at IS NULL AND (max_downloads IS NULL OR downloads < max_downloads) RETURNING id`,
+          [id, at.toISOString()],
+        );
+        return { ok: true, value: r.rowCount > 0 };
+      } catch {
+        return internal("Failed to count the download");
       }
     },
 

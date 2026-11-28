@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-34._
+_Last updated: 2026-11-28, PV-35._
 
 ## Blocked
 
@@ -52,6 +52,9 @@ _Last updated: 2026-11-28, PV-34._
 | G78 | Playwright tests in CI | Two-browser and app flows run against stage from a script (results in the ledger), not in CI | The repo's CI has no browser and no stage credentials lane yet | A UI regression is caught only by the stage run after merge | A browser lane in CI, PV11 |
 | G81 | Actions pinned by commit SHA | The Security workflow pins by SHA (PV-32); the generated `ci.yml` pins by tag | orun generates `ci.yml` | A moved tag could change what CI runs | When the generator supports SHA pins |
 | G82 | Security alerting (OWASP A09) | Login failures are recorded as security events; nothing alerts on spikes, takedown bursts or failed runs | No alerting channel yet | Attacks are seen only by looking | PV11 |
+| G83 | Share landing at `s.<domain>/<token>` | `/_s/<token>` on serve-worker's host (no domain yet, W-6); the pages ask media-worker over the service binding for every request | No product domain; media-worker has no public route | Moves to `s.<domain>` with PV8 | PV8 |
+| G84 | Share links to collections; a report link on share pages; range requests | File and folder links only; no "Report" on share pages; share bytes stream whole (no `Range`) | Collections arrive later in PV6; the report form keys on serving paths | Can't share a collection yet; abuse via a share link is reported through the team; large videos can't seek | Collections later in PV6; report and Range, PV11 |
+| G85 | An open trail of who opened a link | Counts and last-opened time only | Guests are anonymous, and storing their IPs would be personal data | No per-visit log | Kept |
 
 ## Missing (in the design for a closed milestone, not built)
 

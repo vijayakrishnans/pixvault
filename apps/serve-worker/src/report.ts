@@ -19,7 +19,7 @@ export const CATEGORIES: [value: string, label: string][] = [
 
 const PAGE_CSP = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export function page(status: number, title: string, body: string, extra: Record<string, string> = {}): Response {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:560px;margin:40px auto;padding:0 16px;color:#1d1d1f;background:#fff}h1{font-size:22px}label{display:block;margin:14px 0 4px;font-weight:600}select,textarea,input{width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid #bbb;border-radius:6px}button{margin-top:16px;padding:10px 18px;font:inherit;border:0;border-radius:6px;background:#4f46e5;color:#fff}.muted{color:#666;font-size:14px}code{word-break:break-all}@media (prefers-color-scheme:dark){body{background:#111;color:#eee}select,textarea,input{background:#1c1c1e;color:#eee;border-color:#444}.muted{color:#aaa}}</style></head><body>${body}</body></html>`;

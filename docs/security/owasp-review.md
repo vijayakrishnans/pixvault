@@ -112,8 +112,16 @@ Each PR says which of these it touches and what it did:
 7. **Dependencies:** no new package with a high or critical advisory (`pnpm audit --prod`).
 8. **Logging:** security-relevant actions leave an audit or security event, without personal data or contents.
 
+### Share links (PV-35): how the checklist was met
+- **Access:** creating, listing and revoking need `share.create` (editors and managers). A guest's token reaches only the shared file, or the served files under the shared folder; any other file id, in this library or another, is 404 (`shares.test.ts`).
+- **Secrets:** the token is 256 random bits, stored only as a SHA-256. Passwords are PBKDF2-SHA256 at 100,000 iterations (the Workers limit) with a 16-byte salt. The unlock cookie is an HMAC keyed by the stored password hash: `HttpOnly; Secure; SameSite=Lax`, scoped to the link's path, valid 12 hours, and void once the password changes or the link is revoked.
+- **Abuse:** password tries are limited to 5 a minute per address and link, under the general per-IP limit. Download limits are counted by one conditional `UPDATE`, so concurrent downloads can't overshoot.
+- **No caching of the grant:** every page and byte asks media-worker, which reads the link from D1. A revoked link is 404 on the next request.
+- **Pages:** no referrer (the token is in the URL), `noindex`, `no-store`, a deny-all CSP with images and media from self, and no framing. Names are escaped. File bytes keep the sandbox CSP and download unless the type is in the inline list.
+- **Prod:** off with public sharing (PV-34).
+
 ### Ahead: what the next milestones must design in
-- **PV6, sharing:**
+- **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;
   - passwords are hashed with PBKDF2 (WebCrypto) and a per-link salt;
   - expiries and download caps;

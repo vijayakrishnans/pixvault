@@ -1,4 +1,6 @@
 export type {
+  ShareLink,
+  ShareLinkInput,
   Library,
   LibraryMember,
   LibraryInvitation,
