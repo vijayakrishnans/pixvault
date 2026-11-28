@@ -1,0 +1,4 @@
+{
+  "_comment": "High or critical advisories accepted for now, each with why and when to look again. An entry past its reviewBy date fails the gate. See docs/security/owasp-review.md.",
+  "accepted": []
+}
