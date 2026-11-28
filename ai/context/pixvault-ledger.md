@@ -99,6 +99,12 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
   heard each commit 944–1,325 ms after the commit request was sent (about 0.6 s before the owner's own commit
   response returned). A used ticket was refused; presence showed both people and the owner's folder, and dropped a
   closed socket; events carried no file names (7/7).
+- PV5 two-browser run on stage (2026-11-28, with PV-30's build served in place of the deployed bundle): the owner and
+  a guest viewer open one library; both go live and see each other. The owner drops a 640 B file: the upload takes
+  5.4–5.9 s end to end (hash, session, part, commit at ~250 ms per D1 query, G34), and the viewer's grid shows it 4–34 ms
+  *before* the owner's queue reports "Uploaded". Then a new folder, a bulk move into it (the viewer's tree follows
+  live), search, the drawer with its version and folder, list view, and a phone width with no sideways scroll and no
+  page errors (13/13). With PV-29's build the first run failed: no live refresh (PV-30's fix).
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 ## Open risks and deferred items

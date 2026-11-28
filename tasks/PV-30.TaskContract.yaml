@@ -1,0 +1,20 @@
+# PV-30: PV5, live refresh fix and PV5 done. Minted under milestone PV5; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-30
+spec:
+  goal: "Live changes refresh the app in a real browser (the debounce no longer calls setTimeout as a method, which browsers reject), presence shows the names of teammates who joined after the page loaded, and PV5 is marked done with its stage measurements."
+  affects:
+    - default/pixvault/media-web
+    - default/pixvault/media-web-tests
+    - apps/media-web/**
+    - tests/media-web/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "a test fails when setTimeout is called as a method, and passes with the fix"
+    - "a two-browser run on stage shows an upload in one browser appearing in the other within 2 s"
+    - "implementation-plan marks PV5 done with its stage measurements"
+  gates: []

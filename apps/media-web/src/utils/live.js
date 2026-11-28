@@ -116,7 +116,11 @@ export function createLive(o, deps = {}) {
 }
 
 /** Collect many events into one call after `ms` of quiet (or at most `max` ms after the first). */
-export function debounce(fn, ms = 250, max = 1000, timers = { setTimeout, clearTimeout }) {
+// The default timers are wrapped: a browser throws "Illegal invocation" when setTimeout is called as a method of
+// another object, which is what `timers.setTimeout(…)` would do with the bare functions.
+const defaultTimers = { setTimeout: (f, ms) => globalThis.setTimeout(f, ms), clearTimeout: (t) => globalThis.clearTimeout(t) };
+
+export function debounce(fn, ms = 250, max = 1000, timers = defaultTimers) {
   let t = null;
   let first = 0;
   let pending = [];

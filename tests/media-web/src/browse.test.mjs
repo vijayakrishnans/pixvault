@@ -210,3 +210,22 @@ test("debounce gathers bursts into one call", async () => {
   await timers.runNext();
   assert.deepEqual(got, [[1, 2, 3]]);
 });
+
+test("debounce works with the real timers, called as plain functions (a browser rejects them as methods)", async () => {
+  const realSet = globalThis.setTimeout;
+  // Make setTimeout fail the way a browser does when `this` isn't the global object.
+  globalThis.setTimeout = function (f, ms) {
+    if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
+    return realSet(f, ms);
+  };
+  try {
+    const got = [];
+    const d = debounce((batch) => got.push(batch), 5, 50);
+    d("a");
+    d("b");
+    await new Promise((r) => realSet(r, 30));
+    assert.deepEqual(got, [["a", "b"]]);
+  } finally {
+    globalThis.setTimeout = realSet;
+  }
+});
