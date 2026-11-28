@@ -11,7 +11,7 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 | PV3: serving | ✅ done 2026-11-27: PV-14 gaps register and path correction; PV-15 routes KV (own root); PV-16 serving data plane; PV-17 serve-worker; PV-18 and PV-19 smoke and Server-Timing; PV-20 links in the app | #16, #17, #18, #19, #20, #21, PV-20 (this PR) |
 | PV4: pipeline and safety | ✅ done 2026-11-28: PV-22 ProcessFileWorkflow, location removal, held failures and replay; PV-23 moderation, tags, review queue; PV-24 moderation answer shape; PV-25 abuse reports, takedown, suspension, runbook; PV-26 app states and Review tab | #24, #25, #26, #27, PV-26 (this PR) |
 | PV5: browser and live collaboration | ✅ done 2026-11-28: PV-27 folders, search, filters, moves and batches; PV-28 live updates and presence; PV-29 the browser in the app; PV-30 live refresh fix | #29, #30, #31, PV-30 (this PR) |
-| PV6: sharing | in progress: PV-31 OWASP review and hardening; PV-33 identity redeploy; PV-32 console patches and dependency gate; PV-34 prod sharing gate; PV-35 share links; PV-36 upload links; PV-37 collections and galleries; PV-38 comments and mentions; PV-39 mention caller fix; PV-40 the app's sharing screens | #33–#41, PV-40 (this PR) |
+| PV6: sharing | in progress: PV-31 OWASP review and hardening; PV-33 identity redeploy; PV-32 console patches and dependency gate; PV-34 prod sharing gate; PV-35 share links; PV-36 upload links; PV-37 collections and galleries; PV-38 comments and mentions; PV-39 mention caller fix; PV-40 the app's sharing screens; PV-41 activity | #33–#42, PV-41 (this PR) |
 | PV7: BYO storage | | |
 | PV8: custom domains | | |
 | PV9: developer surface | | |

@@ -154,6 +154,12 @@ Each PR says which of these it touches and what it did:
 - **Live events** say only which file's comments changed (no words), and only to sockets that see every file.
 - **Bounds:** 4,000 characters, no control characters, 1,000 comments a file. A purged file takes its comments with it.
 
+### Activity (PV-41): how the checklist was met
+- **Access:** the library's activity needs `file.list` (uploader-only members get 404); one file's activity follows that file's read access.
+- **Content:** entries record the actor's id, the operation, the file and a small detail (name, destination folder, state, version). They never record file contents, comment words, IP addresses or link tokens. An operator's takedown or reinstatement shows as "operator", so a team never learns who acted.
+- **Integrity and failure:** an entry is written right after the change it describes, in the same object. If writing it fails, the change still stands (the log never fails a write).
+- **Bounds:** the newest 10,000 entries per library are kept; pages hold at most 200.
+
 ### Ahead: what the next milestones must design in
 - **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;

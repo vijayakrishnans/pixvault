@@ -27,6 +27,7 @@ const ORG_LIBRARY_TAGS_RE = new RegExp(`${L}\\/tags$`);
 const ORG_LIBRARY_LIVE_TICKETS_RE = new RegExp(`${L}\\/live-tickets$`);
 const ORG_LIBRARY_SHARE_LINKS_RE = new RegExp(`${L}\\/share-links$`);
 const ORG_LIBRARY_UPLOAD_LINKS_RE = new RegExp(`${L}\\/upload-links$`);
+const ORG_LIBRARY_ACTIVITY_RE = new RegExp(`${L}\\/activity$`);
 const ORG_LIBRARY_FILE_COMMENTS_RE = new RegExp(`${L}\\/files\\/[^/]+\\/comments$`);
 const ORG_LIBRARY_FILE_COMMENT_RE = new RegExp(`${L}\\/files\\/[^/]+\\/comments\\/[^/]+$`);
 const ORG_LIBRARY_COLLECTIONS_RE = new RegExp(`${L}\\/collections$`);
@@ -76,6 +77,7 @@ const ALLOWED: ReadonlyArray<[RegExp | string, ReadonlySet<string>]> = [
   [ORG_LIBRARY_LIVE_TICKETS_RE, new Set(["POST"])],
   [ORG_LIBRARY_SHARE_LINKS_RE, new Set(["GET", "POST"])],
   [ORG_LIBRARY_UPLOAD_LINKS_RE, new Set(["GET", "POST"])],
+  [ORG_LIBRARY_ACTIVITY_RE, new Set(["GET"])],
   [ORG_LIBRARY_FILE_COMMENTS_RE, new Set(["GET", "POST"])],
   [ORG_LIBRARY_FILE_COMMENT_RE, new Set(["PATCH", "DELETE"])],
   [ORG_LIBRARY_COLLECTIONS_RE, new Set(["GET", "POST"])],

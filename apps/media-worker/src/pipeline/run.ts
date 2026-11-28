@@ -46,7 +46,7 @@ interface Cleaned {
 }
 
 export async function runPipeline(env: Env, p: PipelineParams, step: Step, now: () => Date = () => new Date()): Promise<string> {
-  const idx = indexFor(env, { orgId: p.orgId, libraryId: p.libraryId });
+  const idx = indexFor(env, { orgId: p.orgId, libraryId: p.libraryId, actor: "pipeline" });
   const bucket = env.MEDIA_BUCKET!;
   const repo = env.PLATFORM_DB ? createMediaRepository(createSqlExecutor(env.PLATFORM_DB)) : null;
   let stage = "load";

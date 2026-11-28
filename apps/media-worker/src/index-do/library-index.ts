@@ -10,6 +10,7 @@ import { IndexError, LibraryIndexCore, type BatchAction, type ListFilter, type L
 import { startPipeline } from "../pipeline/start.js";
 import { abortUpload } from "../storage/object-store.js";
 import { drainOutbox } from "./routes.js";
+import { activityFor } from "./activity.js";
 import { MAX_SOCKETS, SOCKET_TTL_MS, broadcastPresence, changeFor, deliver, onClientMessage, type Attachment, type LiveSocket } from "./live.js";
 
 export type IndexOp =
@@ -56,6 +57,7 @@ export type IndexOp =
   | { op: "collectionFiles"; id: string; servedOnly?: boolean; limit: number }
   | { op: "inCollection"; id: string; fileId: string }
   | { op: "gallery"; id: string }
+  | { op: "listActivity"; fileId?: string; before?: number; limit: number }
   | { op: "listComments"; fileId: string }
   | { op: "getComment"; id: string }
   | { op: "addComment"; input: Parameters<LibraryIndexCore["addComment"]>[0] }
@@ -64,6 +66,24 @@ export type IndexOp =
   | { op: "deleteComment"; id: string; fileId: string };
 
 export type IndexResult = { ok: true; value: unknown } | { ok: false; code: string; message: string };
+
+/** Run one operation and, when it changed something, record it in the activity log. */
+export function dispatchAndRecord(core: LibraryIndexCore, scope: Scope, req: IndexOp, nowIso = new Date().toISOString()): IndexResult {
+  const result = dispatch(core, scope, req);
+  if (result.ok) {
+    const entries = activityFor(req, result.value);
+    if (entries.length) {
+      try {
+        // Takedowns and reinstatements are an operator's: the team sees "operator", never who.
+        const actor = req.op === "takedown" || req.op === "reinstate" ? "operator" : (scope.actor ?? "system");
+        core.recordActivity(actor, entries, nowIso);
+      } catch {
+        /* the log never fails the operation */
+      }
+    }
+  }
+  return result;
+}
 
 /** Dispatch one operation to the core. Shared by the Durable Object and the tests. */
 export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): IndexResult {
@@ -156,6 +176,8 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
         return { ok: true, value: core.collectionFiles(req.id, { servedOnly: req.servedOnly ?? false, limit: req.limit }) };
       case "inCollection":
         return { ok: true, value: core.inCollection(req.id, req.fileId) };
+      case "listActivity":
+        return { ok: true, value: core.listActivity({ ...(req.fileId ? { fileId: req.fileId } : {}), ...(req.before ? { before: req.before } : {}), limit: req.limit }) };
       case "listComments":
         return { ok: true, value: core.listComments(req.fileId) };
       case "getComment":
@@ -200,7 +222,7 @@ export class LibraryIndex extends DurableObject<Env> {
   }
 
   async call(scope: Scope, req: IndexOp): Promise<IndexResult> {
-    const result = dispatch(this.core, scope, req);
+    const result = dispatchAndRecord(this.core, scope, req);
     if (result.ok) {
       const change = changeFor(req, result.value);
       if (change) {

@@ -138,6 +138,13 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
       trashFolder: (org, id, path) => request("POST", `${lib(org, id)}/folders/trash`, { path }),
       tags: (org, id) => request("GET", `${lib(org, id)}/tags`),
       liveTicket: (org, id) => request("POST", `${lib(org, id)}/live-tickets`),
+      activity: (org, id, { file, cursor } = {}) => {
+        const q = new URLSearchParams();
+        if (file) q.set("file", file);
+        if (cursor) q.set("cursor", cursor);
+        const qs = q.toString();
+        return request("GET", `${lib(org, id)}/activity${qs ? `?${qs}` : ""}`);
+      },
       // PV6: sharing
       shareLinks: (org, id, target = {}) => {
         const q = new URLSearchParams();

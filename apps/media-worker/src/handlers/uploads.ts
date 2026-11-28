@@ -137,7 +137,7 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
     return errorResponse("too_large", "This file is larger than the library allows", 413, ctx.requestId, { max: settings.maxUploadBytes });
   }
 
-  const idx = indexFor(ctx.env, { orgId, libraryId });
+  const idx = indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId });
   const [limits, usage, blob] = await Promise.all([
     limitsFor(ctx, orgId),
     ctx.repo.getUsage(orgId, monthOf(ctx.now())),
@@ -231,7 +231,7 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
 async function ownSession(ctx: Ctx, orgId: string, libraryId: string, sessionId: string) {
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.upload");
   if (!a.ok) return { ok: false as const, response: a.response };
-  const idx = indexFor(ctx.env, { orgId, libraryId });
+  const idx = indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId });
   const s = await idx.call<SessionRow | null>({ op: "getSession", id: sessionId });
   if (!s || s.created_by !== ctx.actor.subjectId) return { ok: false as const, response: nf(ctx) };
   return { ok: true as const, a, idx, s };

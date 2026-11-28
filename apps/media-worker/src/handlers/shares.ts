@@ -123,7 +123,7 @@ export async function handleCreateShareLink(ctx: Ctx, request: Request, orgId: s
   if (!publicSharingAllowed(ctx.env)) return sharingOff(ctx.requestId);
   if (!ctx.env.SERVE_BASE) return errorResponse("unavailable", "Links aren't available for this library yet", 409, ctx.requestId);
 
-  const idx = indexFor(ctx.env, { orgId, libraryId });
+  const idx = indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId });
   let targetId: string;
   let label: string;
   if (kind === "file") {

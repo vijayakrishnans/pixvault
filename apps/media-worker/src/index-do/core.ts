@@ -25,6 +25,8 @@ export class IndexError extends Error {
 export interface Scope {
   orgId: string;
   libraryId: string;
+  /** Who is acting (usr_…, upl_…, "pipeline", "operator"), for the activity log; not part of the scope check. */
+  actor?: string;
 }
 
 export interface FileRow {
@@ -173,6 +175,10 @@ CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY, file_id TEXT NOT NULL, author TEXT NOT NULL, body TEXT NOT NULL, mentions_json TEXT NOT NULL DEFAULT '[]',
   created_at TEXT NOT NULL, edited_at TEXT, resolved_at TEXT, resolved_by TEXT);
 CREATE INDEX IF NOT EXISTS comments_file ON comments (file_id, created_at);
+CREATE TABLE IF NOT EXISTS activity (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, actor TEXT NOT NULL, op TEXT NOT NULL, file_id TEXT, folder TEXT,
+  detail TEXT NOT NULL DEFAULT '{}');
+CREATE INDEX IF NOT EXISTS activity_file ON activity (file_id, seq);
 CREATE TABLE IF NOT EXISTS live_tickets (
   ticket TEXT PRIMARY KEY, subject TEXT NOT NULL, scope TEXT NOT NULL, expires_at TEXT NOT NULL);
 `;
@@ -275,6 +281,25 @@ export interface CommentRow {
   resolved_by: string | null;
 }
 
+export interface ActivityRow {
+  seq: number;
+  at: string;
+  actor: string;
+  op: string;
+  file_id: string | null;
+  folder: string | null;
+  detail: string;
+}
+
+export interface ActivityInput {
+  op: string;
+  fileId?: string | null;
+  folder?: string | null;
+  detail?: Record<string, string | number | boolean | null>;
+}
+
+/** The newest entries kept per library. */
+export const ACTIVITY_KEEP = 10_000;
 export const MAX_COMMENTS_PER_FILE = 1000;
 export const MAX_COLLECTION_ITEMS = 5000;
 export const MAX_COLLECTIONS = 500;
@@ -665,6 +690,42 @@ export class LibraryIndexCore {
     const page = rows.slice(0, opts.limit);
     const last = page[page.length - 1];
     return { files: page, nextCursor: rows.length > opts.limit && last ? `${last.created_at}|${last.id}` : null };
+  }
+
+  // ── activity (PV6): who did what to which file ────────────
+
+  recordActivity(actor: string, entries: ActivityInput[], nowIso: string): void {
+    if (!entries.length) return;
+    this.sql.transaction(() => {
+      for (const e of entries) {
+        this.sql.exec(
+          `INSERT INTO activity (at, actor, op, file_id, folder, detail) VALUES (?, ?, ?, ?, ?, ?)`,
+          nowIso, actor, e.op, e.fileId ?? null, e.folder ?? null, JSON.stringify(e.detail ?? {}),
+        );
+      }
+      const last = Number(one(this.sql.exec<{ s: number }>(`SELECT MAX(seq) AS s FROM activity`).toArray())?.s ?? 0);
+      // Prune now and then, not on every write.
+      if (last % 200 < entries.length) this.sql.exec(`DELETE FROM activity WHERE seq <= ?`, last - ACTIVITY_KEEP);
+    });
+  }
+
+  /** Newest first; `before` is a seq cursor. */
+  listActivity(opts: { fileId?: string; before?: number; limit: number }): { entries: ActivityRow[]; nextCursor: number | null } {
+    const where: string[] = [];
+    const params: unknown[] = [];
+    if (opts.fileId) {
+      where.push(`file_id = ?`);
+      params.push(opts.fileId);
+    }
+    if (opts.before) {
+      where.push(`seq < ?`);
+      params.push(opts.before);
+    }
+    const rows = this.sql
+      .exec<ActivityRow>(`SELECT * FROM activity ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY seq DESC LIMIT ?`, ...params, opts.limit + 1)
+      .toArray();
+    const page = rows.slice(0, opts.limit);
+    return { entries: page, nextCursor: rows.length > opts.limit ? page[page.length - 1]!.seq : null };
   }
 
   // ── comments (PV6) ────────────────────────────────────────

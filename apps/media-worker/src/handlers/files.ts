@@ -139,7 +139,7 @@ export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, library
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 50) || 50, 1), 200);
   const cursor = url.searchParams.get("cursor") ?? undefined;
   if (cursor !== undefined && !/^[\d\-T:.Z]{10,40}\|[0-9a-f-]{36}$/.test(cursor)) return validationError(ctx.requestId, { cursor: ["Invalid cursor"] });
-  const r = await indexFor(ctx.env, { orgId, libraryId }).call<{ files: FileRow[]; nextCursor: string | null }>({
+  const r = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<{ files: FileRow[]; nextCursor: string | null }>({
     op: "listFiles",
     ...filters.f,
     ...(folder !== undefined ? { folder } : {}),
@@ -153,7 +153,7 @@ export async function handleListFiles(ctx: Ctx, url: URL, orgId: string, library
 export async function loadFile(ctx: Ctx, orgId: string, libraryId: string, fileId: string) {
   const a = await loadAuthorized(ctx, orgId, libraryId, "library.read");
   if (!a.ok) return { ok: false as const, response: a.response };
-  const idx = indexFor(ctx.env, { orgId, libraryId });
+  const idx = indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId });
   const got = await idx.call<{ file: FileRow; objectKey: string | null } | null>({ op: "getFileWithKey", id: fileId });
   if (!got) return { ok: false as const, response: nf(ctx) };
   return { ok: true as const, a, idx, file: got.file, objectKey: got.objectKey };

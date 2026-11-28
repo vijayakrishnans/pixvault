@@ -85,7 +85,7 @@ function indexError(ctx: Ctx, e: unknown): Response {
 export async function handleListCollections(ctx: Ctx, orgId: string, libraryId: string): Promise<Response> {
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.list");
   if (!a.ok) return a.response;
-  const rows = await indexFor(ctx.env, { orgId, libraryId }).call<CollectionRow[]>({ op: "listCollections" });
+  const rows = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<CollectionRow[]>({ op: "listCollections" });
   return successResponse({ collections: rows.map((c) => toPublicCollection(c, a.lib, ctx.env)) }, ctx.requestId);
 }
 
@@ -99,7 +99,7 @@ export async function handleCreateCollection(ctx: Ctx, request: Request, orgId: 
   if (!a.ok) return a.response;
   if (patch.publicGallery && !publicSharingAllowed(ctx.env)) return sharingOff(ctx.requestId);
   try {
-    const c = await indexFor(ctx.env, { orgId, libraryId }).call<CollectionRow>({
+    const c = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<CollectionRow>({
       op: "createCollection",
       input: { id: crypto.randomUUID(), name: patch.name!, description: patch.description ?? "", publicGallery: patch.publicGallery ?? false, actor: actorUuid(ctx.actor.subjectId), nowIso: ctx.now().toISOString() },
     });
@@ -113,7 +113,7 @@ export async function handleCreateCollection(ctx: Ctx, request: Request, orgId: 
 export async function handleGetCollection(ctx: Ctx, orgId: string, libraryId: string, id: string): Promise<Response> {
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.list");
   if (!a.ok) return a.response;
-  const idx = indexFor(ctx.env, { orgId, libraryId });
+  const idx = indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId });
   const c = await idx.call<CollectionRow | null>({ op: "getCollection", id });
   if (!c) return errorResponse("not_found", "Not found", 404, ctx.requestId);
   const files = await idx.call<FileRow[]>({ op: "collectionFiles", id, limit: 500 });
@@ -130,7 +130,7 @@ export async function handleUpdateCollection(ctx: Ctx, request: Request, orgId: 
   if (!a.ok) return a.response;
   if (patch.publicGallery && !publicSharingAllowed(ctx.env)) return sharingOff(ctx.requestId);
   try {
-    const c = await indexFor(ctx.env, { orgId, libraryId }).call<CollectionRow>({ op: "updateCollection", id, patch, nowIso: ctx.now().toISOString() });
+    const c = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<CollectionRow>({ op: "updateCollection", id, patch, nowIso: ctx.now().toISOString() });
     return successResponse({ collection: toPublicCollection(c, a.lib, ctx.env) }, ctx.requestId);
   } catch (e) {
     return indexError(ctx, e);
@@ -142,7 +142,7 @@ export async function handleDeleteCollection(ctx: Ctx, orgId: string, libraryId:
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.update");
   if (!a.ok) return a.response;
   try {
-    await indexFor(ctx.env, { orgId, libraryId }).call({ op: "deleteCollection", id });
+    await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call({ op: "deleteCollection", id });
     return successResponse({ deleted: true }, ctx.requestId);
   } catch (e) {
     return indexError(ctx, e);
@@ -166,7 +166,7 @@ export async function handleCollectionItems(ctx: Ctx, request: Request, orgId: s
     else bad.push(raw.slice(0, 80));
   }
   try {
-    const r = await indexFor(ctx.env, { orgId, libraryId }).call<{ collection: CollectionRow; changed: number; failed: string[] }>({
+    const r = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<{ collection: CollectionRow; changed: number; failed: string[] }>({
       op: "collectionItems",
       id,
       action: b!.action as "add" | "remove",

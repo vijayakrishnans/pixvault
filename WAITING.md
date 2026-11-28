@@ -84,6 +84,7 @@ The product serves on `*.vijayakrishnan12994.workers.dev` until it has a domain.
 **Decision (2026-11-28):** the user will choose the domain later, after looking at some unique names (as was done
 for another of their products). Nothing is registered or proposed until then; `pixvault.app` was only a placeholder.
 **Steps:** once chosen, register it and add the zone to the Cloudflare account behind `int_4da71819…`.
+**Email routing will be done later** (the user's decision, 2026-11-28), with the domain.
 Then set notifications-worker's `EMAIL_FROM_ADDRESS` (stage and prod) on that domain and onboard it for Cloudflare Email:
 until then no email is delivered (sign-in codes on prod included), because the sender is a placeholder domain (GAPS G92).
 **Signal:** the zone is active in that account. The parked custom-domain component is then switched on, routing

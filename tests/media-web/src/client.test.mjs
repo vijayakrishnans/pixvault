@@ -148,3 +148,12 @@ test("the sharing calls: share links, upload links, collections and comments", a
     assert.deepEqual(f.calls[n].init.body === undefined ? undefined : JSON.parse(f.calls[n].init.body), body);
   }
 });
+
+test("activity: the library's log, or one file's, with a cursor", async () => {
+  const f = fakeFetch(200, { data: { activity: [], nextCursor: null } });
+  const c = createClient({ base: "https://edge", fetchImpl: f.fn, token: () => "tok" });
+  await c.libraries.activity("org_1", "lib_2");
+  await c.libraries.activity("org_1", "lib_2", { file: "fil_3", cursor: "42" });
+  assert.equal(f.calls[0].url, "https://edge/v1/organizations/org_1/libraries/lib_2/activity");
+  assert.equal(f.calls[1].url, "https://edge/v1/organizations/org_1/libraries/lib_2/activity?file=fil_3&cursor=42");
+});
