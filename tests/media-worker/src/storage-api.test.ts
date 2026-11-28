@@ -73,6 +73,7 @@ describe("library storage API", () => {
     const r = await w.call(owner, "GET", `${base}/storage`);
     expect(r.status).toBe(200);
     expect(r.json.data.current).toMatchObject({ kind: "managed-r2", status: "active" });
+    expect(r.json.data.holds).toEqual({ files: 0, uploads: 0 });
     expect(r.json.data.current.id).toMatch(/^stb_[0-9a-f]{32}$/);
     expect((await w.call(editor, "GET", `${base}/storage`)).status).toBe(404);
     expect((await w.call(outsider, "GET", `${base}/storage`)).status).toBe(404);

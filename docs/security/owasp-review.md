@@ -183,6 +183,11 @@ Each PR says which of these it touches and what it did:
 - **A04/A08 integrity:** every copied object is read back from the target and its SHA-256 compared with the index before the page counts; large objects are copied in 32 MiB ranged parts. Uploads, purges and the pipeline's blob swaps are refused while the lock is held, so nothing changes behind the copy. A failed run releases the lock and retires the pending target with its error code.
 - **Data handling:** old copies are kept (files are deleted only through trash and retention); the run never logs keys or contents.
 
+### Storage tab (PV-48): how the checklist was met
+- **A01:** shown to library managers only; the API behind it answers 404 to anyone else.
+- **A02/A07 secrets in the browser:** the secret is a password field with autocomplete off; keys travel only in request bodies (a client test checks no URL carries them); the form is cleared once the keys are used and when the tab closes; nothing is written to local or session storage (stage check).
+- **A10:** endpoint refusals from storage-worker show under the field; the app never contacts the bucket itself.
+
 ### Ahead: what the next milestones must design in
 - **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;
@@ -191,11 +196,6 @@ Each PR says which of these it touches and what it did:
   - rate limits on password tries;
   - upload links enforce type, size and count;
   - no listing of a share's siblings.
-- **PV7, BYO storage (SSRF):**
-  - endpoints must be HTTPS hostnames, never IP literals;
-  - private, loopback, link-local and metadata ranges are refused after DNS resolution;
-  - no redirects followed;
-  - credentials are envelope-encrypted and never returned.
 - **PV8, custom domains:**
   - verify ownership before routing;
   - guard against dangling-DNS takeover when a domain is removed;

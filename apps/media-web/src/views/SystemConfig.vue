@@ -127,6 +127,9 @@
             </el-table>
           </div>
         </el-tab-pane>
+        <el-tab-pane v-if="isManager" :label="$t('settings.storage')" name="storage" lazy>
+          <StorageSettings :org="org" :lib="lib" />
+        </el-tab-pane>
       </el-tabs>
     </template>
   </AppShell>
@@ -136,6 +139,7 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api/client";
 import AppShell from "@/components/AppShell.vue";
+import StorageSettings from "@/components/StorageSettings.vue";
 
 const lines = (s) =>
   String(s || "")
@@ -145,7 +149,7 @@ const lines = (s) =>
 
 export default {
   name: "LibrarySettings",
-  components: { AppShell },
+  components: { AppShell, StorageSettings },
   props: { org: { type: String, required: true }, lib: { type: String, required: true } },
   data: () => ({
     loading: true,

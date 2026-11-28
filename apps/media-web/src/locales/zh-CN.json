@@ -76,7 +76,8 @@
     "ipAllow": "IP 白名单，每行一个",
     "ipBlock": "IP 黑名单，每行一个",
     "random": "随机图 API",
-    "presets": "图片处理预设，每行一个"
+    "presets": "图片处理预设，每行一个",
+    "storage": "存储"
   },
   "members": {
     "title": "成员",
@@ -384,6 +385,53 @@
       "collection_deleted": "删除了一个合集",
       "collection_files_added": "向 {collection} 添加了 {files} 个文件",
       "collection_files_removed": "从 {collection} 移除了 {files} 个文件"
+    }
+  },
+  "storage": {
+    "current": "此资料库的文件存放位置",
+    "managed": "Pixvault 存储",
+    "byo": "您的存储桶",
+    "unhealthy": "无响应（{code}）",
+    "healthy": "存储桶响应正常",
+    "recheck": "重新检查",
+    "moveBack": "迁回 Pixvault 存储",
+    "lastCheck": "上次检查：{at}",
+    "copying": "正在迁移文件：{copied} / {total}",
+    "copyingNote": "文件仍可读取。上传将等待迁移完成。",
+    "failed": "迁移已停止（{code}）。未做任何更改，文件仍在原处。",
+    "done": "已迁移 {copied} 个文件。",
+    "wizardTitle": "使用您自己的存储桶",
+    "wizardIntro": "支持任何兼容 S3 的存储（AWS S3、Cloudflare R2、Backblaze B2、Wasabi、通过 https 访问的 MinIO）。请提供只能访问此存储桶的密钥。密钥只发送一次，加密保存，之后不再显示。",
+    "step1": "存储桶信息",
+    "step2": "测试",
+    "step3": "切换",
+    "endpoint": "端点（https）",
+    "region": "区域",
+    "bucket": "存储桶",
+    "prefix": "存储桶中的文件夹",
+    "accessKeyId": "访问密钥 ID",
+    "secretAccessKey": "秘密访问密钥",
+    "pathStyle": "路径样式地址（多数非 AWS 服务商）",
+    "test": "测试存储桶",
+    "attach": "使用此存储桶",
+    "move": "将文件迁移到此存储桶",
+    "moveConfirm": "所有文件将被复制到存储桶并校验。上传将等待完成。原位置的副本会保留，直到您删除。继续吗？",
+    "backConfirm": "所有文件将被复制回 Pixvault 存储。上传将等待完成。您的存储桶保留其副本。继续吗？",
+    "backConfirmEmpty": "新文件将存入 Pixvault 存储。继续吗？",
+    "attached": "此资料库现在使用您的存储桶。",
+    "checks": {
+      "put": "写入测试文件",
+      "head": "读取其大小",
+      "get": "读回文件",
+      "list": "在列表中找到它",
+      "delete": "删除它",
+      "open": "打开已保存的密钥"
+    },
+    "hints": {
+      "keys": "密钥被拒绝。请检查访问密钥、秘密密钥，以及它们是否有此存储桶的读、写、列出和删除权限。",
+      "bucket": "在此端点找不到存储桶。请检查存储桶名称、区域和路径样式设置。",
+      "endpoint": "端点无响应。请检查地址（https，不含路径）。",
+      "other": "存储桶拒绝了某一步。请检查其权限后重试。"
     }
   }
 }

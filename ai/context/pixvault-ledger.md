@@ -133,6 +133,7 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - PV7 per-library stores (PV-45): `@saas/shared/media-store` (R2-shaped seam + remote store); media-worker `storage/stores.ts` storeFor (30 s cache, fresh on uploads); library map `b`. End-to-end test media-worker → storage-worker → s3rver.
 - PV7 storage API (PV-46): manager-only `…/storage` routes; index lock `beginStorageSwitch`/`endStorageSwitch`, meta `storage_backend` is the authority commits check; 10 checks/hour/library.
 - PV7 migration (PV-47): `storage/migrate.ts` + MigrateStorageWorkflow (binding MIGRATE_STORAGE); pending backends; lock renewed per page; old copies kept.
+- PV7 ✅ 2026-11-28 (PV-48 Storage tab): stage 9/9 in the app (`browser/pv48-ui.mjs`), 7/7 API (`browser/pv46-api.mjs`). Real-bucket run waits for W-7.
 
 ## Open risks and deferred items
 

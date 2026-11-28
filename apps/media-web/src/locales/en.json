@@ -76,7 +76,8 @@
     "ipAllow": "IP allow list, one per line",
     "ipBlock": "IP block list, one per line",
     "random": "Random-image API",
-    "presets": "Transform presets, one per line"
+    "presets": "Transform presets, one per line",
+    "storage": "Storage"
   },
   "members": {
     "title": "Members",
@@ -384,6 +385,53 @@
       "collection_deleted": "deleted a collection",
       "collection_files_added": "added {files} file(s) to {collection}",
       "collection_files_removed": "removed {files} file(s) from {collection}"
+    }
+  },
+  "storage": {
+    "current": "Where this library's files live",
+    "managed": "Pixvault storage",
+    "byo": "Your bucket",
+    "unhealthy": "Not answering ({code})",
+    "healthy": "The bucket answers",
+    "recheck": "Check again",
+    "moveBack": "Move back to Pixvault storage",
+    "lastCheck": "Last checked {at}",
+    "copying": "Moving files: {copied} of {total}",
+    "copyingNote": "Files stay readable. Uploads wait until the move finishes.",
+    "failed": "The move stopped ({code}). Nothing changed; the files are where they were.",
+    "done": "Moved {copied} files.",
+    "wizardTitle": "Use your own bucket",
+    "wizardIntro": "Any S3-compatible storage works (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO behind https). Give keys that can only reach this bucket. They are sent once, kept encrypted, and never shown again.",
+    "step1": "Bucket details",
+    "step2": "Test",
+    "step3": "Switch",
+    "endpoint": "Endpoint (https)",
+    "region": "Region",
+    "bucket": "Bucket",
+    "prefix": "Folder in the bucket",
+    "accessKeyId": "Access key ID",
+    "secretAccessKey": "Secret access key",
+    "pathStyle": "Path-style addresses (most non-AWS providers)",
+    "test": "Test the bucket",
+    "attach": "Use this bucket",
+    "move": "Move files to this bucket",
+    "moveConfirm": "Every file is copied to the bucket and checked. Uploads wait until it finishes. Copies stay in the old place until you remove them. Continue?",
+    "backConfirm": "Every file is copied back to Pixvault storage. Uploads wait until it finishes. Your bucket keeps its copies. Continue?",
+    "backConfirmEmpty": "New files will go to Pixvault storage. Continue?",
+    "attached": "This library now uses your bucket.",
+    "checks": {
+      "put": "Write a test file",
+      "head": "Read its size",
+      "get": "Read it back",
+      "list": "Find it in a listing",
+      "delete": "Delete it",
+      "open": "Open the stored keys"
+    },
+    "hints": {
+      "keys": "The keys were refused. Check the access key, the secret, and that the keys may read, write, list and delete in this bucket.",
+      "bucket": "The bucket wasn't found at this endpoint. Check the bucket name, the region, and path-style addresses.",
+      "endpoint": "The endpoint didn't answer. Check the address (https, no path).",
+      "other": "The bucket refused a step. Check its permissions and try again."
     }
   }
 }

@@ -1122,6 +1122,16 @@ export class LibraryIndexCore {
     return { ok: true, blobs, bytes };
   }
 
+  /** What the library holds, for the storage screen: files in any state, blobs, and live uploads. */
+  storageHolds(nowIso: string): { files: number; blobs: number; uploads: number } {
+    const n = (q: string, ...p: string[]) => Number(one(this.sql.exec<{ n: number }>(q, ...p).toArray())?.n ?? 0);
+    return {
+      files: n(`SELECT COUNT(*) AS n FROM files`),
+      blobs: n(`SELECT COUNT(*) AS n FROM blobs`),
+      uploads: n(`SELECT COUNT(*) AS n FROM sessions WHERE state = 'open' AND expires_at > ?`, nowIso),
+    };
+  }
+
   /** Keep a long storage change locked (a migration extends it as it goes). */
   extendStorageLock(untilIso: string): void {
     if (this.meta("storage_lock_until")) this.setMeta("storage_lock_until", untilIso);

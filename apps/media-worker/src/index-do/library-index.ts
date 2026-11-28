@@ -31,6 +31,7 @@ export type IndexOp =
   | { op: "versions"; id: string }
   | { op: "beginStorageSwitch"; nowIso: string; untilIso: string; allowFiles?: boolean }
   | { op: "extendStorageLock"; untilIso: string }
+  | { op: "storageHolds"; nowIso: string }
   | { op: "blobsPage"; after: string; limit: number }
   | { op: "migration" }
   | { op: "setMigration"; migration: Record<string, unknown> }
@@ -130,6 +131,8 @@ export function dispatch(core: LibraryIndexCore, scope: Scope, req: IndexOp): In
         return { ok: true, value: core.versions(req.id) };
       case "beginStorageSwitch":
         return { ok: true, value: core.beginStorageSwitch(req.nowIso, req.untilIso, { allowFiles: req.allowFiles === true }) };
+      case "storageHolds":
+        return { ok: true, value: core.storageHolds(req.nowIso) };
       case "extendStorageLock":
         core.extendStorageLock(req.untilIso);
         return { ok: true, value: true };
