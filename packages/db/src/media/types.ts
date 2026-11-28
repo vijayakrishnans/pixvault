@@ -62,6 +62,30 @@ export interface StorageBackend {
   kind: "managed-r2" | "s3-compatible";
   prefix: string;
   status: string;
+  /** s3-compatible only. */
+  endpoint?: string | null;
+  region?: string | null;
+  bucket?: string | null;
+  pathStyle?: boolean;
+  /** Envelope-encrypted credentials (only storage-worker can open them). */
+  credentialRef?: string | null;
+  lastCheckAt?: string | null;
+  lastError?: string | null;
+  createdAt?: string;
+}
+
+export interface StorageBackendInput {
+  id: string;
+  orgId: string;
+  libraryId: string;
+  endpoint: string;
+  region: string;
+  bucket: string;
+  prefix: string;
+  pathStyle: boolean;
+  credentialRef: string;
+  status: "active" | "pending";
+  at: Date;
 }
 
 export interface CreateLibraryInput {
@@ -152,6 +176,13 @@ export interface MediaRepository {
   acceptInvitation(invitation: LibraryInvitation, principalId: string, at: Date): Promise<MediaResult<LibraryMember>>;
 
   getStorageBackend(orgId: string, libraryId: string): Promise<MediaResult<StorageBackend>>;
+  /** One backend by id, within its org and library (PV7). */
+  getStorageBackendById(orgId: string, libraryId: string, id: string): Promise<MediaResult<StorageBackend>>;
+  listStorageBackends(orgId: string, libraryId: string): Promise<MediaResult<StorageBackend[]>>;
+  createStorageBackend(input: StorageBackendInput): Promise<MediaResult<StorageBackend>>;
+  /** Record a health check: active with no error, or error with the S3 code. */
+  recordStorageCheck(id: string, ok: boolean, errorCode: string | null, at: Date): Promise<MediaResult<true>>;
+  retireStorageBackend(orgId: string, libraryId: string, id: string, at: Date): Promise<MediaResult<true>>;
 
   /** Fill in a library's org slug and signing key where they're missing (never overwrites). */
   setServingIdentity(orgId: string, libraryId: string, orgSlug: string, signingKey: string, at: Date): Promise<MediaResult<Library>>;

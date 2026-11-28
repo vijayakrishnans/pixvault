@@ -1,0 +1,27 @@
+// Rendered to wrangler.jsonc by tooling/wire/render.mjs (BF6 deploy-time wiring).
+// Resource IDs are NEVER committed: @@wiring(<component>/<env>:<key>)@@ tokens are resolved at deploy time.
+// storage-worker has no public route: media-worker and serve-worker reach it over service bindings (PV7).
+// STORAGE_KEK is a Worker secret generated in CI on first deploy (component.yaml), never in this file.
+{
+  "name": "pixvault-storage-worker",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/index.ts",
+  "minify": false,
+  "vars": { "ENVIRONMENT": "local" },
+  "env": {
+    "dev": { "vars": { "ENVIRONMENT": "dev" } },
+    "stage": {
+      "workers_dev": false,
+      "observability": { "enabled": true, "head_sampling_rate": 1 },
+      "vars": { "ENVIRONMENT": "stage" },
+      "d1_databases": [{ "binding": "PLATFORM_DB", "database_name": "pixvault-stage", "database_id": "@@wiring(cloudflare-d1/stage:d1_database_id)@@" }]
+    },
+    "prod": {
+      "workers_dev": false,
+      "observability": { "enabled": true, "head_sampling_rate": 1 },
+      "vars": { "ENVIRONMENT": "prod" },
+      "d1_databases": [{ "binding": "PLATFORM_DB", "database_name": "pixvault-prod", "database_id": "@@wiring(cloudflare-d1/prod:d1_database_id)@@" }]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+# PV-44: PV7, storage-worker. Minted under milestone PV7; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-44
+spec:
+  goal: "storage-worker, a new internal-only Worker, tests customer S3-compatible buckets, stores their credentials envelope-encrypted (a per-backend data key sealed by STORAGE_KEK, generated in CI), records health checks, and runs object operations for one org and library under the backend's prefix. Endpoints are refused unless they are public https host names (SSRF), and every request has a deadline."
+  affects:
+    - default/pixvault/storage-worker
+    - default/pixvault/storage-worker-tests
+    - default/pixvault/db
+    - apps/storage-worker/**
+    - tests/storage-worker/**
+    - packages/db/**
+    - pnpm-lock.yaml
+    - .gitignore
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "credentials are sealed with a fresh data key, bound to the backend; another row, a wrong key or a changed byte can't open them (test)"
+    - "IP literals, local and internal names, user info, odd ports and plain http are refused (test)"
+    - "a bucket check writes, reads, lists and deletes a test object; a failing bucket isn't stored (test)"
+    - "object operations only touch keys under the backend's prefix, in its own org and library; anything else is 404 (test)"
+    - "a backend that stops working shows error with the S3 code, and recovers on the next check (test)"
+    - "a server that never answers ends in a Timeout code (test)"
+    - "storage-worker deploys to stage and prod with STORAGE_KEK present (CI smoke)"
+  gates: []
