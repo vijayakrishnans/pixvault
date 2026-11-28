@@ -8,7 +8,7 @@ packages:
 # dependents already use. Mostly build-time tooling under the console's OpenNext adapter. See
 # docs/security/owasp-review.md and tooling/security/audit-allowlist.json.
 overrides:
-  "fast-xml-parser@<4.5.5": "^4.5.5"
+  "fast-xml-parser@>=4.0.0 <4.5.5": "^4.5.5"
   "postcss@<8.5.18": "^8.5.18"
   "undici@>=7.0.0 <7.30.1": "^7.30.1"
   "body-parser@>=2.0.0 <2.4.0": "^2.4.0"

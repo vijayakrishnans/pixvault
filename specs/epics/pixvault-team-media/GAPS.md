@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-43 (PV6 closed)._
+_Last updated: 2026-11-28, PV-42 (after PV6 closed)._
 
 ## Blocked
 
@@ -25,7 +25,7 @@ _Last updated: 2026-11-28, PV-43 (PV6 closed)._
 | G2 | **CSAM scanning** (W-5) | It's enabled per zone in the Cloudflare dashboard and isn't available on `workers.dev`. | No CSAM scanning on any serving host. | **Public sharing stays off in prod** until W-5 and W-6 are done (risk PV-A), **enforced since PV-34**: `PUBLIC_SHARING=off` on prod's media-worker and serve-worker refuses public files, public defaults, the random API, share links, upload links and galleries; serving needs a signature. Turning it on is one var per worker. | PV4 / PV8 |
 | G3 | **Product domain** (W-6) | The user will choose a unique name later; `pixvault.app` was a placeholder. Nothing is registered. | Everything is served on `*.vijayakrishnan12994.workers.dev`: no `i.`/`app.`/`dav.` hosts, and no CSAM scanning (G2). | `productdomain` was left empty at bootstrap; the parked custom-domain component can be switched on later. | When the domain exists |
 | G4 | **Grievance officer details and legal review** (W-1, W-2) | They need a person and a lawyer. | `ABUSE.md` has a placeholder section; terms and privacy pages aren't written. | Policy text and process are in `ABUSE.md`. | PV11 |
-| G5 | **BYO test bucket** (W-7) and **Docker for MinIO** (W-9) | Credentials and a local daemon. | No end-to-end BYO test against a real S3 endpoint yet. | — | PV7 |
+| G5 | **BYO test bucket** (W-7) and **Docker for MinIO** (W-9) | Credentials and a local daemon. | No end-to-end BYO test against a real S3 endpoint yet. | The S3 client (PV-42) is pinned by AWS's published SigV4 examples and round-trips against s3rver in the tests; Docker is up but can't pull images here | PV7, once W-7 exists |
 | G6 | **`nexo` connection and the `openproduct-sms84q22` account** (W-8) | `nexo` is revoked on `openproduct-6ny98czp`, and the brief's account gives this login no account role. | Pixvault runs on the user's own Cloudflare account, not Nexo's. | The user chose `openproduct-6ny98czp`; the active connection `int_4da71819…` is used. Moving to Nexo is a redeploy, not a code change. | If the user asks |
 
 ## Done differently

@@ -108,3 +108,4 @@ on this account and say so; that is a redeploy, not a code change.
 
 **Steps:** turn on Docker Desktop's WSL integration for the build machine's distro.
 **Signal:** `docker version` prints a Server section.
+**Status (2026-11-28):** the daemon is up, but image pulls fail here (Docker Hub denied, quay.io 401), and running a downloaded MinIO binary was refused by the agent's safety checks. The S3 client is tested against an in-process S3-compatible server (s3rver) and AWS's published signatures; a real-bucket end-to-end run waits for W-7, or for a MinIO the user starts.
