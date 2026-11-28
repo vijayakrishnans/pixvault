@@ -1,0 +1,22 @@
+# PV-42: PV7, the S3 client. Minted under milestone PV7; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-42
+spec:
+  goal: "@saas/shared/s3 is a WebCrypto SigV4 client for any S3-compatible bucket (signed and presigned requests; put with a signed payload hash, get with ranges, head, delete, list, multipart), adapted from ImgBed's s3Client settings, tested against AWS's published signatures and an in-process S3-compatible server."
+  affects:
+    - default/pixvault/shared
+    - default/pixvault/media-worker-tests
+    - packages/shared/**
+    - tests/media-worker/**
+    - pnpm-workspace.yaml
+    - pnpm-lock.yaml
+    - specs/epics/pixvault-team-media/**
+    - WAITING.md
+    - tasks/**
+  doneWhen:
+    - "signatures match AWS's published GET Object and presigned URL examples (test)"
+    - "put, ranged get, head, list, delete and multipart round-trip against an S3-compatible server (test)"
+    - "errors carry the S3 code and never the URL (test)"
+  gates: []
