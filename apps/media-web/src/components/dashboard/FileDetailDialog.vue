@@ -126,6 +126,7 @@ export default {
       return `${v < 10 && i ? v.toFixed(1) : Math.round(v)} ${UNITS[i]}`;
     },
     who(sub) {
+      if (String(sub).startsWith("upl_")) return this.$t("browse.viaUploadLink");
       return this.names[sub] ?? sub;
     },
     async loadVersions() {

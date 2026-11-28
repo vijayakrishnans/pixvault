@@ -52,6 +52,8 @@ export interface FileRow {
   moderation: string | null;
   /** Why the pipeline held the file, or what it did (no file content). */
   pipeline_note: string | null;
+  /** 1: held for review after the pipeline (upload-link uploads, PV6). */
+  review_required?: number;
 }
 
 /** Pipeline outcome for one file version (written by ProcessFileWorkflow). */
@@ -105,6 +107,9 @@ export interface CommitResult {
 }
 
 export const MAX_VERSIONS = 10;
+
+/** pipeline_note of a file held because it came through an upload link and waits for review. */
+export const REVIEW_NOTE = "review:upload_link";
 
 /** What serve-worker needs to serve one path (design §1.3). Written to KV as `route:<libraryId>:<sha256(path)>`. */
 export interface RouteValue {
@@ -263,6 +268,8 @@ const ADDED_COLUMNS: [table: string, column: string, ddl: string][] = [
   ["files", "tags", "TEXT"],
   ["files", "moderation", "TEXT"],
   ["files", "pipeline_note", "TEXT"],
+  // PV6: 1 for a file that waits for a person's review after the pipeline (an upload-link upload).
+  ["files", "review_required", "INTEGER NOT NULL DEFAULT 0"],
 ];
 
 const one = <T>(rows: T[]): T | null => rows[0] ?? null;
@@ -450,11 +457,13 @@ export class LibraryIndexCore {
     return this.sql.transaction(() => {
       const f = this.getFile(id);
       if (!f || f.status !== "processing" || f.blob_sha256 !== sha256) return null;
+      // A file that must be reviewed waits in the queue even when the pipeline would serve it.
+      const hold = f.review_required === 1 && (result.status === "public" || result.status === "private");
       this.sql.exec(
         `UPDATE files SET status = ?, width = COALESCE(?, width), height = COALESCE(?, height), tags = COALESCE(?, tags),
            moderation = COALESCE(?, moderation), pipeline_note = ?, updated_at = ? WHERE id = ?`,
-        result.status, result.width ?? null, result.height ?? null, result.tags ? JSON.stringify(result.tags) : null,
-        result.moderation ?? null, result.note ?? null, nowIso, id,
+        hold ? "held" : result.status, result.width ?? null, result.height ?? null, result.tags ? JSON.stringify(result.tags) : null,
+        result.moderation ?? null, hold ? REVIEW_NOTE : (result.note ?? null), nowIso, id,
       );
       const done = this.getFile(id)!;
       this.enqueueRoute(done, nowIso);
@@ -476,7 +485,7 @@ export class LibraryIndexCore {
         throw new IndexError("invalid_state", "Processing failed for this file: process it again instead");
       }
       if (decision === "approve") {
-        this.sql.exec(`UPDATE files SET status = visibility, moderation = 'manual', updated_at = ? WHERE id = ?`, nowIso, id);
+        this.sql.exec(`UPDATE files SET status = visibility, moderation = 'manual', review_required = 0, updated_at = ? WHERE id = ?`, nowIso, id);
       } else {
         this.sql.exec(`UPDATE files SET prev_status = status, status = 'trashed', trashed_at = ?, updated_at = ? WHERE id = ?`, nowIso, nowIso, id);
       }
@@ -889,6 +898,8 @@ export class LibraryIndexCore {
     nowIso: string;
     /** The file must pass the pipeline before it is served (images, and public uploads on a free plan). */
     processing?: boolean;
+    /** Hold the new file for a person's review once the pipeline has run (upload links). New files only. */
+    reviewRequired?: boolean;
   }): CommitResult {
     return this.sql.transaction(() => {
       if (input.sessionId) {
@@ -927,7 +938,7 @@ export class LibraryIndexCore {
         // New bytes: earlier pipeline results no longer apply.
         this.sql.exec(
           `UPDATE files SET blob_sha256 = ?, size = ?, mime = ?, version = ?, status = ?, prev_status = NULL, width = NULL,
-             height = NULL, tags = NULL, moderation = NULL, pipeline_note = NULL, updated_at = ? WHERE id = ?`,
+             height = NULL, tags = NULL, moderation = NULL, pipeline_note = NULL, review_required = 0, updated_at = ? WHERE id = ?`,
           input.sha256, input.size, input.mime, version, status, input.nowIso, fileId,
         );
       } else {
@@ -938,6 +949,7 @@ export class LibraryIndexCore {
           fileId, input.path, input.name, input.folder, input.sha256, input.size, input.mime, input.visibility,
           status, input.actor, input.nowIso, input.nowIso,
         );
+        if (input.reviewRequired) this.sql.exec(`UPDATE files SET review_required = 1 WHERE id = ?`, fileId);
         this.ensureFolders(input.folder, input.actor, input.nowIso);
       }
       this.sql.exec(

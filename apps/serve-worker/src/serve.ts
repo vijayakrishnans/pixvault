@@ -10,6 +10,7 @@ import type { Env } from "./env.js";
 import { negotiateFormat, presetOptions, transformImage } from "./transform.js";
 import { ipAllowed, referrerAllowed } from "./rules.js";
 import { SHARE_PREFIX, handleShare, parseSharePath } from "./share.js";
+import { UPLOAD_PREFIX, handleUploadLink, parseUploadPath } from "./upload-link.js";
 import { REPORT_PATH, reportForm, reportLink, reportReceived, submitReport, unavailable } from "./report.js";
 
 interface LibraryMap {
@@ -154,6 +155,12 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
   const url = new URL(request.url);
   if (url.pathname === "/health") return Response.json({ status: "ok", service: "serve-worker", environment: env.ENVIRONMENT ?? "local" });
   if (url.pathname === REPORT_PATH) return handleReport(request, env, url, now);
+  if (url.pathname.startsWith(UPLOAD_PREFIX)) {
+    const token = parseUploadPath(url.pathname);
+    // Upload links are public sharing too: off while it is.
+    if (!token || !publicSharingAllowed(env)) return notFound();
+    return handleUploadLink(request, env, token);
+  }
   if (url.pathname.startsWith(SHARE_PREFIX)) {
     const sp = parseSharePath(url.pathname);
     // Share links are public sharing too: off while it is (prod, until W-5/W-6).

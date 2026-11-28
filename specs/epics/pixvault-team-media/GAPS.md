@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-35._
+_Last updated: 2026-11-28, PV-36._
 
 ## Blocked
 
@@ -55,6 +55,9 @@ _Last updated: 2026-11-28, PV-35._
 | G83 | Share landing at `s.<domain>/<token>` | `/_s/<token>` on serve-worker's host (no domain yet, W-6); the pages ask media-worker over the service binding for every request | No product domain; media-worker has no public route | Moves to `s.<domain>` with PV8 | PV8 |
 | G84 | Share links to collections; a report link on share pages; range requests | File and folder links only; no "Report" on share pages; share bytes stream whole (no `Range`) | Collections arrive later in PV6; the report form keys on serving paths | Can't share a collection yet; abuse via a share link is reported through the team; large videos can't seek | Collections later in PV6; report and Range, PV11 |
 | G85 | An open trail of who opened a link | Counts and last-opened time only | Guests are anonymous, and storing their IPs would be personal data | No per-visit log | Kept |
+| G86 | Guest uploads with the app's resumable, hashed uploader | A plain HTML form (no script under the page CSP); each file at most 50 MB, at most 20 files and 95 MB per submission; not resumable | Workers cap request bodies at 100 MB, and serve-worker reads the form into memory | Guests can't send big files or resume | A scripted guest uploader with presigned parts, PV11 |
+| G87 | Upload links with a password | Expiry, limits and revocation only | Not needed for the done-when; the token is 256 bits | A forwarded link works for whoever has it until it expires or fills | PV11 if asked |
+| G88 | Any type unless the manager restricts it | A new link accepts any type the library accepts (`allowedTypes` empty) | Blocked executable types wait for G28 | A guest can send an executable; it's never served and waits for review | With G28 |
 
 ## Missing (in the design for a closed milestone, not built)
 

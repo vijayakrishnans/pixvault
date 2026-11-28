@@ -1,0 +1,35 @@
+# PV-36: PV6, upload links. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-36
+spec:
+  goal: "Managers create upload links into a folder (expiry, file count, size per file, total size, allowed types, review on by default) and revoke them; guests send files through /_u/<token> on serve-worker; each file is checked and reserved atomically, stored private, run through the safety pipeline and held for review."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/serve-worker
+    - default/pixvault/serve-worker-tests
+    - default/pixvault/db
+    - default/pixvault/db-tests
+    - default/pixvault/db-migrate
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - default/pixvault/media-web
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/serve-worker/**
+    - tests/serve-worker/**
+    - packages/db/**
+    - tests/db/**
+    - apps/api-edge/**
+    - tests/api-edge/**
+    - apps/media-web/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "upload-link size, type, count and expiry limits are enforced (tests)"
+    - "a guest's file waits for review and approving it makes it private, never public (test)"
+    - "revoking an upload link makes the next request 404 (test)"
+  gates: []

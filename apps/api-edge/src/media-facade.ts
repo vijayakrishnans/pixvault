@@ -26,6 +26,8 @@ const ORG_LIBRARY_FOLDERS_ACTION_RE = new RegExp(`${L}\\/folders\\/(move|trash)$
 const ORG_LIBRARY_TAGS_RE = new RegExp(`${L}\\/tags$`);
 const ORG_LIBRARY_LIVE_TICKETS_RE = new RegExp(`${L}\\/live-tickets$`);
 const ORG_LIBRARY_SHARE_LINKS_RE = new RegExp(`${L}\\/share-links$`);
+const ORG_LIBRARY_UPLOAD_LINKS_RE = new RegExp(`${L}\\/upload-links$`);
+const ORG_LIBRARY_UPLOAD_LINK_RE = new RegExp(`${L}\\/upload-links\\/[^/]+$`);
 const ORG_LIBRARY_SHARE_LINK_RE = new RegExp(`${L}\\/share-links\\/[^/]+$`);
 // The live socket: authenticated by a one-use ticket that media-worker's index checks, not by the bearer, and
 // forwarded as is (an upgrade can't be replayed, rate-limited per key or re-wrapped).
@@ -68,6 +70,8 @@ const ALLOWED: ReadonlyArray<[RegExp | string, ReadonlySet<string>]> = [
   [ORG_LIBRARY_TAGS_RE, new Set(["GET"])],
   [ORG_LIBRARY_LIVE_TICKETS_RE, new Set(["POST"])],
   [ORG_LIBRARY_SHARE_LINKS_RE, new Set(["GET", "POST"])],
+  [ORG_LIBRARY_UPLOAD_LINKS_RE, new Set(["GET", "POST"])],
+  [ORG_LIBRARY_UPLOAD_LINK_RE, new Set(["DELETE"])],
   [ORG_LIBRARY_SHARE_LINK_RE, new Set(["DELETE"])],
   [ORG_LIBRARY_LIVE_RE, new Set(["GET"])],
   [ORG_LIBRARY_FILE_RE, new Set(["GET", "DELETE", "PATCH"])],

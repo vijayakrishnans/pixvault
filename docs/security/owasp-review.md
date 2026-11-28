@@ -120,6 +120,22 @@ Each PR says which of these it touches and what it did:
 - **Pages:** no referrer (the token is in the URL), `noindex`, `no-store`, a deny-all CSP with images and media from self, and no framing. Names are escaped. File bytes keep the sandbox CSP and download unless the type is in the inline list.
 - **Prod:** off with public sharing (PV-34).
 
+### Upload links (PV-36): how the checklist was met
+- **Access:** only managers (`upload_link.manage`) create, list and revoke links. A guest's token can only add files to its one folder: it reads nothing, lists nothing, and never replaces an existing file (same names get a number).
+- **Abuse:**
+  - links expire (7 days by default, at most 90);
+  - each file is checked for type and size against the link and the library, and against the team's quota;
+  - the count and bytes are reserved in one conditional `UPDATE` before the bytes are read, so parallel guests can't pass the limits (tested);
+  - submissions are limited to 10 a minute per address, 20 files and 95 MB each.
+- **Content safety:**
+  - guest files are stored private;
+  - they always go through the pipeline with the safety check (GPS removal, moderation for images);
+  - they wait in the review queue by default, behind a flag a replay can't clear;
+  - approving one makes it private, never public.
+- **Pages:** a plain form with no script, under the deny-all page CSP, with no referrer and `noindex`; names are escaped.
+- **Secrets:** a 256-bit token, stored only as a SHA-256 (with an `upload:` domain separator).
+- **Prod:** off with public sharing (PV-34).
+
 ### Ahead: what the next milestones must design in
 - **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;

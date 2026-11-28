@@ -72,6 +72,10 @@ export interface World {
   shareCalls: { route: string; body: Record<string, unknown> }[];
   shareAnswer: (route: string, body: Record<string, unknown>) => Response;
   shareLimited: Set<string>;
+  /** Upload-link calls forwarded to media-worker, and how it answers them. */
+  uploadCalls: { route: string; query: string; body?: unknown; size?: number | undefined }[];
+  uploadAnswer: (route: string, query: URLSearchParams) => Response;
+  uploadLimited: Set<string>;
 }
 
 export function world(): World {
@@ -83,6 +87,7 @@ export function world(): World {
   const w: World = {
     env: {} as Env, kv, r2, images, ae, limited, randomCalls: [], randomResult: null, reports: [], reportLimited: new Set(),
     shareCalls: [], shareAnswer: () => new Response(null, { status: 404 }), shareLimited: new Set(),
+    uploadCalls: [], uploadAnswer: () => new Response(null, { status: 404 }), uploadLimited: new Set(),
   };
   w.env = {
     ENVIRONMENT: "test",
@@ -91,10 +96,19 @@ export function world(): World {
     IMAGES: images as unknown as ImagesBinding,
     SERVE_AE: { writeDataPoint: (p: { blobs: unknown[]; doubles: unknown[] }) => void ae.push(p) } as unknown as AnalyticsEngineDataset,
     SERVE_RL: { limit: async ({ key }: { key: string }) => ({ success: !limited.has(key) }) } as unknown as RateLimit,
+    SERVE_UPLOAD_RL: { limit: async ({ key }: { key: string }) => ({ success: !w.uploadLimited.has(key) }) } as unknown as RateLimit,
     SERVE_SHARE_RL: { limit: async ({ key }: { key: string }) => ({ success: !w.shareLimited.has(key) }) } as unknown as RateLimit,
     SERVE_REPORT_RL: { limit: async ({ key }: { key: string }) => ({ success: !w.reportLimited.has(key) }) } as unknown as RateLimit,
     MEDIA_WORKER: {
       fetch: async (url: string, init: RequestInit) => {
+        const u = String(url).match(/\/v1\/media\/upload-links\/(open|upload)(\?.*)?$/);
+        if (u) {
+          const q = new URLSearchParams((u[2] ?? "").slice(1));
+          const body = init.body;
+          const size = body instanceof Blob ? body.size : undefined;
+          w.uploadCalls.push({ route: u[1]!, query: u[2] ?? "", ...(u[1] === "open" ? { body: JSON.parse(String(body)) } : { size }) });
+          return w.uploadAnswer(u[1]!, q);
+        }
         const m = String(url).match(/\/v1\/media\/shares\/(open|content)$/);
         if (m) {
           const body = JSON.parse(String(init.body)) as Record<string, unknown>;
