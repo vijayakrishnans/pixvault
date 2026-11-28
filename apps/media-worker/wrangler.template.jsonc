@@ -19,7 +19,8 @@
   "env": {
     "dev": {
       "vars": {
-        "ENVIRONMENT": "dev"
+        "ENVIRONMENT": "dev",
+        "PUBLIC_SHARING": "on"
       },
       "durable_objects": {
         "bindings": [{ "name": "LIBRARY_INDEX", "class_name": "LibraryIndex" }]
@@ -32,6 +33,7 @@
       "observability": { "enabled": true, "head_sampling_rate": 1 },
       "vars": {
         "ENVIRONMENT": "stage",
+        "PUBLIC_SHARING": "on",
         "SERVE_BASE": "https://pixvault-serve-worker-stage.vijayakrishnan12994.workers.dev",
         "MODERATION_MODEL": "@cf/mistralai/mistral-small-3.1-24b-instruct",
         "TAGS_MODEL": "@cf/microsoft/resnet-50"
@@ -84,6 +86,7 @@
       "observability": { "enabled": true, "head_sampling_rate": 1 },
       "vars": {
         "ENVIRONMENT": "prod",
+        "PUBLIC_SHARING": "off",
         "SERVE_BASE": "https://pixvault-serve-worker-prod.vijayakrishnan12994.workers.dev",
         "MODERATION_MODEL": "@cf/mistralai/mistral-small-3.1-24b-instruct",
         "TAGS_MODEL": "@cf/microsoft/resnet-50"

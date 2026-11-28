@@ -21,4 +21,6 @@ export interface Env {
   /** One SQLite LibraryIndex Durable Object per library. */
   LIBRARY_INDEX?: DurableObjectNamespace;
   ENVIRONMENT: string;
+  /** "on" | "off": public files, share links, upload links, galleries (off in prod until W-5/W-6; see sharing.ts). */
+  PUBLIC_SHARING?: string;
 }

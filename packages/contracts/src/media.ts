@@ -88,6 +88,8 @@ export interface PublicLibrary {
   myRole: LibraryRole | null;
   createdAt: string;
   updatedAt: string;
+  /** On GET of one library: whether this service offers public files and links (off in prod until W-5/W-6). */
+  publicSharing?: boolean;
 }
 
 export interface CreateLibraryRequest {

@@ -1,3 +1,4 @@
+import { publicSharingAllowed, sharingOff } from "../sharing.js";
 import type {
   CreateLibraryRequest,
   LibrarySettings,
@@ -140,6 +141,9 @@ export async function handleCreateLibrary(ctx: Ctx, request: Request, orgId: str
     fields.visibilityDefault = ["Must be public or private"];
   }
   if (b.everyoneInOrg !== undefined && typeof b.everyoneInOrg !== "boolean") fields.everyoneInOrg = ["Must be a boolean"];
+  if (!publicSharingAllowed(ctx.env) && (b.visibilityDefault === "public" || (b.settings as { randomApiEnabled?: unknown } | undefined)?.randomApiEnabled === true)) {
+    return sharingOff(ctx.requestId);
+  }
   if (Object.keys(fields).length) return validationError(ctx.requestId, fields);
 
   const facts = await loadFacts(ctx.env, ctx.repo, ctx.actor, orgId, ctx.requestId);
@@ -228,7 +232,8 @@ export async function loadAuthorized(
 export async function handleGetLibrary(ctx: Ctx, orgId: string, libraryId: string): Promise<Response> {
   const a = await loadAuthorized(ctx, orgId, libraryId, "library.read");
   if (!a.ok) return a.response;
-  return successResponse({ library: toPublicLibrary(a.lib, a.facts) }, ctx.requestId);
+  // publicSharing tells the app whether to offer public files and links on this service (off in prod for now).
+  return successResponse({ library: { ...toPublicLibrary(a.lib, a.facts), publicSharing: publicSharingAllowed(ctx.env) } }, ctx.requestId);
 }
 
 /** PATCH /v1/organizations/{org}/libraries/{lib} */
@@ -244,6 +249,9 @@ export async function handleUpdateLibrary(ctx: Ctx, request: Request, orgId: str
     fields.visibilityDefault = ["Must be public or private"];
   }
   if (b.everyoneInOrg !== undefined && typeof b.everyoneInOrg !== "boolean") fields.everyoneInOrg = ["Must be a boolean"];
+  if (!publicSharingAllowed(ctx.env) && (b.visibilityDefault === "public" || (b.settings as { randomApiEnabled?: unknown } | undefined)?.randomApiEnabled === true)) {
+    return sharingOff(ctx.requestId);
+  }
   if (b.moderationLevel !== undefined && !["off", "standard", "strict"].includes(b.moderationLevel as string)) {
     fields.moderationLevel = ["Must be off, standard or strict"];
   }

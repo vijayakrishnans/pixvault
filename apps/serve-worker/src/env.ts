@@ -1,5 +1,7 @@
 export interface Env {
   ENVIRONMENT?: string;
+  /** "on" | "off": serving without a signature (public files, random API). Unset: off in prod (risk PV-A, W-5/W-6). */
+  PUBLIC_SHARING?: string;
   /** Library maps and file routes (cloudflare-kv-media). */
   ROUTES_KV?: KVNamespace;
   /** The managed bucket (cloudflare-r2), read-only here. */

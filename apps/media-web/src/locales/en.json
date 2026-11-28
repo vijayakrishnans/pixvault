@@ -57,7 +57,8 @@
     "saved": "Saved",
     "archive": "Archive library",
     "archiveConfirm": "Archive \"{name}\"? It disappears for everyone. Its files stay until retention ends.",
-    "archived": "Library archived"
+    "archived": "Library archived",
+    "sharingOff": "Public sharing isn't available on this service yet. Files stay private; members' signed links still work."
   },
   "settings": {
     "general": "General",

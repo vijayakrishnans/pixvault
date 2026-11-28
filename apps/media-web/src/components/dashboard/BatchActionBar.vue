@@ -10,7 +10,7 @@
       <span class="divider" />
       <template v-if="canEdit">
         <el-button size="small" data-test="bulk-move" @click="$emit('action', 'move')"><el-icon><FolderOpened /></el-icon><span>{{ $t("browse.move") }}</span></el-button>
-        <el-button size="small" data-test="bulk-public" @click="$emit('action', 'public')"><el-icon><View /></el-icon><span>{{ $t("browse.makePublic") }}</span></el-button>
+        <el-button v-if="canPublish" size="small" data-test="bulk-public" @click="$emit('action', 'public')"><el-icon><View /></el-icon><span>{{ $t("browse.makePublic") }}</span></el-button>
         <el-button size="small" data-test="bulk-private" @click="$emit('action', 'private')"><el-icon><Hide /></el-icon><span>{{ $t("browse.makePrivate") }}</span></el-button>
       </template>
       <el-button v-if="canTrash" size="small" type="danger" plain data-test="bulk-trash" @click="$emit('action', 'trash')"><el-icon><Delete /></el-icon><span>{{ $t("upload.delete") }}</span></el-button>
@@ -24,6 +24,7 @@ export default {
   props: {
     selectedCount: { type: Number, required: true },
     canEdit: { type: Boolean, default: false },
+    canPublish: { type: Boolean, default: true },
     canTrash: { type: Boolean, default: false },
   },
   emits: ["action", "clear"],

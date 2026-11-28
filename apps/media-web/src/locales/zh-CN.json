@@ -57,7 +57,8 @@
     "saved": "已保存",
     "archive": "归档图库",
     "archiveConfirm": "归档“{name}”？所有人都将看不到它。文件会保留到保留期结束。",
-    "archived": "图库已归档"
+    "archived": "图库已归档",
+    "sharingOff": "此服务暂未开放公开分享。文件保持私有；成员的签名链接仍可使用。"
   },
   "settings": {
     "general": "常规",

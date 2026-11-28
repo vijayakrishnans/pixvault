@@ -1,0 +1,28 @@
+# PV-34: PV6, the prod sharing gate. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-34
+spec:
+  goal: "With PUBLIC_SHARING off (the prod default until W-5/W-6), media-worker refuses public files, public library defaults, the random API and public batches, hands out no plain URLs, and serve-worker serves every file only with a signature; the app hides public choices and says why. Dev and stage keep sharing on."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/serve-worker
+    - default/pixvault/serve-worker-tests
+    - default/pixvault/media-web
+    - default/pixvault/contracts
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/serve-worker/**
+    - tests/serve-worker/**
+    - apps/media-web/**
+    - packages/contracts/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "with sharing off, every way to make a file public is refused and private work still succeeds (test)"
+    - "with sharing off, serve-worker answers an unsigned public path 404 and a signed one 200 without public caching (test)"
+    - "prod's media-worker and serve-worker run with PUBLIC_SHARING off"
+  gates: []

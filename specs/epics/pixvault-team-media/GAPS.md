@@ -15,14 +15,14 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-32._
+_Last updated: 2026-11-28, PV-34._
 
 ## Blocked
 
 | # | Item | Why | What's missing | What was done | Lands |
 |---|---|---|---|---|---|
 | G1 | **Cloudflare scopes for Queues and custom hostnames** (WAITING W-3) | Orunbase's Cloudflare scope templates mint only Workers, KV, R2, D1 and DNS tokens. There's no template for Queues Write, SSL and Certificates Write, or Zone Settings Write, and `workers-deploy` lacks KV Read (G44). | PV4's `file-committed` queue and DLQ; PV8's custom domains; Image Transformations on our own zone. | Recorded with exact steps. Raised to the user, who needs to decide on a platform change in orun-cloud (`apps/integrations-worker/src/providers/cloudflare.ts`). PV4 can use Workflows (deployable today) until Queues are mintable. | PV4 and PV8, after the decision |
-| G2 | **CSAM scanning** (W-5) | It's enabled per zone in the Cloudflare dashboard and isn't available on `workers.dev`. | No CSAM scanning on any serving host. | **Public sharing stays off in prod** until W-5 and W-6 are done (risk PV-A). | PV4 / PV8 |
+| G2 | **CSAM scanning** (W-5) | It's enabled per zone in the Cloudflare dashboard and isn't available on `workers.dev`. | No CSAM scanning on any serving host. | **Public sharing stays off in prod** until W-5 and W-6 are done (risk PV-A), **enforced since PV-34**: `PUBLIC_SHARING=off` on prod's media-worker and serve-worker refuses public files, public defaults, the random API, share links, upload links and galleries; serving needs a signature. Turning it on is one var per worker. | PV4 / PV8 |
 | G3 | **Product domain** (W-6) | The user will choose a unique name later; `pixvault.app` was a placeholder. Nothing is registered. | Everything is served on `*.vijayakrishnan12994.workers.dev`: no `i.`/`app.`/`dav.` hosts, and no CSAM scanning (G2). | `productdomain` was left empty at bootstrap; the parked custom-domain component can be switched on later. | When the domain exists |
 | G4 | **Grievance officer details and legal review** (W-1, W-2) | They need a person and a lawyer. | `ABUSE.md` has a placeholder section; terms and privacy pages aren't written. | Policy text and process are in `ABUSE.md`. | PV11 |
 | G5 | **BYO test bucket** (W-7) and **Docker for MinIO** (W-9) | Credentials and a local daemon. | No end-to-end BYO test against a real S3 endpoint yet. | — | PV7 |
