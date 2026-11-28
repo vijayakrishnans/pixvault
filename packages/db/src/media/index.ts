@@ -1,4 +1,5 @@
 export type {
+  StorageBackendInput,
   UploadLink,
   UploadLinkInput,
   UploadLinkLimits,

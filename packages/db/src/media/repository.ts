@@ -81,6 +81,25 @@ function internal<T>(message: string): MediaResult<T> {
 const notFound = <T>(): MediaResult<T> => ({ ok: false, error: { kind: "not_found" } });
 
 /** The managed-R2 prefix for a library. Every managed object key starts with it (design §1.1). */
+function toStorageBackend(row: Row): StorageBackend {
+  return {
+    id: String(row.id),
+    orgId: String(row.org_id),
+    libraryId: String(row.library_id),
+    kind: row.kind as StorageBackend["kind"],
+    prefix: String(row.prefix),
+    status: String(row.status),
+    endpoint: row.endpoint == null ? null : String(row.endpoint),
+    region: row.region == null ? null : String(row.region),
+    bucket: row.bucket == null ? null : String(row.bucket),
+    pathStyle: Number(row.path_style ?? 0) === 1,
+    credentialRef: row.credential_ref == null ? null : String(row.credential_ref),
+    lastCheckAt: row.last_check_at == null ? null : String(row.last_check_at),
+    lastError: row.last_error == null ? null : String(row.last_error),
+    ...(row.created_at == null ? {} : { createdAt: String(row.created_at) }),
+  };
+}
+
 function toUploadLink(r: Row): UploadLink {
   let limits: UploadLinkLimits = { maxFiles: 0, maxFileBytes: 0, maxTotalBytes: 0, allowedTypes: [] };
   try {
@@ -690,6 +709,60 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
       }
     },
 
+    async getStorageBackendById(orgId, libraryId, id) {
+      try {
+        const r = await executor.execute<Row>(`SELECT * FROM media_storage_backends WHERE id = $1 AND org_id = $2 AND library_id = $3`, [id, orgId, libraryId]);
+        if (r.rowCount === 0) return notFound();
+        return { ok: true, value: toStorageBackend(r.rows[0]!) };
+      } catch {
+        return internal("Failed to get storage backend");
+      }
+    },
+
+    async listStorageBackends(orgId, libraryId) {
+      try {
+        const r = await executor.execute<Row>(`SELECT * FROM media_storage_backends WHERE org_id = $1 AND library_id = $2 ORDER BY created_at DESC LIMIT 20`, [orgId, libraryId]);
+        return { ok: true, value: r.rows.map(toStorageBackend) };
+      } catch {
+        return internal("Failed to list storage backends");
+      }
+    },
+
+    async createStorageBackend(input) {
+      try {
+        const r = await executor.execute<Row>(
+          `INSERT INTO media_storage_backends (id, org_id, library_id, kind, endpoint, region, bucket, prefix, credential_ref, status, path_style, last_check_at, created_at, updated_at)
+           VALUES ($1, $2, $3, 's3-compatible', $4, $5, $6, $7, $8, $9, $10, $11, $11, $11) RETURNING *`,
+          [input.id, input.orgId, input.libraryId, input.endpoint, input.region, input.bucket, input.prefix, input.credentialRef, input.status, input.pathStyle ? 1 : 0, input.at.toISOString()],
+        );
+        return { ok: true, value: toStorageBackend(r.rows[0]!) };
+      } catch {
+        return internal("Failed to create the storage backend");
+      }
+    },
+
+    async recordStorageCheck(id, ok, errorCode, at) {
+      try {
+        await executor.execute(
+          `UPDATE media_storage_backends SET status = CASE WHEN status = 'retired' THEN status WHEN $2 = 1 THEN 'active' ELSE 'error' END,
+             last_error = $3, last_check_at = $4, updated_at = $4 WHERE id = $1`,
+          [id, ok ? 1 : 0, ok ? null : errorCode, at.toISOString()],
+        );
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to record the check");
+      }
+    },
+
+    async retireStorageBackend(orgId, libraryId, id, at) {
+      try {
+        await executor.execute(`UPDATE media_storage_backends SET status = 'retired', updated_at = $4 WHERE id = $1 AND org_id = $2 AND library_id = $3`, [id, orgId, libraryId, at.toISOString()]);
+        return { ok: true, value: true };
+      } catch {
+        return internal("Failed to retire the storage backend");
+      }
+    },
+
     async createUploadLink(input) {
       try {
         const id = crypto.randomUUID();
@@ -891,16 +964,7 @@ export function createMediaRepository(executor: SqlExecutor): MediaRepository {
           [orgId, libraryId],
         );
         if (r.rowCount === 0) return notFound();
-        const row = r.rows[0]!;
-        const value: StorageBackend = {
-          id: row.id as string,
-          orgId: row.org_id as string,
-          libraryId: row.library_id as string,
-          kind: row.kind as StorageBackend["kind"],
-          prefix: row.prefix as string,
-          status: row.status as string,
-        };
-        return { ok: true, value };
+        return { ok: true, value: toStorageBackend(r.rows[0]!) };
       } catch {
         return internal("Failed to get storage backend");
       }

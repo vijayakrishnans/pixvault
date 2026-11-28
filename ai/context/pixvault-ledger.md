@@ -129,6 +129,8 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
   08:30Z (`broker: limit_reached`, 200 mints per rolling 24 h); retries succeeded once older mints aged out.
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
+- PV7 storage-worker (PV-44, 2026-11-28): internal-only Worker holding BYO credentials sealed under `STORAGE_KEK` (generated in CI). Tested against s3rver: 21 tests incl. tenancy, SSRF refusals, checksum and timeout. Not wired in until PV-45.
+
 ## Open risks and deferred items
 
 See `specs/epics/pixvault-team-media/risks-and-open-questions.md` and [`WAITING.md`](../../WAITING.md) (W-1 … W-9).

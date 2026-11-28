@@ -160,6 +160,13 @@ Each PR says which of these it touches and what it did:
 - **Integrity and failure:** an entry is written right after the change it describes, in the same object. If writing it fails, the change still stands (the log never fails a write).
 - **Bounds:** the newest 10,000 entries per library are kept; pages hold at most 200.
 
+### storage-worker (PV-44): how the checklist was met
+- **A01 access:** no public route (`workers_dev` off); callers reach it only over service bindings after authorising the user. Every object call names org, library and backend; the row is looked up by all three, and a key outside the backend's prefix (or with `.` or `..` segments) is 404.
+- **A02/A04 crypto:** credentials are sealed with AES-256-GCM under a fresh per-backend data key, which is sealed under `STORAGE_KEK`; both seals carry the org, library and backend id as additional data. The key is generated in CI with `openssl rand`, piped to Cloudflare, never printed. Sealed values are never returned; responses list the endpoint, bucket, prefix and status only.
+- **A10 SSRF:** https host names only; IP literals (v4 and v6), localhost, `.local`, `.internal`, metadata names, user info, ports other than 443 and paths are refused. Redirects aren't followed. Every request has a deadline. Not done: a DNS-time check (GAPS G94).
+- **A08 integrity:** uploads with a checksum are hashed in the worker before sending, as well as signed, since not every S3-compatible server checks the signed hash.
+- **A09 logging:** errors carry S3 codes (`AccessDenied`, `NoSuchBucket`, `Timeout`), never URLs, keys or secrets. A backend's last error is a code.
+
 ### Ahead: what the next milestones must design in
 - **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;

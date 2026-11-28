@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-42 (after PV6 closed)._
+_Last updated: 2026-11-28, PV-44._
 
 ## Blocked
 
@@ -33,7 +33,6 @@ _Last updated: 2026-11-28, PV-42 (after PV6 closed)._
 | # | Design said | Built | Why | What's missing | Lands |
 |---|---|---|---|---|---|
 | G7 | **Presigned direct-to-storage uploads** (§4.4) | Each 32 MiB part streams **through media-worker** into R2 multipart over the binding. | Presigning needs long-lived S3 keys inside a Worker, plus a bucket CORS rule the pinned Terraform provider (v4) can't express. | Upload bytes pass through a Worker (no egress cost, still on Cloudflare's network). Each part counts against Worker request limits; 32 MiB is well inside 100 MB. | Presigning arrives with BYO buckets in PV7 |
-| G8 | **A separate storage-worker** (§0, §4.4) | `ObjectStore` functions inside media-worker (`src/storage/`). | Nothing needed the isolation yet: managed R2 has no credential. | BYO credentials must be decrypted only in storage-worker. | PV7 |
 | G9 | **Quotas through Cirrus metering** (§4.4) | `media_usage` and `media_org_limits` tables (migration 210), enforced by media-worker. | Metering's record and check routes need `organization.metering.*` (owner/admin), and an editor's or guest's upload has neither. | **Media usage isn't visible in the console's usage page or billing** (risk PV-L). | A service-only record route in metering-worker, before PV11 |
 | G10 | **Objects keyed `…/blob/<sha256>`** (§1.4) | Keyed by upload, `…/blob/<ups_id>`; the index's `blobs` table maps hash to key. | A client declaring someone else's hash could otherwise overwrite a blob before verification. | Nothing user-visible. | Final |
 | G11 | **The default library is created with the org** (§1.1) | The app creates "Library" on the first visit by someone allowed to create. | Creating it inside Cirrus's org transaction would mean changing membership-worker. | An org created through the API has no library until someone opens it in the app. | Acceptable; revisit with PV9 (API users) |
@@ -129,12 +128,16 @@ _Last updated: 2026-11-28, PV-42 (after PV6 closed)._
 | G67 | **No appeal flow** | A team can't contest a takedown in the product. | Operators can reinstate through the API. | PV11 |
 | G68 | **No operator UI** | Abuse cases, takedowns, suspensions and pipeline failures are API-only. | `docs/ops/abuse-runbook.md` gives the calls. | PV11 (platform admin) |
 | G69 | **CSAM is caught by reports and moderation only** | No hash matching. Cloudflare's CSAM Scanning Tool needs serving on a zone. | The CSAM category is triaged first and taken down on the report alone (runbook). | W-5 once serving has a zone (W-6) |
+| G94 | **No DNS-time check on customer endpoints** | The review asked for private and metadata ranges to be refused after DNS resolution. A Worker can't resolve a name before `fetch`, so a public name pointing at 10.0.0.1 passes validation. | Endpoints must be https host names: IP literals, local and internal names, user info and odd ports are refused; no redirects are followed; every request has a deadline (15 s checks, 120 s objects). Workers' outbound traffic reaches the public internet only, so a private address leads nowhere. | A DNS-over-HTTPS lookup before saving a backend, refusing private answers (still racy against DNS rebinding) | PV7 hardening |
+| G95 | **storage-worker isn't wired in yet** | Nothing calls it: libraries still store in managed R2. | PV-44 ships the worker, its tests and its key; PV-45 adds the service bindings and per-library stores in media-worker and serve-worker. | — | PV-45 |
+| G96 | **One key-encryption key, no rotation tooling** | `STORAGE_KEK` is set once by CI. Each sealed value records its key id (`kid`) so a second key can be added, but nothing re-seals old values yet. Losing the secret means every customer re-enters their bucket keys. | The runbook forbids deleting it; CI only creates it when missing. | A rotation run: add `STORAGE_KEK_2`, re-seal every row, retire the first | PV11 |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed
 
 | # | Item | Closed by |
 |---|---|---|
+| G8 | A separate storage-worker (§0, §4.4) | PV-44: `apps/storage-worker`, the only place BYO credentials are opened; internal-only, envelope-encrypted keys |
 | — | Expired email login codes were accepted; no wrong-code limit (OWASP A07, found in review) | PV-31: expiry enforced in the consume query, 5 wrong codes burn the challenge |
 | G79 | Console on Next 15.0.3 / OpenNext 1.0.4 with critical advisories | PV-32: Next 15.5.29, OpenNext 1.20.16, zod 4, overrides; 0 critical, 0 high |
 | G80 | No dependency gate in CI | PV-32: the Security workflow fails on unaccepted high or critical advisories |

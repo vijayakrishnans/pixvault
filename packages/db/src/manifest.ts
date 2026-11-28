@@ -255,5 +255,14 @@ export const manifest: MigrationManifest = {
       description:
         "Upload links (PV6): upload and byte counters, and a label, on media_upload_links",
     },
+    {
+      id: "280_media_storage_backends",
+      context: "media",
+      path: "280_media_storage_backends/up.sql",
+      checksum:
+        "21d9f3daa3de6ac4131ed1f9e90ca199c84db21ac20dddc0d5306d60c14f9f9e",
+      description:
+        "BYO storage (PV7): path style and the last check's error code on media_storage_backends",
+    },
   ],
 };

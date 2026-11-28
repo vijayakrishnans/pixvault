@@ -1,0 +1,38 @@
+{
+  "extends": "../../tooling/tsconfig/base.json",
+  "compilerOptions": {
+    "types": [
+      "jest",
+      "node",
+      "@cloudflare/workers-types"
+    ],
+    "allowSyntheticDefaultImports": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@storage-worker/*": [
+        "../../apps/storage-worker/src/*.ts"
+      ],
+      "@saas/shared/*": [
+        "../../packages/shared/src/*.ts"
+      ],
+      "@saas/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@saas/db/*": [
+        "../../packages/db/src/*/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../apps/storage-worker/src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
