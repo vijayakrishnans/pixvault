@@ -10,7 +10,7 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 | PV2: index, storage, uploads | ✅ done 2026-11-27: PV-9 R2 bucket; PV-10 LibraryIndex DO, streamed multipart uploads, dedup, versions, trash, quotas; PV-12 Workers Logs; PV-13 streamed commit hash; PV-11 upload page. Stage acceptance 14/14 incl. 2 GB | #11, #12 (`74c78e5`), #13, #14 (`c4de4c4`), PV-11 (this PR) |
 | PV3: serving | ✅ done 2026-11-27: PV-14 gaps register and path correction; PV-15 routes KV (own root); PV-16 serving data plane; PV-17 serve-worker; PV-18 and PV-19 smoke and Server-Timing; PV-20 links in the app | #16, #17, #18, #19, #20, #21, PV-20 (this PR) |
 | PV4: pipeline and safety | ✅ done 2026-11-28: PV-22 ProcessFileWorkflow, location removal, held failures and replay; PV-23 moderation, tags, review queue; PV-24 moderation answer shape; PV-25 abuse reports, takedown, suspension, runbook; PV-26 app states and Review tab | #24, #25, #26, #27, PV-26 (this PR) |
-| PV5: browser and live collaboration | in progress: PV-27 folders, search, filters, moves and batches | PV-27 (this PR) |
+| PV5: browser and live collaboration | in progress: PV-27 folders, search, filters, moves and batches; PV-28 live updates and presence | #29, PV-28 (this PR) |
 | PV6: sharing | | |
 | PV7: BYO storage | | |
 | PV8: custom domains | | |

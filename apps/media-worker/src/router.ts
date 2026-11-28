@@ -39,7 +39,7 @@ import {
   handleReviewFile,
 } from "./handlers/files.js";
 import { handleListPipelineFailures, handleReprocess } from "./handlers/pipeline.js";
-import { handleBatch, handleCreateFolder, handleListFolders, handleListTags, handleMoveFolder, handleTrashFolder } from "./handlers/browse.js";
+import { handleLiveTicket, handleBatch, handleCreateFolder, handleListFolders, handleListTags, handleMoveFolder, handleTrashFolder } from "./handlers/browse.js";
 import {
   handleAbuseIntake,
   handleAdminFile,
@@ -50,6 +50,7 @@ import {
   parseCaseId,
 } from "./handlers/abuse.js";
 import { errorResponse, methodNotAllowed, notFound } from "./http.js";
+import { indexStub } from "./index-do/client.js";
 import { logError, routeTemplate } from "./log.js";
 import {
   generateRequestId,
@@ -86,6 +87,8 @@ const FOLDERS_RE = new RegExp(`${LIB}\\/folders$`);
 const FOLDERS_MOVE_RE = new RegExp(`${LIB}\\/folders\\/move$`);
 const FOLDERS_TRASH_RE = new RegExp(`${LIB}\\/folders\\/trash$`);
 const TAGS_RE = new RegExp(`${LIB}\\/tags$`);
+const LIVE_TICKETS_RE = new RegExp(`${LIB}\\/live-tickets$`);
+const LIVE_RE = new RegExp(`${LIB}\\/live$`);
 const FILE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)$`);
 const FILE_CONTENT_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/content$`);
 const FILE_RESTORE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/restore$`);
@@ -146,6 +149,17 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     return method === "POST" ? await handleAbuseIntake(env, request, requestId, (deps?.now ?? (() => new Date()))()) : methodNotAllowed(requestId);
   }
 
+  // The live socket presents a one-use ticket instead of an actor (browsers can't set headers on a WebSocket); the
+  // library's index checks it. The edge forwards the upgrade untouched.
+  const live = path.match(LIVE_RE);
+  if (live) {
+    if (method !== "GET") return methodNotAllowed(requestId);
+    const orgId = parseOrgPublicId(live[1]!);
+    const libId = parseLibraryPublicId(live[2]!);
+    if (!orgId || !libId || !env.LIBRARY_INDEX) return errorResponse("not_found", "Not found", 404, requestId);
+    return indexStub(env, { orgId, libraryId: libId }).fetch(request);
+  }
+
   if (!env.PLATFORM_DB || !env.MEMBERSHIP_WORKER || !env.POLICY_WORKER || !env.PROJECTS_WORKER) {
     return errorResponse("internal_error", "Service unavailable", 503, requestId);
   }
@@ -201,7 +215,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     // Files and uploads need the bucket and the index.
-    const fileRoute = [FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
+    const fileRoute = [LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
     if (fileRoute) {
       if (!env.MEDIA_BUCKET || !env.LIBRARY_INDEX) return errorResponse("internal_error", "Service unavailable", 503, requestId);
       const lm = path.match(new RegExp(LIB))!;
@@ -235,6 +249,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
       }
       if ((m = path.match(FOLDERS_MOVE_RE))) return method === "POST" ? await handleMoveFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
       if ((m = path.match(FOLDERS_TRASH_RE))) return method === "POST" ? await handleTrashFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
+      if ((m = path.match(LIVE_TICKETS_RE))) return method === "POST" ? await handleLiveTicket(ctx, orgId, libId, lm[1]!, lm[2]!) : methodNotAllowed(requestId);
       if ((m = path.match(TAGS_RE))) return method === "GET" ? await handleListTags(ctx, orgId, libId) : methodNotAllowed(requestId);
       const fid = (() => {
         const fm = path.match(new RegExp(`${LIB}\\/files\\/([^/]+)`));

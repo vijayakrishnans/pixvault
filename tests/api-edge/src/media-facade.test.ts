@@ -64,6 +64,13 @@ describe("api-edge media facade", () => {
     [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/versions`],
     [`/v1/organizations/${ORG}/libraries/${LIB}/files/fil_1/versions/3/restore`],
     [`/v1/organizations/${ORG}/media-usage`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/files:batch`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/folders`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/folders/move`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/folders/trash`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/tags`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/live-tickets`],
+    [`/v1/organizations/${ORG}/libraries/${LIB}/live`],
   ])("routes %s to media-worker, not the project or org facades", (path) => {
     expect(isMediaRoute(path)).toBe(true);
     expect(isProjectRoute(path)).toBe(false);
@@ -88,6 +95,34 @@ describe("api-edge media facade", () => {
     );
     expect(res.status).toBe(405);
     expect(media.calls).toHaveLength(0);
+  });
+
+  it("forwards the live socket's upgrade with its ticket, without a bearer, and only the WebSocket headers", async () => {
+    const id = identity();
+    const media = fetcher(() => new Response(null, { status: 404 }));
+    const path = `/v1/organizations/${ORG}/libraries/${LIB}/live`;
+    const res = await handleMediaRoute(
+      new Request(`https://edge${path}?ticket=${"a".repeat(64)}`, {
+        headers: { upgrade: "websocket", connection: "Upgrade", "sec-websocket-key": "k==", "sec-websocket-version": "13", authorization: "Bearer x", cookie: "s=1" },
+      }),
+      { IDENTITY_WORKER: id.fetcher, MEDIA_WORKER: media.fetcher, ENVIRONMENT: "test" },
+      "req_live",
+      path,
+    );
+    expect(res.status).toBe(404); // media-worker's answer, untouched
+    expect(id.calls).toHaveLength(0);
+    expect(media.calls).toHaveLength(1);
+    expect(media.calls[0]!.url).toBe(`https://media.internal${path}?ticket=${"a".repeat(64)}`);
+    const h = new Headers(media.calls[0]!.init.headers);
+    expect(h.get("upgrade")).toBe("websocket");
+    expect(h.get("sec-websocket-key")).toBe("k==");
+    expect(h.get("authorization")).toBeNull();
+    expect(h.get("cookie")).toBeNull();
+    expect(h.get("x-actor-subject-id")).toBeNull();
+    // not an upgrade: 426, nothing forwarded
+    const plain = await handleMediaRoute(new Request(`https://edge${path}`), { IDENTITY_WORKER: id.fetcher, MEDIA_WORKER: media.fetcher, ENVIRONMENT: "test" }, "req_l2", path);
+    expect(plain.status).toBe(426);
+    expect(media.calls).toHaveLength(1);
   });
 
   it("requires a bearer token (401) and never forwards anonymous calls", async () => {

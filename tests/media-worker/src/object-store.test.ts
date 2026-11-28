@@ -8,6 +8,10 @@ describe("sha256OfObject", () => {
   const big = randomBytes(MAX_BUFFERED_HASH_BYTES + 36 * 1024 * 1024); // 100 MiB
   const c = (globalThis as unknown as { crypto: { DigestStream?: unknown } }).crypto;
 
+  // Other suites in the same worker may leave it set; start each test without it.
+  beforeEach(() => {
+    delete c.DigestStream;
+  });
   afterEach(() => {
     delete c.DigestStream;
   });

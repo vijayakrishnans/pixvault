@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-27._
+_Last updated: 2026-11-28, PV-28._
 
 ## Blocked
 
@@ -46,6 +46,8 @@ _Last updated: 2026-11-28, PV-27._
 | G72 | `files_fts(name, path, tags, ai_tags, description)` | FTS5 over name, folder and the pipeline's tags; each word quoted and matched as a prefix (no FTS syntax from users); newest first | No descriptions or user tags exist yet (G63) | No relevance ranking; no description search | PV10 |
 | G73 | `files:batch` with move, tag, visibility, trash, zip | Move, visibility, trash and restore, up to 1,000 files in one transaction; each file that can't take the action fails alone | User tags don't exist yet; zip needs streamed archives | No bulk tagging or zip download | Tags later in PV5 or after; zip with sharing, PV6 |
 | G74 | — | A bulk "make public" starts at most 200 safety checks itself | Each start is a subrequest | On a free plan, files past the first 200 stay `processing` until the index's sweep starts them (about 10 minutes) | Workflows `createBatch` if needed |
+| G75 | WebSocket `/live` with the session cookie checked by api-edge, then a ticket | The app asks the API for a one-use ticket (60 s, kept in the library's index, never a secret); the socket presents it in its URL. The edge forwards the upgrade untouched | The app authenticates with a bearer token, not a cookie, and browsers can't set headers on a WebSocket | A removed member's open socket keeps hearing change events (ids, folder, status; never names) until it expires, after at most an hour | Close sockets on member removal, with notifications (later in PV5) |
+| G76 | Live events carry the file | Events carry only file ids, folder and status; clients refetch through the API | Every read stays behind policy, and an uploader-only member never sees others' files | One extra API call per change, debounced in the app | Kept |
 
 ## Missing (in the design for a closed milestone, not built)
 

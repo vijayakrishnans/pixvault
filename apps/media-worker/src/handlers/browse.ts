@@ -7,7 +7,7 @@ import type { Ctx } from "../ctx.js";
 import { authorizeOnLibrary } from "../access.js";
 import { errorResponse, successResponse, validationError } from "../http.js";
 import { indexFor, IndexCallError } from "../index-do/client.js";
-import { MAX_BATCH, type BatchResult, type FileRow, type FolderRow } from "../index-do/core.js";
+import { MAX_BATCH, type BatchResult, type FileRow, type FolderRow, type LiveScope } from "../index-do/core.js";
 import { filePublicId, parseFilePublicId } from "../ids.js";
 import { loadAuthorized } from "./libraries.js";
 import { loadFile, toPublicFile } from "./files.js";
@@ -204,4 +204,24 @@ export async function handleBatch(ctx: Ctx, request: Request, orgId: string, lib
     },
     ctx.requestId,
   );
+}
+
+/**
+ * POST …/live-tickets: a one-use ticket (valid 60 s) for opening the library's live socket at `path?ticket=…`.
+ * Someone who may list every file hears about every file; someone who may list only their own uploads, only those.
+ */
+export async function handleLiveTicket(ctx: Ctx, orgId: string, libraryId: string, orgPub: string, libPub: string): Promise<Response> {
+  const a = await loadAuthorized(ctx, orgId, libraryId, "library.read");
+  if (!a.ok) return a.response;
+  let scope: LiveScope;
+  if (await authorizeOnLibrary(ctx.env, ctx.actor, "file.list", a.lib, a.facts, ctx.requestId)) scope = "all";
+  else if (await authorizeOnLibrary(ctx.env, ctx.actor, "file.list.own", a.lib, a.facts, ctx.requestId)) scope = "own";
+  else return nf(ctx);
+  const t = await indexFor(ctx.env, { orgId, libraryId }).call<{ ticket: string; expiresAt: string }>({
+    op: "issueTicket",
+    subject: ctx.actor.subjectId,
+    scope,
+    nowIso: ctx.now().toISOString(),
+  });
+  return successResponse({ ...t, scope, path: `/v1/organizations/${orgPub}/libraries/${libPub}/live` }, ctx.requestId, 201);
 }
