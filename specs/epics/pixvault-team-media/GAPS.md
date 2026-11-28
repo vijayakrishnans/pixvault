@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-26 (PV4 closed)._
+_Last updated: 2026-11-28, PV-27._
 
 ## Blocked
 
@@ -41,6 +41,11 @@ _Last updated: 2026-11-28, PV-26 (PV4 closed)._
 | G13 | **Serving at `i.<domain>/<libSlug>/<path>`** (§2.5) | Changed in this PR to `/<orgSlug>/<libSlug>/<path>`. | Library slugs are unique only within an org, so two teams' libraries would share a path. | — | PV3 |
 | G14 | **Org role "member"** (§1.1) | Cirrus's `builder`; `billing_admin` has no library access. | Cirrus's role names. | — | Final |
 | G15 | **Solo profile** | Turned off (PV-5). | The baseline shipped single-user; teams need orgs, members and invitations. | New accounts get no automatic personal org; they create a team on onboarding. | Final |
+| G70 | Files have a `folder_id`; folders have `fld_` ids | A `folders` table keyed by path, filled by uploads, moves and restores; the API names a folder by its path | Files already carried their folder path (PV2) and serving routes by path, so a move rewrites paths either way | Nothing user-visible | Kept |
+| G71 | — | Moving or renaming a file drops its old route and adds the new one in the same transaction; a taken-down file can't move, so its 451 stays | Serving routes by path (PV3) | Old public and signed links to a moved file stop working (404); no redirects | Redirects with custom domains, PV8 |
+| G72 | `files_fts(name, path, tags, ai_tags, description)` | FTS5 over name, folder and the pipeline's tags; each word quoted and matched as a prefix (no FTS syntax from users); newest first | No descriptions or user tags exist yet (G63) | No relevance ranking; no description search | PV10 |
+| G73 | `files:batch` with move, tag, visibility, trash, zip | Move, visibility, trash and restore, up to 1,000 files in one transaction; each file that can't take the action fails alone | User tags don't exist yet; zip needs streamed archives | No bulk tagging or zip download | Tags later in PV5 or after; zip with sharing, PV6 |
+| G74 | — | A bulk "make public" starts at most 200 safety checks itself | Each start is a subrequest | On a free plan, files past the first 200 stay `processing` until the index's sweep starts them (about 10 minutes) | Workflows `createBatch` if needed |
 
 ## Missing (in the design for a closed milestone, not built)
 

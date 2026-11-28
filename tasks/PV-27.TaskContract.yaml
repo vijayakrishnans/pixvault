@@ -1,0 +1,22 @@
+# PV-27: PV5, folders, search, filters, moves and batches. Minted under milestone PV5; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-27
+spec:
+  goal: "Each library's index keeps a folder tree, an FTS5 search over names, folders and tags, and filters (type, tag, uploader, status, visibility, date); files move and rename, folders move and trash, and batches move, trash, restore or change visibility of up to 1,000 files in one transaction, with serving routes following every move."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/api-edge/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "two concurrent moves of the same folder end in one consistent tree (test)"
+    - "a bulk move of 1,000 files completes and the index and routes stay consistent (test)"
+    - "search finds files by name, folder and tag prefixes, and filters narrow the list (test)"
+  gates: []

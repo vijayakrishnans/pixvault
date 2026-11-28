@@ -39,6 +39,7 @@ import {
   handleReviewFile,
 } from "./handlers/files.js";
 import { handleListPipelineFailures, handleReprocess } from "./handlers/pipeline.js";
+import { handleBatch, handleCreateFolder, handleListFolders, handleListTags, handleMoveFolder, handleTrashFolder } from "./handlers/browse.js";
 import {
   handleAbuseIntake,
   handleAdminFile,
@@ -80,6 +81,11 @@ const UPLOAD_RE = new RegExp(`${LIB}\\/uploads\\/([^/]+)$`);
 const UPLOAD_PART_RE = new RegExp(`${LIB}\\/uploads\\/([^/]+)\\/parts\\/(\\d{1,5})$`);
 const UPLOAD_COMMIT_RE = new RegExp(`${LIB}\\/uploads\\/([^/]+)\\/commit$`);
 const FILES_RE = new RegExp(`${LIB}\\/files$`);
+const FILES_BATCH_RE = new RegExp(`${LIB}\\/files:batch$`);
+const FOLDERS_RE = new RegExp(`${LIB}\\/folders$`);
+const FOLDERS_MOVE_RE = new RegExp(`${LIB}\\/folders\\/move$`);
+const FOLDERS_TRASH_RE = new RegExp(`${LIB}\\/folders\\/trash$`);
+const TAGS_RE = new RegExp(`${LIB}\\/tags$`);
 const FILE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)$`);
 const FILE_CONTENT_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/content$`);
 const FILE_RESTORE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/restore$`);
@@ -195,7 +201,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     // Files and uploads need the bucket and the index.
-    const fileRoute = [UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
+    const fileRoute = [FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
     if (fileRoute) {
       if (!env.MEDIA_BUCKET || !env.LIBRARY_INDEX) return errorResponse("internal_error", "Service unavailable", 503, requestId);
       const lm = path.match(new RegExp(LIB))!;
@@ -221,6 +227,15 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
         return methodNotAllowed(requestId);
       }
       if ((m = path.match(FILES_RE))) return method === "GET" ? await handleListFiles(ctx, url, orgId, libId) : methodNotAllowed(requestId);
+      if ((m = path.match(FILES_BATCH_RE))) return method === "POST" ? await handleBatch(ctx, request, orgId, libId) : methodNotAllowed(requestId);
+      if ((m = path.match(FOLDERS_RE))) {
+        if (method === "GET") return await handleListFolders(ctx, orgId, libId);
+        if (method === "POST") return await handleCreateFolder(ctx, request, orgId, libId);
+        return methodNotAllowed(requestId);
+      }
+      if ((m = path.match(FOLDERS_MOVE_RE))) return method === "POST" ? await handleMoveFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
+      if ((m = path.match(FOLDERS_TRASH_RE))) return method === "POST" ? await handleTrashFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
+      if ((m = path.match(TAGS_RE))) return method === "GET" ? await handleListTags(ctx, orgId, libId) : methodNotAllowed(requestId);
       const fid = (() => {
         const fm = path.match(new RegExp(`${LIB}\\/files\\/([^/]+)`));
         return fm ? parseFilePublicId(fm[3]!) : null;
