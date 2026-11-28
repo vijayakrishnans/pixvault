@@ -39,6 +39,7 @@ import {
   handleReviewFile,
 } from "./handlers/files.js";
 import { handleListPipelineFailures, handleReprocess } from "./handlers/pipeline.js";
+import { handleCreateShareLink, handleListShareLinks, handleRevokeShareLink, handleShareContent, handleShareOpen } from "./handlers/shares.js";
 import { handleLiveTicket, handleBatch, handleCreateFolder, handleListFolders, handleListTags, handleMoveFolder, handleTrashFolder } from "./handlers/browse.js";
 import {
   handleAbuseIntake,
@@ -60,6 +61,7 @@ import {
   parseLibraryPublicId,
   parseOrgPublicId,
   parseSessionPublicId,
+  parseShareLinkPublicId,
 } from "./ids.js";
 
 export interface ActorContext {
@@ -88,6 +90,11 @@ const FOLDERS_MOVE_RE = new RegExp(`${LIB}\\/folders\\/move$`);
 const FOLDERS_TRASH_RE = new RegExp(`${LIB}\\/folders\\/trash$`);
 const TAGS_RE = new RegExp(`${LIB}\\/tags$`);
 const LIVE_TICKETS_RE = new RegExp(`${LIB}\\/live-tickets$`);
+const SHARE_LINKS_RE = new RegExp(`${LIB}\\/share-links$`);
+const SHARE_LINK_RE = new RegExp(`${LIB}\\/share-links\\/([^/]+)$`);
+// Guests' share pages, from serve-worker over the service binding (api-edge doesn't forward these).
+const SHARE_OPEN = "/v1/media/shares/open";
+const SHARE_CONTENT = "/v1/media/shares/content";
 const LIVE_RE = new RegExp(`${LIB}\\/live$`);
 const FILE_RE = new RegExp(`${LIB}\\/files\\/([^/]+)$`);
 const FILE_CONTENT_RE = new RegExp(`${LIB}\\/files\\/([^/]+)\\/content$`);
@@ -147,6 +154,17 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
   // and api-edge doesn't forward this path).
   if (path === ABUSE_INTAKE) {
     return method === "POST" ? await handleAbuseIntake(env, request, requestId, (deps?.now ?? (() => new Date()))()) : methodNotAllowed(requestId);
+  }
+
+  if (path === SHARE_OPEN || path === SHARE_CONTENT) {
+    if (method !== "POST") return methodNotAllowed(requestId);
+    const now = (deps?.now ?? (() => new Date()))();
+    try {
+      return path === SHARE_OPEN ? await handleShareOpen(env, request, requestId, now) : await handleShareContent(env, request, requestId, now);
+    } catch (e) {
+      logError(requestId, `POST ${path}`, e);
+      return errorResponse("internal_error", "Service unavailable", 503, requestId);
+    }
   }
 
   // The live socket presents a one-use ticket instead of an actor (browsers can't set headers on a WebSocket); the
@@ -215,7 +233,7 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
     }
 
     // Files and uploads need the bucket and the index.
-    const fileRoute = [LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
+    const fileRoute = [SHARE_LINKS_RE, SHARE_LINK_RE, LIVE_TICKETS_RE, FILES_BATCH_RE, FOLDERS_RE, FOLDERS_MOVE_RE, FOLDERS_TRASH_RE, TAGS_RE, UPLOADS_RE, UPLOAD_RE, UPLOAD_PART_RE, UPLOAD_COMMIT_RE, FILES_RE, FILE_RE, FILE_CONTENT_RE, FILE_RESTORE_RE, FILE_SIGNED_URL_RE, FILE_REPROCESS_RE, FILE_REVIEW_RE, FILE_VERSIONS_RE, FILE_VERSION_RESTORE_RE].some((re) => re.test(path));
     if (fileRoute) {
       if (!env.MEDIA_BUCKET || !env.LIBRARY_INDEX) return errorResponse("internal_error", "Service unavailable", 503, requestId);
       const lm = path.match(new RegExp(LIB))!;
@@ -249,6 +267,16 @@ export async function route(request: Request, env: Env, deps?: RouteDeps): Promi
       }
       if ((m = path.match(FOLDERS_MOVE_RE))) return method === "POST" ? await handleMoveFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
       if ((m = path.match(FOLDERS_TRASH_RE))) return method === "POST" ? await handleTrashFolder(ctx, request, orgId, libId) : methodNotAllowed(requestId);
+      if ((m = path.match(SHARE_LINKS_RE))) {
+        if (method === "GET") return await handleListShareLinks(ctx, url, orgId, libId);
+        if (method === "POST") return await handleCreateShareLink(ctx, request, orgId, libId);
+        return methodNotAllowed(requestId);
+      }
+      if ((m = path.match(SHARE_LINK_RE))) {
+        const shl = parseShareLinkPublicId(m[3]!);
+        if (!shl) return nf();
+        return method === "DELETE" ? await handleRevokeShareLink(ctx, orgId, libId, shl) : methodNotAllowed(requestId);
+      }
       if ((m = path.match(LIVE_TICKETS_RE))) return method === "POST" ? await handleLiveTicket(ctx, orgId, libId, lm[1]!, lm[2]!) : methodNotAllowed(requestId);
       if ((m = path.match(TAGS_RE))) return method === "GET" ? await handleListTags(ctx, orgId, libId) : methodNotAllowed(requestId);
       const fid = (() => {

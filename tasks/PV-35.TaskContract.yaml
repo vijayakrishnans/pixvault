@@ -1,0 +1,33 @@
+# PV-35: PV6, share links. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-35
+spec:
+  goal: "Editors and managers share a file or a folder by link (view or download, expiry, PBKDF2 password, download limit, open count) and revoke it; guests open /_s/<token> on serve-worker, which asks media-worker per request, so revocation is immediate and a guest sees only the shared target."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/serve-worker
+    - default/pixvault/serve-worker-tests
+    - default/pixvault/db
+    - default/pixvault/db-tests
+    - default/pixvault/db-migrate
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/serve-worker/**
+    - tests/serve-worker/**
+    - packages/db/**
+    - tests/db/**
+    - apps/api-edge/**
+    - tests/api-edge/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+  doneWhen:
+    - "revoking a link makes the next request 404 (test)"
+    - "a guest holding a link sees only the shared target on every route (test)"
+    - "a password link needs the password and the stored hash is PBKDF2 (test)"
+  gates: []

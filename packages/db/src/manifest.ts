@@ -237,5 +237,14 @@ export const manifest: MigrationManifest = {
       description:
         "Wrong-code limit for email login challenges (OWASP A07): failed_attempts on identity_login_challenges",
     },
+    {
+      id: "260_media_share_links",
+      context: "media",
+      path: "260_media_share_links/up.sql",
+      checksum:
+        "54f03943da4a50c9cad5abe508535a943317a38de6a07b01b2f1aeb72ebf5b76",
+      description:
+        "Share links (PV6): target label and the open trail (counts and time) on media_share_links",
+    },
   ],
 };

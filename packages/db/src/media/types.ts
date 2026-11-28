@@ -176,8 +176,55 @@ export interface MediaRepository {
   isPlatformOperator(subjectId: string): Promise<MediaResult<boolean>>;
   getOrgSuspension(orgId: string): Promise<MediaResult<{ suspendedAt: string; reason: string | null } | null>>;
   setOrgSuspension(orgId: string, suspended: boolean, reason: string | null, decidedBy: string, at: Date): Promise<MediaResult<true>>;
+  // share links (PV6)
+  createShareLink(input: ShareLinkInput): Promise<MediaResult<ShareLink>>;
+  listShareLinks(orgId: string, libraryId: string, filter: { targetKind?: ShareLink["targetKind"]; targetId?: string; limit: number }): Promise<MediaResult<ShareLink[]>>;
+  getShareLink(orgId: string, libraryId: string, id: string): Promise<MediaResult<ShareLink>>;
+  /** By token hash, across every org (the token is the whole credential). */
+  getShareLinkByTokenHash(tokenHash: string): Promise<MediaResult<ShareLink>>;
+  revokeShareLink(orgId: string, libraryId: string, id: string, at: Date): Promise<MediaResult<ShareLink>>;
+  recordShareOpen(id: string, at: Date): Promise<MediaResult<true>>;
+  /** Count one download if the link is live and under its limit; false when the limit is reached. */
+  consumeShareDownload(id: string, at: Date): Promise<MediaResult<boolean>>;
   /** Mark a file's open failures replayed or resolved. */
   settlePipelineFailures(orgId: string, libraryId: string, fileId: string, status: "replayed" | "resolved", at: Date): Promise<MediaResult<true>>;
+}
+
+export interface ShareLink {
+  id: string;
+  orgId: string;
+  libraryId: string;
+  targetKind: "file" | "folder" | "collection";
+  /** File id (uuid), folder path, or collection id. */
+  targetId: string;
+  targetLabel: string;
+  mode: "view" | "download";
+  tokenHash: string;
+  /** "pbkdf2-sha256$<iterations>$<salt b64url>$<hash b64url>", or null. Never leaves media-worker. */
+  passwordHash: string | null;
+  expiresAt: string | null;
+  maxDownloads: number | null;
+  downloads: number;
+  opens: number;
+  lastOpenedAt: string | null;
+  createdBy: string;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface ShareLinkInput {
+  orgId: string;
+  libraryId: string;
+  targetKind: ShareLink["targetKind"];
+  targetId: string;
+  targetLabel: string;
+  mode: ShareLink["mode"];
+  tokenHash: string;
+  passwordHash: string | null;
+  expiresAt: Date | null;
+  maxDownloads: number | null;
+  createdBy: string;
+  at: Date;
 }
 
 export interface PipelineFailureInput {

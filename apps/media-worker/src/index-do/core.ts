@@ -204,6 +204,10 @@ export interface ListFilter {
   /** One exact status among live files. */
   fileStatus?: Exclude<FileRow["status"], "trashed">;
   visibility?: "public" | "private";
+  /** This folder and every folder under it (a shared folder). */
+  under?: string;
+  /** Only files that are being served (public or private): what a share link may show. */
+  servedOnly?: boolean;
   /** created_at bounds, ISO. */
   from?: string;
   to?: string;
@@ -565,6 +569,12 @@ export class LibraryIndexCore {
       where.push(`uploaded_by = ?`);
       params.push(opts.uploadedBy);
     }
+    if (opts.under !== undefined && opts.under !== "/") {
+      const prefix = `${opts.under}/`;
+      where.push(`(folder = ? OR substr(folder, 1, ?) = ?)`);
+      params.push(opts.under, prefix.length, prefix);
+    }
+    if (opts.servedOnly) where.push(`status IN ('public', 'private')`);
     if (opts.q !== undefined) {
       const match = ftsQuery(opts.q);
       if (match) {
