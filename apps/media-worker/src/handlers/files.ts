@@ -3,6 +3,7 @@
 // retention), restore brings it back, and purge removes it for good, deleting the blob only when no other file or
 // version still references the same bytes.
 
+import { storeFor } from "../storage/stores.js";
 import { DEFAULT_MEDIA_LIMITS, type PublicFile, type PublicFileVersion } from "@saas/contracts/media";
 import { authorizeOnLibrary, hasAnyStanding, loadFacts } from "../access.js";
 import type { Ctx } from "../ctx.js";
@@ -173,7 +174,7 @@ export async function handleFileContent(ctx: Ctx, orgId: string, libraryId: stri
   const l = await loadFile(ctx, orgId, libraryId, fileId);
   if (!l.ok) return l.response;
   if (l.file.status === "trashed" || !(await canRead(ctx, l.a, l.file)) || !l.objectKey) return nf(ctx);
-  const obj = await ctx.env.MEDIA_BUCKET!.get(l.objectKey);
+  const obj = await (await storeFor(ctx.env, orgId, libraryId)).get(l.objectKey);
   if (!obj) return nf(ctx);
   const safeName = l.file.name.replace(/["\\\r\n]/g, "_");
   return new Response(obj.body, {
@@ -198,7 +199,8 @@ export async function handleDeleteFile(ctx: Ctx, url: URL, orgId: string, librar
   try {
     if (url.searchParams.get("permanent") === "1") {
       const r = await l.idx.call<{ deleteKeys: string[]; releasedBytes: number }>({ op: "purge", id: fileId });
-      for (const key of r.deleteKeys) await ctx.env.MEDIA_BUCKET!.delete(key);
+      const store = await storeFor(ctx.env, orgId, libraryId);
+      for (const key of r.deleteKeys) await store.delete(key);
       if (r.releasedBytes > 0) await ctx.repo.releaseStorage(orgId, r.releasedBytes, now);
       return successResponse({ purged: true, releasedBytes: r.releasedBytes }, ctx.requestId);
     }

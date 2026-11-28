@@ -165,7 +165,12 @@ export function s3Client(cfg: S3Config, deps: S3Deps = {}) {
     /** The object's bytes (optionally a range), or null when it doesn't exist. */
     async get(key: string, range?: string): Promise<Response | null> {
       const res = await send("GET", objectUrl(cfg, key), { headers: range ? { range } : {} });
-      if (res.status === 404) return null;
+      if (res.status === 404) {
+        // A missing bucket is a broken store, not a missing file.
+        const e = await errorOf(res);
+        if (e.code === "NoSuchBucket") throw e;
+        return null;
+      }
       if (!res.ok) throw await errorOf(res);
       return res;
     },
@@ -177,7 +182,9 @@ export function s3Client(cfg: S3Config, deps: S3Deps = {}) {
     },
     async delete(key: string): Promise<void> {
       const res = await send("DELETE", objectUrl(cfg, key));
-      if (!res.ok && res.status !== 404) throw await errorOf(res);
+      if (res.ok) return;
+      const e = await errorOf(res);
+      if (res.status !== 404 || e.code === "NoSuchBucket") throw e;
     },
     /** Keys under a prefix (at most `max`, up to 1000). */
     async list(prefix: string, max = 100): Promise<{ key: string; size: number }[]> {

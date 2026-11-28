@@ -6,6 +6,7 @@
 // request: nothing caches the grant. A guest sees only the shared file, or the served files under the shared
 // folder, never anything else in the library (OWASP A01).
 
+import { storeFor } from "../storage/stores.js";
 import type { Ctx } from "../ctx.js";
 import type { Env } from "../env.js";
 import { createSqlExecutor } from "@saas/db/d1";
@@ -296,7 +297,7 @@ export async function handleShareContent(env: Env, request: Request, requestId: 
   if (!r.ok) return r.response;
   const { link } = r;
   const id = typeof body.fileId === "string" ? parseFilePublicId(body.fileId) : null;
-  if (!id || !env.MEDIA_BUCKET) return nf(requestId);
+  if (!id) return nf(requestId);
   const got = await indexFor(env, { orgId: link.orgId, libraryId: link.libraryId }).call<{ file: FileRow; objectKey: string | null } | null>({ op: "getFileWithKey", id });
   if (got?.file.status === "removed" && (link.targetKind !== "file" || got.file.id === link.targetId)) return errorResponse("unavailable_for_legal_reasons", "Unavailable", 451, requestId);
   if (!got || !got.objectKey || !inShare(link, got.file)) return nf(requestId);
@@ -309,7 +310,7 @@ export async function handleShareContent(env: Env, request: Request, requestId: 
     const counted = await r.repo.consumeShareDownload(link.id, now);
     if (counted.ok && !counted.value) return errorResponse("used_up", "This link has reached its download limit", 410, requestId);
   }
-  const obj = await env.MEDIA_BUCKET.get(got.objectKey);
+  const obj = await (await storeFor(env, link.orgId, link.libraryId)).get(got.objectKey);
   if (!obj) return nf(requestId);
   const safe = f.name.replace(/["\\\r\n]/g, "_");
   return new Response(obj.body, {

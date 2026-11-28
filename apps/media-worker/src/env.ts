@@ -25,6 +25,8 @@ export interface Env {
   NOTIFICATIONS_WORKER?: Fetcher;
   /** The media app's origin, for links in emails (e.g. https://pixvault-media-web-stage.<sub>.workers.dev). */
   APP_BASE?: string;
+  /** storage-worker (service binding): customer buckets (PV7). */
+  STORAGE_WORKER?: Fetcher;
   /** "on" | "off": public files, share links, upload links, galleries (off in prod until W-5/W-6; see sharing.ts). */
   PUBLIC_SHARING?: string;
 }

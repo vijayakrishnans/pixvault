@@ -75,6 +75,10 @@
           "binding": "POLICY_WORKER",
           "service": "pixvault-policy-worker-stage"
         },
+        {
+          "binding": "STORAGE_WORKER",
+          "service": "pixvault-storage-worker-stage"
+        },
         // Mention emails (PV6), best effort.
         {
           "binding": "NOTIFICATIONS_WORKER",
@@ -133,6 +137,10 @@
         {
           "binding": "POLICY_WORKER",
           "service": "pixvault-policy-worker-prod"
+        },
+        {
+          "binding": "STORAGE_WORKER",
+          "service": "pixvault-storage-worker-prod"
         },
         // Mention emails (PV6), best effort.
         {

@@ -12,7 +12,7 @@ What *isn't* built, or is blocked, is tracked item by item in [`GAPS.md`](GAPS.m
 | PV4: pipeline and safety | ✅ done 2026-11-28: PV-22 ProcessFileWorkflow, location removal, held failures and replay; PV-23 moderation, tags, review queue; PV-24 moderation answer shape; PV-25 abuse reports, takedown, suspension, runbook; PV-26 app states and Review tab | #24, #25, #26, #27, PV-26 (this PR) |
 | PV5: browser and live collaboration | ✅ done 2026-11-28: PV-27 folders, search, filters, moves and batches; PV-28 live updates and presence; PV-29 the browser in the app; PV-30 live refresh fix | #29, #30, #31, PV-30 (this PR) |
 | PV6: sharing | ✅ done 2026-11-28: PV-31 OWASP review and hardening; PV-33 identity redeploy; PV-32 console patches and dependency gate; PV-34 prod sharing gate; PV-35 share links; PV-36 upload links; PV-37 collections and galleries; PV-38 comments and mentions; PV-39 mention caller fix; PV-40 the app's sharing screens; PV-41 activity; PV-43 done | #33–#43, PV-43 (this PR) |
-| PV7: BYO storage | in progress: PV-42 S3 client; PV-44 storage-worker | #44, PV-44 (this PR) |
+| PV7: BYO storage | in progress: PV-42 S3 client; PV-44 storage-worker; PV-45 per-library stores | #44, #46, PV-45 (this PR) |
 | PV8: custom domains | | |
 | PV9: developer surface | | |
 | PV10: import | | |

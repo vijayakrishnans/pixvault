@@ -130,6 +130,7 @@ orunbase `fe17c72a`, software-factory `ac5be085` (same as the brief), pr-provena
 - Pre-existing baseline failure: `tests/integrations-worker`, 5 drain tests failing on a clean `main`. Not PV's; follow-up.
 
 - PV7 storage-worker (PV-44, 2026-11-28): internal-only Worker holding BYO credentials sealed under `STORAGE_KEK` (generated in CI). Tested against s3rver: 21 tests incl. tenancy, SSRF refusals, checksum and timeout. Not wired in until PV-45.
+- PV7 per-library stores (PV-45): `@saas/shared/media-store` (R2-shaped seam + remote store); media-worker `storage/stores.ts` storeFor (30 s cache, fresh on uploads); library map `b`. End-to-end test media-worker → storage-worker → s3rver.
 
 ## Open risks and deferred items
 

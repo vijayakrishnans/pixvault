@@ -5,6 +5,8 @@
 // Managed uploads stream each part through this Worker into R2 (R2 multipart over the binding), so no S3 access
 // key ever lives in a Worker and the bucket needs no CORS rule. Bytes never leave Cloudflare's network.
 
+import type { MediaStore } from "@saas/shared/media-store";
+
 export interface PartReceipt {
   partNumber: number;
   etag: string;
@@ -12,7 +14,7 @@ export interface PartReceipt {
 
 /** Store one whole object; R2 rejects it unless its SHA-256 matches. Returns false on a hash mismatch. */
 export async function putSingle(
-  bucket: R2Bucket,
+  bucket: MediaStore,
   key: string,
   body: ReadableStream,
   length: number,
@@ -28,13 +30,13 @@ export async function putSingle(
   }
 }
 
-export async function createMultipart(bucket: R2Bucket, key: string, contentType: string): Promise<string> {
+export async function createMultipart(bucket: MediaStore, key: string, contentType: string): Promise<string> {
   const upload = await bucket.createMultipartUpload(key, { httpMetadata: { contentType } });
   return upload.uploadId;
 }
 
 export async function uploadPart(
-  bucket: R2Bucket,
+  bucket: MediaStore,
   key: string,
   uploadId: string,
   partNumber: number,
@@ -46,12 +48,12 @@ export async function uploadPart(
   return { partNumber: part.partNumber, etag: part.etag };
 }
 
-export async function completeMultipart(bucket: R2Bucket, key: string, uploadId: string, parts: PartReceipt[]): Promise<void> {
+export async function completeMultipart(bucket: MediaStore, key: string, uploadId: string, parts: PartReceipt[]): Promise<void> {
   const upload = bucket.resumeMultipartUpload(key, uploadId);
   await upload.complete(parts.sort((a, b) => a.partNumber - b.partNumber));
 }
 
-export async function abortUpload(bucket: R2Bucket, key: string, mode: string, uploadId: string | null): Promise<void> {
+export async function abortUpload(bucket: MediaStore, key: string, mode: string, uploadId: string | null): Promise<void> {
   try {
     if (mode === "multipart" && uploadId) await bucket.resumeMultipartUpload(key, uploadId).abort();
     else await bucket.delete(key);
@@ -76,7 +78,7 @@ export function streamingDigest(): DigestStreamCtor | null {
 }
 
 /** SHA-256 (hex) of a stored object, streamed through the runtime's digest stream: constant memory at any size. */
-export async function sha256OfObject(bucket: R2Bucket, key: string): Promise<{ sha256: string; size: number } | null> {
+export async function sha256OfObject(bucket: MediaStore, key: string): Promise<{ sha256: string; size: number } | null> {
   const obj = await bucket.get(key);
   if (!obj) return null;
   let bytes: Uint8Array;
