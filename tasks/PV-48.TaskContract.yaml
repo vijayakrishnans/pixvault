@@ -1,0 +1,28 @@
+# PV-48: PV7, the storage wizard. Minted under milestone PV7; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-48
+spec:
+  goal: "The app's library settings gain a Storage tab for managers: where the files live, a three-step wizard (bucket details, test with each step's result and a hint, then use the bucket or move files), migration progress, re-check and move back; keys are cleared from the page once used and never kept in the browser. PV7 is marked done."
+  affects:
+    - default/pixvault/media-web
+    - default/pixvault/media-worker
+    - default/pixvault/media-web-tests
+    - default/pixvault/media-worker-tests
+    - apps/media-web/**
+    - apps/media-worker/**
+    - tests/media-web/**
+    - tests/media-worker/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "the Storage tab shows the library's storage to managers only (deployed stage check)"
+    - "a failed test lists each step with its S3 code and a hint, and offers no switch (deployed stage check)"
+    - "a refused endpoint shows under its field (deployed stage check)"
+    - "the keys never reach browser storage or a URL (stage check, client test)"
+    - "GET …/storage reports what the library holds (test)"
+    - "implementation-plan marks PV7 done with its as-built note"
+  gates: []

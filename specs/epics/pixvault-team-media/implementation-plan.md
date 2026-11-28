@@ -156,7 +156,7 @@ for the domain, G91, G92); the app's screens (PV-40) and activity per file and l
 collection, gallery, activity). Each Done-when item is tested in `shares.test.ts`, `uploadlinks.test.ts` and
 `collections.test.ts`. Ledger: *Measured*.
 
-## PV7: BYO storage
+## PV7: BYO storage ✅
 
 This milestone adds the `s3-compatible` `ObjectStore` (SigV4, any S3 endpoint) and the setup wizard (put, get,
 delete and list test, plus the CORS rule). It adds envelope-encrypted credentials, a per-library backend,
@@ -168,6 +168,17 @@ managed ↔ BYO migration by Workflow, and health checks.
 - end to end against `BYO_TEST_BUCKET_*` (or MinIO locally until the secret exists)
 - migration moves every blob, verifies hashes and leaves the index consistent, in both directions
 - a broken BYO bucket shows `error` status and other libraries keep serving
+
+**As built (2026-11-28):** a WebCrypto SigV4 client adapted from `s3Client.js` (PV-42, pinned by AWS's published
+signatures); storage-worker, the only place bucket keys are opened, with envelope encryption under a key CI generates,
+SSRF refusals and request deadlines (PV-44, G94, G96); each library reads and writes its own store, and serving follows
+the library map (PV-45, G97); the storage API with a switch lock in the library's index (PV-46, G98); migration by
+MigrateStorageWorkflow with SHA-256 checks, both directions (PV-47, G100, G101); and the app's Storage tab (PV-48).
+No CORS rule was needed: uploads stream through the Worker (G7). The end-to-end tests run against s3rver, an
+S3-compatible server in the test process, in place of MinIO (Docker couldn't pull images here, W-9): uploads, downloads,
+purges and migration both ways, and a broken bucket showing `error` while other libraries serve (`byo.test.ts`,
+`storage-api.test.ts`, `migration.test.ts`). Stage: the deployed path reaches a real S3 endpoint (7/7 API checks, 9/9
+in the app). **Still open:** a run against a real bucket, which waits for W-7 (G5). Ledger: *Measured*.
 
 ## PV8: custom domains
 

@@ -157,3 +157,25 @@ test("activity: the library's log, or one file's, with a cursor", async () => {
   assert.equal(f.calls[0].url, "https://edge/v1/organizations/org_1/libraries/lib_2/activity");
   assert.equal(f.calls[1].url, "https://edge/v1/organizations/org_1/libraries/lib_2/activity?file=fil_3&cursor=42");
 });
+
+test("storage: see, test, attach, re-check, detach and migrate (PV7)", async () => {
+  const f = fakeFetch(200, { data: {} });
+  const c = createClient({ base: "https://edge", fetchImpl: f.fn, token: () => "tok" });
+  const bucket = { endpoint: "https://s3.example.com", bucket: "b", accessKeyId: "AKIA1234", secretAccessKey: "s3cr3t-value" };
+  await c.libraries.storage("org_1", "lib_1");
+  await c.libraries.checkBucket("org_1", "lib_1", bucket);
+  await c.libraries.attachBucket("org_1", "lib_1", bucket);
+  await c.libraries.recheckBucket("org_1", "lib_1", "stb_ab");
+  await c.libraries.detachBucket("org_1", "lib_1", "stb_ab");
+  await c.libraries.startMigration("org_1", "lib_1", "managed");
+  await c.libraries.startMigration("org_1", "lib_1", "bucket", bucket);
+  const L = "https://edge/v1/organizations/org_1/libraries/lib_1/storage";
+  assert.deepEqual(
+    f.calls.map((x) => `${x.init.method} ${x.url}`),
+    [`GET ${L}`, `POST ${L}/check`, `POST ${L}`, `POST ${L}/stb_ab/check`, `DELETE ${L}/stb_ab`, `POST ${L}/migrations`, `POST ${L}/migrations`],
+  );
+  assert.deepEqual(JSON.parse(f.calls[5].init.body), { target: "managed" });
+  assert.deepEqual(JSON.parse(f.calls[6].init.body), { target: "bucket", ...bucket });
+  // keys only ever travel in a request body, never in a URL
+  assert.ok(f.calls.every((x) => !x.url.includes("s3cr3t") && !x.url.includes("AKIA")));
+});

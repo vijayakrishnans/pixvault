@@ -90,9 +90,13 @@ export async function handleGetStorage(ctx: Ctx, orgId: string, libraryId: strin
   const r = await ctx.repo.listStorageBackends(orgId, libraryId);
   if (!r.ok) return errorResponse("internal_error", "Service unavailable", 503, ctx.requestId);
   const current = r.value.find((b) => b.status === "active" || b.status === "error") ?? null;
-  const m = await indexFor(ctx.env, { orgId, libraryId }).call<Record<string, unknown> | null>({ op: "migration" });
+  const idx = indexFor(ctx.env, { orgId, libraryId });
+  const [m, holds] = await Promise.all([
+    idx.call<Record<string, unknown> | null>({ op: "migration" }),
+    idx.call<{ files: number; blobs: number; uploads: number }>({ op: "storageHolds", nowIso: ctx.now().toISOString() }),
+  ]);
   const migration = m ? { id: m.id, state: m.state, copied: m.copied ?? 0, missing: m.missing ?? 0, total: m.total ?? null, error: m.error ?? null, at: m.at ?? null, to: m.to === "managed" ? "managed" : backendPublicId(String(m.to)) } : null;
-  return successResponse({ current: current ? backendView(current) : null, history: r.value.map(backendView), migration }, ctx.requestId);
+  return successResponse({ current: current ? backendView(current) : null, history: r.value.map(backendView), migration, holds: { files: Math.max(holds.files, holds.blobs), uploads: holds.uploads } }, ctx.requestId);
 }
 
 /** POST …/libraries/{lib}/storage/check: test a bucket without attaching it. */

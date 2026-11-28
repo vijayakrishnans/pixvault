@@ -167,6 +167,13 @@ export function createClient({ base = apiBase(), fetchImpl = (...a) => globalThi
       addComment: (org, id, fileId, body, mentions = []) => request("POST", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/comments`, { body, mentions }),
       updateComment: (org, id, fileId, commentId, patch) => request("PATCH", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/comments/${encodeURIComponent(commentId)}`, patch),
       deleteComment: (org, id, fileId, commentId) => request("DELETE", `${lib(org, id)}/files/${encodeURIComponent(fileId)}/comments/${encodeURIComponent(commentId)}`),
+      // Storage (PV7): bucket keys are sent once and never come back.
+      storage: (org, id) => request("GET", `${lib(org, id)}/storage`),
+      checkBucket: (org, id, bucket) => request("POST", `${lib(org, id)}/storage/check`, bucket),
+      attachBucket: (org, id, bucket) => request("POST", `${lib(org, id)}/storage`, bucket),
+      recheckBucket: (org, id, backendId) => request("POST", `${lib(org, id)}/storage/${encodeURIComponent(backendId)}/check`),
+      detachBucket: (org, id, backendId) => request("DELETE", `${lib(org, id)}/storage/${encodeURIComponent(backendId)}`),
+      startMigration: (org, id, target, bucket = {}) => request("POST", `${lib(org, id)}/storage/migrations`, { target, ...bucket }),
     },
   };
 }

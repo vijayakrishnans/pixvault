@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-47._
+_Last updated: 2026-11-28, PV-48 (PV7 closed)._
 
 ## Blocked
 
@@ -25,7 +25,7 @@ _Last updated: 2026-11-28, PV-47._
 | G2 | **CSAM scanning** (W-5) | It's enabled per zone in the Cloudflare dashboard and isn't available on `workers.dev`. | No CSAM scanning on any serving host. | **Public sharing stays off in prod** until W-5 and W-6 are done (risk PV-A), **enforced since PV-34**: `PUBLIC_SHARING=off` on prod's media-worker and serve-worker refuses public files, public defaults, the random API, share links, upload links and galleries; serving needs a signature. Turning it on is one var per worker. | PV4 / PV8 |
 | G3 | **Product domain** (W-6) | The user will choose a unique name later; `pixvault.app` was a placeholder. Nothing is registered. | Everything is served on `*.vijayakrishnan12994.workers.dev`: no `i.`/`app.`/`dav.` hosts, and no CSAM scanning (G2). | `productdomain` was left empty at bootstrap; the parked custom-domain component can be switched on later. | When the domain exists |
 | G4 | **Grievance officer details and legal review** (W-1, W-2) | They need a person and a lawyer. | `ABUSE.md` has a placeholder section; terms and privacy pages aren't written. | Policy text and process are in `ABUSE.md`. | PV11 |
-| G5 | **BYO test bucket** (W-7) and **Docker for MinIO** (W-9) | Credentials and a local daemon. | No end-to-end BYO test against a real S3 endpoint yet. | The S3 client (PV-42) is pinned by AWS's published SigV4 examples and round-trips against s3rver in the tests; Docker is up but can't pull images here | PV7, once W-7 exists |
+| G5 | **BYO test bucket** (W-7) and **Docker for MinIO** (W-9) | Credentials and a local daemon. | No end-to-end BYO run against a real S3 endpoint yet. | PV7 is tested end to end against s3rver (uploads, downloads, purges, migration both ways); on stage the deployed path reaches AWS S3 and gets its error codes back. Docker can't pull images here. | The user creates a test bucket and enters it in the Storage tab on stage (W-7) | Open |
 | G6 | **`nexo` connection and the `openproduct-sms84q22` account** (W-8) | `nexo` is revoked on `openproduct-6ny98czp`, and the brief's account gives this login no account role. | Pixvault runs on the user's own Cloudflare account, not Nexo's. | The user chose `openproduct-6ny98czp`; the active connection `int_4da71819…` is used. Moving to Nexo is a redeploy, not a code change. | If the user asks |
 
 ## Done differently
@@ -129,7 +129,6 @@ _Last updated: 2026-11-28, PV-47._
 | G68 | **No operator UI** | Abuse cases, takedowns, suspensions and pipeline failures are API-only. | `docs/ops/abuse-runbook.md` gives the calls. | PV11 (platform admin) |
 | G69 | **CSAM is caught by reports and moderation only** | No hash matching. Cloudflare's CSAM Scanning Tool needs serving on a zone. | The CSAM category is triaged first and taken down on the report alone (runbook). | W-5 once serving has a zone (W-6) |
 | G94 | **No DNS-time check on customer endpoints** | The review asked for private and metadata ranges to be refused after DNS resolution. A Worker can't resolve a name before `fetch`, so a public name pointing at 10.0.0.1 passes validation. | Endpoints must be https host names: IP literals, local and internal names, user info and odd ports are refused; no redirects are followed; every request has a deadline (15 s checks, 120 s objects). Workers' outbound traffic reaches the public internet only, so a private address leads nowhere. | A DNS-over-HTTPS lookup before saving a backend, refusing private answers (still racy against DNS rebinding) | PV7 hardening |
-| G95 | **No screen to attach a bucket** | The API exists (PV-46: `GET/POST …/storage`, `POST …/storage/check`, `POST …/storage/{stb}/check`, `DELETE …/storage/{stb}`), but the app has no wizard yet. | Managers can use the API. | — | PV-48 (wizard) |
 | G96 | **One key-encryption key, no rotation tooling** | `STORAGE_KEK` is set once by CI. Each sealed value records its key id (`kid`) so a second key can be added, but nothing re-seals old values yet. Losing the secret means every customer re-enters their bucket keys. | The runbook forbids deleting it; CI only creates it when missing. | A rotation run: add `STORAGE_KEK_2`, re-seal every row, retire the first | PV11 |
 | G97 | **A store decision can be up to 30 s old for reads** | Each isolate caches which store a library uses. Upload steps always ask fresh; reads and deletes may use a 30 s old answer. | Changes happen under a lock in the library's index; commits name the store they wrote to; a migration leaves the old copies in place, so a stale read still finds the bytes. | Invalidation through the library's index object | Later, if a stale read ever matters |
 | G98 | **Bring-your-own storage isn't tied to a plan** | Any library manager can attach a bucket, on any plan. The design may want it on paid plans. | Managers only; 10 checks an hour per library. | A plan entitlement read like moderation's free-plan check | PV11 (billing) |
@@ -141,6 +140,7 @@ _Last updated: 2026-11-28, PV-47._
 
 | # | Item | Closed by |
 |---|---|---|
+| G95 | No screen to attach a bucket | PV-48: the Storage tab (wizard, migration progress, re-check, move back) |
 | G99 | A library with files couldn't change storage | PV-47: storage migration (`POST …/storage/migrations`, MigrateStorageWorkflow) |
 | G8 | A separate storage-worker (§0, §4.4) | PV-44: `apps/storage-worker`, the only place BYO credentials are opened; internal-only, envelope-encrypted keys |
 | — | Expired email login codes were accepted; no wrong-code limit (OWASP A07, found in review) | PV-31: expiry enforced in the consume query, 5 wrong codes burn the challenge |

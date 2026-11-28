@@ -12,7 +12,7 @@ continues meanwhile (local `wrangler dev`, Miniflare, MinIO).
 | W-4 | Confirm the Cloudflare account is on Workers Paid | PV4 (Queues need Paid) | ✅ confirmed by measurement (PV2) |
 | W-5 | Turn on CSAM scanning for the serving hostnames | PV4 done; public sharing in prod | ⛔ open |
 | W-6 | Choose and register the product domain (the user picks a unique name later), then add its zone | PV8 on our domain; `i.`/`app.` hosts | ⛔ open |
-| W-7 | A throwaway S3-compatible bucket for BYO tests | PV7 end to end (MinIO covers local) | ⛔ open |
+| W-7 | A throwaway S3-compatible bucket for BYO tests | A real-bucket run of PV7 (s3rver covers the tests) | ⛔ open; enter it in the Storage tab on stage |
 | W-8 | The brief's `nexo` Cloudflare connection is revoked on this account | nothing (decision only) | ℹ️ decision |
 | W-9 | Docker on the build machine (for MinIO) | PV7 local BYO tests | ⛔ open |
 
@@ -96,6 +96,10 @@ until then no email is delivered (sign-in codes on prod included), because the s
 endpoint, region, bucket, access key and secret as workspace secrets `BYO_TEST_BUCKET_ENDPOINT`, `…_REGION`,
 `…_BUCKET`, `…_ACCESS_KEY_ID`, `…_SECRET_ACCESS_KEY` in `ws_KG0H9PEH`. Never use a production bucket.
 **Signal:** `secrets_list` shows the five keys.
+**Simpler, since PV-48 (2026-11-28):** create the bucket and a key scoped to it, then enter them yourself in the
+stage app: a library's **Settings → Storage → Use your own bucket → Test the bucket**, then **Use this bucket** (or
+**Move files to this bucket**). The keys go straight to storage-worker, encrypted; no one needs to see them. Tell the
+agent which library, and it verifies uploads, downloads and a migration back from its side.
 
 ## W-8. `nexo` is revoked (decision record)
 
