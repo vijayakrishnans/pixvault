@@ -25,7 +25,7 @@
         { "name": "SERVE_UPLOAD_RL", "namespace_id": "7307", "simple": { "limit": 10, "period": 60 } }
       ],
       // Abuse reports and share-link pages go to media-worker, which has no public route.
-      "services": [{ "binding": "MEDIA_WORKER", "service": "pixvault-media-worker-stage" }],
+      "services": [{ "binding": "MEDIA_WORKER", "service": "pixvault-media-worker-stage" }, { "binding": "STORAGE_WORKER", "service": "pixvault-storage-worker-stage" }],
       // media-worker's per-library index, for the random-image API (read-only op).
       "durable_objects": {
         "bindings": [{ "name": "LIBRARY_INDEX", "class_name": "LibraryIndex", "script_name": "pixvault-media-worker-stage" }]
@@ -47,7 +47,7 @@
         { "name": "SERVE_UPLOAD_RL", "namespace_id": "7308", "simple": { "limit": 10, "period": 60 } }
       ],
       // Abuse reports and share-link pages go to media-worker, which has no public route.
-      "services": [{ "binding": "MEDIA_WORKER", "service": "pixvault-media-worker-prod" }],
+      "services": [{ "binding": "MEDIA_WORKER", "service": "pixvault-media-worker-prod" }, { "binding": "STORAGE_WORKER", "service": "pixvault-storage-worker-prod" }],
       // media-worker's per-library index, for the random-image API (read-only op).
       "durable_objects": {
         "bindings": [{ "name": "LIBRARY_INDEX", "class_name": "LibraryIndex", "script_name": "pixvault-media-worker-prod" }]

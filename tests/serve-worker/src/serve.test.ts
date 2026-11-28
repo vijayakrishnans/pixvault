@@ -483,3 +483,47 @@ describe("public galleries", () => {
     expect(w.randomCalls).toEqual([]);
   });
 });
+
+describe("libraries on a customer bucket (PV7)", () => {
+  function remoteWorld(answer: (url: URL, init?: RequestInit) => Response) {
+    const seen: URL[] = [];
+    (w.env as unknown as { STORAGE_WORKER: unknown }).STORAGE_WORKER = {
+      fetch: async (input: string, init?: RequestInit) => {
+        const u = new URL(input);
+        seen.push(u);
+        return answer(u, init);
+      },
+    };
+    return seen;
+  }
+
+  it("reads through storage-worker with the backend's id and prefix, never from managed R2", async () => {
+    const backend = crypto.randomUUID();
+    const A = addLibrary(w, "acme", "byo", { b: { i: backend, p: "team/" } });
+    const f = addFile(w, A, "/a.png");
+    w.r2.objects.clear();
+    const seen = remoteWorld((u, init) => {
+      expect(new Headers(init?.headers).get("range")).toBe("bytes=2-5");
+      return new Response(f.bytes.subarray(2, 6), { status: 206, headers: { "content-range": `bytes 2-5/${f.bytes.length}`, "content-length": "4" } });
+    });
+    const r = await get(w, "/acme/byo/a.png", { range: "bytes=2-5" });
+    expect(r.status).toBe(206);
+    expect(new Uint8Array(await r.arrayBuffer())).toEqual(new Uint8Array(f.bytes.subarray(2, 6)));
+    expect(Object.fromEntries(seen[0]!.searchParams)).toEqual({ orgId: A.orgId, libraryId: A.id, backendId: backend, key: `team/${f.k}` });
+  });
+
+  it("a bucket that doesn't answer is a 502 with no detail; a missing object is a 404", async () => {
+    const A = addLibrary(w, "acme", "byo2", { b: { i: crypto.randomUUID(), p: "" } });
+    const x = addFile(w, A, "/x.png");
+    addFile(w, A, "/y.png");
+    remoteWorld((u) =>
+      u.searchParams.get("key") === x.k
+        ? Response.json({ error: { code: "storage_error", details: { code: "AccessDenied" } } }, { status: 502 })
+        : Response.json({ error: { code: "not_found" } }, { status: 404 }),
+    );
+    const bad = await get(w, "/acme/byo2/x.png");
+    expect(bad.status).toBe(502);
+    expect(await bad.text()).not.toMatch(/AccessDenied|org\//);
+    expect((await get(w, "/acme/byo2/y.png")).status).toBe(404);
+  });
+});

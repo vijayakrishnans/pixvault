@@ -167,6 +167,11 @@ Each PR says which of these it touches and what it did:
 - **A08 integrity:** uploads with a checksum are hashed in the worker before sending, as well as signed, since not every S3-compatible server checks the signed hash.
 - **A09 logging:** errors carry S3 codes (`AccessDenied`, `NoSuchBucket`, `Timeout`), never URLs, keys or secrets. A backend's last error is a code.
 
+### Per-library stores (PV-45): how the checklist was met
+- **A01 tenancy:** the store is chosen from the library's own backend row (org and library in the query). In a customer bucket, keys are the backend's prefix plus the managed `org/<org>/lib/<lib>/` key, and storage-worker refuses anything outside the prefix. Serve-worker passes the org, library and backend from the library map, never from the request.
+- **A04/A08 integrity:** uploads still carry their SHA-256 to the store; a single upload to a customer bucket is re-hashed from what the bucket holds before it becomes a file, as multipart uploads already were.
+- **A09/A10:** a refusing or missing bucket is a 502/503 with no detail to the visitor; the code stays in storage-worker's answer to media-worker. A missing bucket is no longer read as a missing file.
+
 ### Ahead: what the next milestones must design in
 - **PV6, sharing (remaining):**
   - share and upload-link tokens are 256-bit random and stored hashed;

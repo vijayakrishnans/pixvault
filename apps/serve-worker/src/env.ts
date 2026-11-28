@@ -14,6 +14,8 @@ export interface Env {
   SERVE_RL?: RateLimit;
   /** media-worker (service binding): abuse reports from the report form. */
   MEDIA_WORKER?: Fetcher;
+  /** storage-worker (service binding): files of libraries on a customer bucket (PV7). */
+  STORAGE_WORKER?: Fetcher;
   /** Upload-link submissions per address. */
   SERVE_UPLOAD_RL?: RateLimit;
   /** Password tries on a share link: per address and link. */

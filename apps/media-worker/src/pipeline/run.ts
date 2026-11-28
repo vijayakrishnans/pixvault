@@ -5,6 +5,7 @@
 // Every step is safe to repeat: the stripped copy is written under a key derived from its own SHA-256, and the swap
 // is a no-op once done.
 
+import { storeFor } from "../storage/stores.js";
 import { createSqlExecutor } from "@saas/db/d1";
 import { createMediaRepository, managedPrefix } from "@saas/db/media";
 import type { Env } from "../env.js";
@@ -47,7 +48,7 @@ interface Cleaned {
 
 export async function runPipeline(env: Env, p: PipelineParams, step: Step, now: () => Date = () => new Date()): Promise<string> {
   const idx = indexFor(env, { orgId: p.orgId, libraryId: p.libraryId, actor: "pipeline" });
-  const bucket = env.MEDIA_BUCKET!;
+  const bucket = await storeFor(env, p.orgId, p.libraryId);
   const repo = env.PLATFORM_DB ? createMediaRepository(createSqlExecutor(env.PLATFORM_DB)) : null;
   let stage = "load";
   let currentSha = p.sha256;

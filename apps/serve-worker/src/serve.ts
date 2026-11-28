@@ -7,6 +7,7 @@
 
 import { verifyPath } from "@saas/shared/media-signing";
 import type { Env } from "./env.js";
+import { remoteStore, type MediaStore, type StoredObject } from "@saas/shared/media-store";
 import { negotiateFormat, presetOptions, transformImage } from "./transform.js";
 import { ipAllowed, referrerAllowed } from "./rules.js";
 import { SHARE_PREFIX, handleShare, parseSharePath } from "./share.js";
@@ -26,6 +27,8 @@ interface LibraryMap {
   p: string[];
   /** "suspended": the team is suspended; everything answers 451. */
   s?: string;
+  /** Set when the library's files are in a customer bucket (PV7): backend id and key prefix. */
+  b?: { i: string; p: string };
 }
 
 interface RouteValue {
@@ -287,7 +290,15 @@ async function handle(request: Request, env: Env, deps: ServeDeps): Promise<Resp
     }
   }
 
-  const obj = await env.MEDIA_BUCKET.get(route.k, range ? { range } : undefined);
+  const store: MediaStore | null = map.b ? (env.STORAGE_WORKER ? remoteStore(env.STORAGE_WORKER, { orgId: map.o, libraryId: map.l, backendId: map.b.i, prefix: map.b.p }) : null) : env.MEDIA_BUCKET;
+  if (!store) return text(503, "Unavailable");
+  let obj: StoredObject | null;
+  try {
+    obj = await store.get(route.k, range ? { range } : undefined);
+  } catch {
+    // The customer's bucket refused or didn't answer: say so without detail (the team sees the code in the app).
+    return text(502, "The storage for this file isn't answering");
+  }
   if (!obj || !("body" in obj)) return notFound();
 
   let body: ReadableStream | null = obj.body;

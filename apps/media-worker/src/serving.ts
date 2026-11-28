@@ -8,6 +8,8 @@ import type { Library } from "@saas/db/media";
 import type { Ctx } from "./ctx.js";
 import type { Env } from "./env.js";
 import { indexFor } from "./index-do/client.js";
+import { storeChoice } from "./storage/stores.js";
+import type { RemoteScope } from "@saas/shared/media-store";
 import { logError } from "./log.js";
 import { orgPublicId } from "./ids.js";
 import { parseSettings } from "./handlers/libraries.js";
@@ -24,11 +26,12 @@ export interface LibraryMap {
   /** random-image API enabled */ rnd: boolean;
   /** allowed transform presets */ p: string[];
   /** "suspended" when an operator suspended the org (serving answers 451); absent otherwise */ s?: "suspended";
+  /** the customer bucket's backend id and key prefix when the library isn't on managed R2 (PV7) */ b?: { i: string; p: string };
 }
 
 export const libraryMapKey = (orgSlug: string, libSlug: string) => `lib:${orgSlug}/${libSlug}`;
 
-export function toLibraryMap(lib: Library, suspended = false): LibraryMap | null {
+export function toLibraryMap(lib: Library, suspended = false, remote: RemoteScope | null = null): LibraryMap | null {
   if (!lib.signingKey) return null;
   const s = parseSettings(lib.settingsJson);
   return {
@@ -42,12 +45,21 @@ export function toLibraryMap(lib: Library, suspended = false): LibraryMap | null
     rnd: s.randomApiEnabled,
     p: s.transformPresets,
     ...(suspended ? { s: "suspended" as const } : {}),
+    ...(remote ? { b: { i: remote.backendId, p: remote.prefix } } : {}),
   };
 }
 
 export async function publishLibraryMap(env: Env, lib: Library, suspended = false): Promise<void> {
-  const map = toLibraryMap(lib, suspended);
-  if (!env.ROUTES_KV || !lib.orgSlug || !map || lib.status !== "active") return;
+  if (!env.ROUTES_KV || !lib.orgSlug || lib.status !== "active") return;
+  // Fresh: a library that just changed storage must be served from the new place.
+  let choice: Awaited<ReturnType<typeof storeChoice>>;
+  try {
+    choice = await storeChoice(env, lib.orgId, lib.id, { fresh: true });
+  } catch {
+    return; // keep the map that's there rather than point serving at the wrong store
+  }
+  const map = toLibraryMap(lib, suspended, choice.kind === "remote" ? choice.scope : null);
+  if (!map) return;
   await env.ROUTES_KV.put(libraryMapKey(lib.orgSlug, lib.slug), JSON.stringify(map));
 }
 

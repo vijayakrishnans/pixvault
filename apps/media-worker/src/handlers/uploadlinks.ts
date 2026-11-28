@@ -7,6 +7,7 @@
 // private, go through the safety pipeline (location data removed, moderation for images) and, unless the link
 // says otherwise, wait in the review queue. Nothing a guest sends is ever served without a member's decision.
 
+import { storeFor } from "../storage/stores.js";
 import type { Ctx } from "../ctx.js";
 import type { Env } from "../env.js";
 import { DEFAULT_MEDIA_LIMITS } from "@saas/contracts/media";
@@ -256,7 +257,7 @@ export async function handleUploadLinkUpload(env: Env, request: Request, url: UR
   if (!reserved.ok) return errorResponse("internal_error", "Service unavailable", 503, requestId);
   if (!reserved.value) return errorResponse("limit_reached", "This link can't take more files", 409, requestId);
 
-  const bucket = env.MEDIA_BUCKET!;
+  const bucket = await storeFor(env, link.orgId, link.libraryId, { fresh: true });
   const objectKey = `${managedPrefix(link.orgId, link.libraryId)}blob/${crypto.randomUUID()}`;
   let stored = false;
   try {

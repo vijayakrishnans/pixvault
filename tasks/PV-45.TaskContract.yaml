@@ -1,0 +1,31 @@
+# PV-45: PV7, per-library stores. Minted under milestone PV7; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-45
+spec:
+  goal: "media-worker and serve-worker read and write each library's files through its current store: managed R2, or the customer's bucket through storage-worker over a service binding (keys = backend prefix + managed key). Uploads, downloads, purges, the pipeline, share downloads and serving all follow the library's backend; a broken bucket is a clear error."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/serve-worker
+    - default/pixvault/storage-worker
+    - default/pixvault/shared
+    - default/pixvault/media-worker-tests
+    - default/pixvault/serve-worker-tests
+    - apps/media-worker/**
+    - apps/serve-worker/**
+    - apps/storage-worker/component.yaml
+    - packages/shared/**
+    - tests/media-worker/**
+    - tests/serve-worker/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - ai/context/**
+    - tasks/**
+  doneWhen:
+    - "single and multipart uploads on a BYO library land in the customer's bucket under its prefix, nothing in managed R2, and download byte for byte (test, real storage-worker + s3rver)"
+    - "a purge deletes the object from the customer's bucket (test)"
+    - "the library map carries the backend id and prefix; serve-worker reads through storage-worker with ranges (test)"
+    - "a missing bucket or refusing storage is a 5xx with no detail, not a 404 (tests)"
+    - "managed libraries behave as before (existing suites)"
+  gates: []

@@ -2,6 +2,7 @@
 // after policy-worker allowed the action; every call names its (org, library) scope, which the index checks
 // against the scope it was created for.
 
+import { storeFor } from "../storage/stores.js";
 import { DurableObject } from "cloudflare:workers";
 import { createSqlExecutor } from "@saas/db/d1";
 import { createMediaRepository } from "@saas/db/media";
@@ -306,7 +307,8 @@ export class LibraryIndex extends DurableObject<Env> {
     // At most DRAIN_PER_ALARM KV writes per alarm (a bulk move queues two per file); the rest go on the next alarm,
     // which scheduleAlarm sets for now while the outbox isn't empty.
     if (this.env.ROUTES_KV && libraryId) await drainOutbox(this.core, this.env.ROUTES_KV, libraryId, 200, DRAIN_PER_ALARM);
-    const bucket = this.env.MEDIA_BUCKET;
+    const orgForStore = this.orgId();
+    const bucket = orgForStore && libraryId ? await storeFor(this.env, orgForStore, libraryId).catch(() => null) : null;
     for (const s of this.core.expiredSessions(now.toISOString())) {
       if (bucket) await abortUpload(bucket, s.object_key, s.mode, s.multipart_upload_id);
       this.core.closeSession(s.id, "aborted");

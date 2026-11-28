@@ -4,6 +4,8 @@
 // parts (each can be retried, and the session resumed), then commits; the bytes are verified against the
 // client's SHA-256 before they become a file. Dedup, quotas and library rules apply before any byte is stored.
 
+import { storeFor } from "../storage/stores.js";
+import type { MediaStore } from "@saas/shared/media-store";
 import {
   DEFAULT_MEDIA_LIMITS,
   UPLOAD_PART_SIZE,
@@ -90,8 +92,8 @@ async function limitsFor(ctx: Ctx, orgId: string) {
 }
 
 /** After a commit: delete unreferenced objects and count the upload. */
-async function settle(ctx: Ctx, orgId: string, result: CommitResult): Promise<void> {
-  const bucket = ctx.env.MEDIA_BUCKET!;
+async function settle(ctx: Ctx, orgId: string, libraryId: string, result: CommitResult): Promise<void> {
+  const bucket = await storeFor(ctx.env, orgId, libraryId);
   for (const key of result.deleteKeys) await bucket.delete(key);
   const now = ctx.now();
   await ctx.repo.recordUpload(orgId, monthOf(now), result.file.size, result.storedBytes, now);
@@ -188,7 +190,7 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
         op: "commit",
         input: { fileId: crypto.randomUUID(), path, name, folder: folder!, size, sha256, mime, visibility, replace: body.replace === true, objectKey: null, actor: ctx.actor.subjectId, nowIso: now.toISOString(), processing: pipe.processing },
       });
-      await settle(ctx, orgId, result);
+      await settle(ctx, orgId, libraryId, result);
       await kickPipeline(ctx, orgId, libraryId, result.file, pipe.requireSafety);
       return successResponse({ file: toPublicFile(result.file, a.lib, ctx.env), deduplicated: true }, ctx.requestId, 200);
     } catch (e) {
@@ -201,7 +203,7 @@ export async function handleCreateUpload(ctx: Ctx, request: Request, orgId: stri
   const objectKey = `${managedPrefix(orgId, libraryId)}blob/${sessionId}`;
   const mode = size > UPLOAD_PART_SIZE ? "multipart" : "single";
   const partCount = mode === "single" ? 1 : Math.ceil(size / UPLOAD_PART_SIZE);
-  const uploadId = mode === "multipart" ? await createMultipart(ctx.env.MEDIA_BUCKET!, objectKey, mime) : null;
+  const uploadId = mode === "multipart" ? await createMultipart(await storeFor(ctx.env, orgId, libraryId, { fresh: true }), objectKey, mime) : null;
   const session = await idx.call<SessionRow>({
     op: "openSession",
     session: {
@@ -263,7 +265,7 @@ export async function handlePutPart(ctx: Ctx, request: Request, orgId: string, l
   if (!request.body && s.size > 0) return validationError(ctx.requestId, { body: ["The part's bytes are required"] });
   const expected = partNumber < s.part_count ? s.part_size : s.size - s.part_size * (s.part_count - 1);
   const body = request.body ?? new Response(new Uint8Array(0)).body!;
-  const bucket = ctx.env.MEDIA_BUCKET!;
+  const bucket = await storeFor(ctx.env, orgId, libraryId, { fresh: true });
   try {
     if (s.mode === "single") {
       const r = await putSingle(bucket, s.object_key, body, expected, s.sha256, s.mime);
@@ -292,7 +294,7 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
   const bad = sessionUsable(ctx, o.s);
   if (bad) return bad;
   const s = o.s;
-  const bucket = ctx.env.MEDIA_BUCKET!;
+  const bucket = await storeFor(ctx.env, orgId, libraryId, { fresh: true });
   const parts = JSON.parse(s.parts_json) as Record<string, string>;
   const missing: number[] = [];
   for (let n = 1; n <= s.part_count; n++) if (!parts[String(n)]) missing.push(n);
@@ -343,7 +345,7 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
         processing: pipe.processing,
       },
     }));
-    await step("settle", () => settle(ctx, orgId, result));
+    await step("settle", () => settle(ctx, orgId, libraryId, result));
     await kickPipeline(ctx, orgId, libraryId, result.file, pipe.requireSafety);
     logInfo(ctx.requestId, "commit.done", { session: s.id, size: s.size, deduplicated: result.deduplicated, ms: Date.now() - t0 });
     return successResponse({ file: toPublicFile(result.file, o.a.lib, ctx.env), deduplicated: result.deduplicated }, ctx.requestId);
@@ -357,7 +359,10 @@ export async function handleCommitUpload(ctx: Ctx, orgId: string, libraryId: str
   }
 }
 
-async function headAsDigest(bucket: R2Bucket, key: string): Promise<{ sha256: string; size: number } | null> {
+async function headAsDigest(store: MediaStore, key: string): Promise<{ sha256: string; size: number } | null> {
+  // A customer bucket (PV7) doesn't report R2's checksum: hash what it holds (single uploads are at most one part).
+  if (!("head" in store) || typeof (store as Partial<R2Bucket>).head !== "function") return sha256OfObject(store, key);
+  const bucket = store as unknown as R2Bucket;
   const head = await bucket.head(key);
   if (!head) return null;
   const sum = head.checksums?.sha256;
@@ -372,7 +377,7 @@ export async function handleAbortUpload(ctx: Ctx, orgId: string, libraryId: stri
   const o = await ownSession(ctx, orgId, libraryId, sessionId);
   if (!o.ok) return o.response;
   if (o.s.state === "open") {
-    await abortUpload(ctx.env.MEDIA_BUCKET!, o.s.object_key, o.s.mode, o.s.multipart_upload_id);
+    await abortUpload(await storeFor(ctx.env, orgId, libraryId), o.s.object_key, o.s.mode, o.s.multipart_upload_id);
     await o.idx.call({ op: "closeSession", id: o.s.id, state: "aborted" });
   }
   return successResponse({ aborted: true }, ctx.requestId);

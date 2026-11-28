@@ -87,5 +87,9 @@ describe("the S3 client against an S3-compatible server", () => {
     const e = await none.put("k", randomBytes(10)).catch((x: Error) => x);
     expect(String(e)).toMatch(/^Error: S3 404 NoSuchBucket$/);
     expect(String(e)).not.toContain("127.0.0.1");
+    // a read or delete on a missing bucket is an error, not "no such file" (PV-45)
+    await expect(none.get("k")).rejects.toMatchObject({ code: "NoSuchBucket" });
+    await expect(none.delete("k")).rejects.toMatchObject({ code: "NoSuchBucket" });
+    expect(await s3Client(cfg).get("org/o/lib/l/never-written")).toBeNull();
   });
 });

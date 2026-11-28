@@ -15,7 +15,7 @@ Status words:
 - **Partial**: some of it shipped.
 - **Known issue**: a defect or weakness accepted for now.
 
-_Last updated: 2026-11-28, PV-44._
+_Last updated: 2026-11-28, PV-45._
 
 ## Blocked
 
@@ -129,8 +129,9 @@ _Last updated: 2026-11-28, PV-44._
 | G68 | **No operator UI** | Abuse cases, takedowns, suspensions and pipeline failures are API-only. | `docs/ops/abuse-runbook.md` gives the calls. | PV11 (platform admin) |
 | G69 | **CSAM is caught by reports and moderation only** | No hash matching. Cloudflare's CSAM Scanning Tool needs serving on a zone. | The CSAM category is triaged first and taken down on the report alone (runbook). | W-5 once serving has a zone (W-6) |
 | G94 | **No DNS-time check on customer endpoints** | The review asked for private and metadata ranges to be refused after DNS resolution. A Worker can't resolve a name before `fetch`, so a public name pointing at 10.0.0.1 passes validation. | Endpoints must be https host names: IP literals, local and internal names, user info and odd ports are refused; no redirects are followed; every request has a deadline (15 s checks, 120 s objects). Workers' outbound traffic reaches the public internet only, so a private address leads nowhere. | A DNS-over-HTTPS lookup before saving a backend, refusing private answers (still racy against DNS rebinding) | PV7 hardening |
-| G95 | **storage-worker isn't wired in yet** | Nothing calls it: libraries still store in managed R2. | PV-44 ships the worker, its tests and its key; PV-45 adds the service bindings and per-library stores in media-worker and serve-worker. | — | PV-45 |
+| G95 | **No way to attach a bucket yet** | The store seam is wired (PV-45), but no API or screen attaches a customer bucket to a library. | Tests attach one through storage-worker directly. | — | PV-46 (API), PV-48 (wizard) |
 | G96 | **One key-encryption key, no rotation tooling** | `STORAGE_KEK` is set once by CI. Each sealed value records its key id (`kid`) so a second key can be added, but nothing re-seals old values yet. Losing the secret means every customer re-enters their bucket keys. | The runbook forbids deleting it; CI only creates it when missing. | A rotation run: add `STORAGE_KEK_2`, re-seal every row, retire the first | PV11 |
+| G97 | **A store decision can be up to 30 s old for reads** | Each isolate caches which store a library uses. Upload steps always ask fresh, so new bytes never go to the old place; reads, deletes and the pipeline may use a 30 s old answer. | Switching is only allowed while a library holds no files (PV-46), so a stale read finds nothing either way; pipeline steps retry. | Invalidation through the library's index object | PV-47 (migration needs it) |
 | G43 | **Only media-worker sends logs** | Other workers fail silently. | Workers Logs on media-worker (PV-12). | Turn on observability fleet-wide (a baseline change) |
 
 ## Closed

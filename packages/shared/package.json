@@ -8,7 +8,8 @@
     "./ids": "./src/ids.ts",
     "./errors": "./src/errors.ts",
     "./media-signing": "./src/media-signing.ts",
-    "./s3": "./src/s3.ts"
+    "./s3": "./src/s3.ts",
+    "./media-store": "./src/media-store.ts"
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
