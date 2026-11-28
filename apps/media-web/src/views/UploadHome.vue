@@ -81,6 +81,7 @@
       <el-tabs v-model="tab" class="tabs" @tab-change="onTab">
         <el-tab-pane :label="$t('upload.files')" name="files" />
         <el-tab-pane v-if="canList" :label="$t('collections.tab')" name="collections" />
+        <el-tab-pane v-if="canList" :label="$t('activity.title')" name="activity" />
         <el-tab-pane v-if="canTrash" :label="$t('review.tab')" name="review" />
         <el-tab-pane v-if="canTrash" :label="$t('upload.trash')" name="trash" />
       </el-tabs>
@@ -189,6 +190,7 @@
         </main>
       </div>
 
+      <ActivityList v-else-if="tab === 'activity'" ref="libraryActivity" :org="org" :lib="lib" :names="names" class="library-activity" />
       <div v-else-if="tab === 'collections'" class="collections" data-test="collections">
         <template v-if="!openCollection">
           <div class="toolbar">
@@ -313,6 +315,7 @@ import FileCard from "@/components/dashboard/FileCard.vue";
 import FileDetailDialog from "@/components/dashboard/FileDetailDialog.vue";
 import MoveFileDialog from "@/components/dashboard/MoveFileDialog.vue";
 import ShareDialog from "@/components/ShareDialog.vue";
+import ActivityList from "@/components/ActivityList.vue";
 import UploadLinkDialog from "@/components/UploadLinkDialog.vue";
 import { buildTree, crumbs as crumbsOf } from "@/utils/folders";
 import { filesFromDrop, folderForRelativePath, joinFolder } from "@/utils/upload/directoryTraversal";
@@ -334,7 +337,7 @@ function savedView() {
 
 export default {
   name: "LibraryHome",
-  components: { AppShell, LinkDialog, BatchActionBar, FileCard, FileDetailDialog, MoveFileDialog, ShareDialog, UploadLinkDialog },
+  components: { AppShell, LinkDialog, BatchActionBar, FileCard, FileDetailDialog, MoveFileDialog, ShareDialog, UploadLinkDialog, ActivityList },
   props: { org: { type: String, required: true }, lib: { type: String, required: true } },
   data: () => ({
     loading: true,
@@ -539,6 +542,7 @@ export default {
     },
     onTab() {
       this.selected = [];
+      if (this.tab === "activity") return;
       if (this.tab === "collections") {
         this.openCollection = null;
         this.loadCollections();
@@ -656,6 +660,8 @@ export default {
       if (changes.some((c) => c.op === "processed")) this.loadTags();
       const open = this.drawerFile;
       if (open && changes.some((c) => c.comments === open.id)) this.$refs.drawer?.reloadComments();
+      else if (open && changes.some((c) => c.files.some((f) => f.id === open.id))) this.$refs.drawer?.reloadActivity();
+      if (this.tab === "activity") this.$refs.libraryActivity?.reload();
       if (open && changes.some((c) => c.files.some((f) => f.id === open.id))) {
         const r = await api.libraries.file(this.org, this.lib, open.id).catch(() => null);
         if (this.drawerFile?.id === open.id) this.drawerFile = r?.file && r.file.status !== "trashed" ? r.file : null;

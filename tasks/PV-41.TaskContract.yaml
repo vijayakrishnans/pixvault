@@ -1,0 +1,29 @@
+# PV-41: PV6, activity. Minted under milestone PV6; this file is its contract.
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: PV-41
+spec:
+  goal: "The library's index records who did what to which file with every write (members, upload links, the pipeline, operators shown as operator; names and states, never contents or comment words), pruned to the newest 10,000; the API lists it per library (file.list) or per file (read access), and the app shows it in the file drawer and an Activity tab."
+  affects:
+    - default/pixvault/media-worker
+    - default/pixvault/media-worker-tests
+    - default/pixvault/api-edge
+    - default/pixvault/api-edge-tests
+    - default/pixvault/media-web
+    - default/pixvault/media-web-tests
+    - apps/media-worker/**
+    - tests/media-worker/**
+    - apps/api-edge/**
+    - tests/api-edge/**
+    - apps/media-web/**
+    - tests/media-web/**
+    - docs/security/**
+    - specs/epics/pixvault-team-media/**
+    - tasks/**
+    - WAITING.md
+  doneWhen:
+    - "writes record the right actor, op, file and detail, newest first, with no comment words (test)"
+    - "a file's activity follows its read access, and the library's needs file.list (test)"
+    - "an operator's takedown shows as operator (test)"
+  gates: []

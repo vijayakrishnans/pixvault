@@ -355,5 +355,35 @@
     "deleteConfirm": "Delete this comment?",
     "notified": "Notified: {names}",
     "someNotNotified": "Some people weren't notified: they can't see this file."
+  },
+  "activity": {
+    "title": "Activity",
+    "none": "Nothing yet.",
+    "pipeline": "Processing",
+    "operator": "The Pixvault team",
+    "system": "Pixvault",
+    "op": {
+      "file_uploaded": "uploaded {name}",
+      "file_version": "uploaded version {version} of {name}",
+      "file_moved": "moved {name} to {to}",
+      "file_trashed": "moved {name} to the trash",
+      "file_restored": "restored {name}",
+      "file_purged": "deleted a file forever",
+      "file_version_restored": "made version {version} of {name} current",
+      "file_visibility": "made {name} {visibility}",
+      "file_approved": "approved {name}",
+      "file_rejected": "rejected {name}",
+      "file_taken_down": "took {name} down",
+      "file_reinstated": "put {name} back",
+      "file_processed": "processed {name} ({status})",
+      "file_commented": "commented on a file",
+      "folder_created": "created the folder {folder}",
+      "folder_moved": "moved the folder {from} to {folder}",
+      "folder_trashed": "deleted the folder {folder} ({files} files to the trash)",
+      "collection_created": "created the collection {collection}",
+      "collection_deleted": "deleted a collection",
+      "collection_files_added": "added {files} file(s) to {collection}",
+      "collection_files_removed": "removed {files} file(s) from {collection}"
+    }
   }
 }

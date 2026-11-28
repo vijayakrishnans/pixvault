@@ -300,7 +300,7 @@ export class World {
 // ── PV2: an in-memory R2 bucket and a Durable Object namespace over the real index core ─────────────────
 
 import { createHash } from "node:crypto";
-import { dispatch } from "@media-worker/index-do/library-index";
+import { dispatchAndRecord } from "@media-worker/index-do/library-index";
 import { LibraryIndexCore, type Sql } from "@media-worker/index-do/core";
 import { drainOutbox } from "@media-worker/index-do/routes";
 import { runPipeline, type Step, type StepConfig } from "@media-worker/pipeline/run";
@@ -412,7 +412,7 @@ export class FakeIndexNamespace {
     }
     const c = core;
     return {
-      call: async (scope: { orgId: string; libraryId: string }, req: never) => structuredClone(dispatch(c, scope, req)),
+      call: async (scope: { orgId: string; libraryId: string; actor?: string }, req: never) => structuredClone(dispatchAndRecord(c, scope, req)),
       // The live socket: node can't make a 101, so a ticket that works answers 200 with who it was for.
       fetch: async (request: Request) => {
         if ((request.headers.get("upgrade") ?? "").toLowerCase() !== "websocket") return new Response(null, { status: 404 });

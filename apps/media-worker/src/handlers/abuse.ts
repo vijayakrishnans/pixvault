@@ -124,7 +124,7 @@ async function readNote(request: Request): Promise<string | null> {
 /** Take one file down. Shared by the case action and the direct admin route. */
 async function takeDown(ctx: Ctx, orgId: string, libraryId: string, fileId: string, note: string): Promise<FileRow | null> {
   try {
-    const f = await indexFor(ctx.env, { orgId, libraryId }).call<FileRow>({ op: "takedown", id: fileId, note, nowIso: ctx.now().toISOString() });
+    const f = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<FileRow>({ op: "takedown", id: fileId, note, nowIso: ctx.now().toISOString() });
     const lib = await ctx.repo.getLibrary(orgId, libraryId);
     if (lib.ok) await audit(ctx, lib.value, "file.taken_down", `Took down a file in "${lib.value.name}"`, { fileId: filePublicId(fileId), note });
     return f;
@@ -162,7 +162,7 @@ export async function handleAdminFile(ctx: Ctx, request: Request, orgId: string,
     return successResponse({ fileId: filePublicId(fileId), status: f.status }, ctx.requestId);
   }
   try {
-    const f = await indexFor(ctx.env, { orgId, libraryId }).call<FileRow>({ op: "reinstate", id: fileId, nowIso: ctx.now().toISOString() });
+    const f = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<FileRow>({ op: "reinstate", id: fileId, nowIso: ctx.now().toISOString() });
     const lib = await ctx.repo.getLibrary(orgId, libraryId);
     if (lib.ok) await audit(ctx, lib.value, "file.reinstated", `Reinstated a file in "${lib.value.name}"`, { fileId: filePublicId(fileId), note });
     return successResponse({ fileId: filePublicId(fileId), status: f.status }, ctx.requestId);

@@ -127,7 +127,7 @@ export async function handleCreateUploadLink(ctx: Ctx, request: Request, orgId: 
   if (!publicSharingAllowed(ctx.env)) return sharingOff(ctx.requestId);
   if (!ctx.env.SERVE_BASE) return errorResponse("unavailable", "Links aren't available for this library yet", 409, ctx.requestId);
   if (folder !== "/") {
-    const folders = await indexFor(ctx.env, { orgId, libraryId }).call<FolderRow[]>({ op: "listFolders" });
+    const folders = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<FolderRow[]>({ op: "listFolders" });
     if (!folders.some((d) => d.path === folder)) return nf(ctx.requestId);
   }
   const token = newShareToken();
@@ -268,7 +268,7 @@ export async function handleUploadLinkUpload(env: Env, request: Request, url: UR
     const sha = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (x) => x.toString(16).padStart(2, "0")).join("");
     await bucket.put(objectKey, bytes, { sha256: sha, httpMetadata: { contentType: mime } });
     stored = true;
-    const idx = indexFor(env, { orgId: link.orgId, libraryId: link.libraryId });
+    const idx = indexFor(env, { orgId: link.orgId, libraryId: link.libraryId, actor: uploadLinkPublicId(link.id) });
     const where = await freePath(idx, link.folderPath, name);
     if (!where) throw new Error("no free name");
     const result = await idx.call<CommitResult>({

@@ -72,7 +72,7 @@ export async function handleListFolders(ctx: Ctx, orgId: string, libraryId: stri
     if (!(await authorizeOnLibrary(ctx.env, ctx.actor, "file.list.own", a.lib, a.facts, ctx.requestId))) return nf(ctx);
     own = true; // only the folders holding their own uploads
   }
-  const folders = await indexFor(ctx.env, { orgId, libraryId }).call<FolderRow[]>({ op: "listFolders", ...(own ? { uploadedBy: ctx.actor.subjectId } : {}) });
+  const folders = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<FolderRow[]>({ op: "listFolders", ...(own ? { uploadedBy: ctx.actor.subjectId } : {}) });
   return successResponse({ folders }, ctx.requestId);
 }
 
@@ -80,7 +80,7 @@ export async function handleListFolders(ctx: Ctx, orgId: string, libraryId: stri
 export async function handleListTags(ctx: Ctx, orgId: string, libraryId: string): Promise<Response> {
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.list");
   if (!a.ok) return a.response;
-  const tags = await indexFor(ctx.env, { orgId, libraryId }).call<{ tag: string; files: number }[]>({ op: "listTags" });
+  const tags = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<{ tag: string; files: number }[]>({ op: "listTags" });
   return successResponse({ tags }, ctx.requestId);
 }
 
@@ -93,7 +93,7 @@ export async function handleCreateFolder(ctx: Ctx, request: Request, orgId: stri
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.upload");
   if (!a.ok) return a.response;
   try {
-    const folder = await indexFor(ctx.env, { orgId, libraryId }).call<FolderRow>({ op: "createFolder", folder: path, actor: ctx.actor.subjectId, nowIso: ctx.now().toISOString() });
+    const folder = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<FolderRow>({ op: "createFolder", folder: path, actor: ctx.actor.subjectId, nowIso: ctx.now().toISOString() });
     return successResponse({ folder }, ctx.requestId, 201);
   } catch (e) {
     return indexError(ctx, e);
@@ -113,7 +113,7 @@ export async function handleMoveFolder(ctx: Ctx, request: Request, orgId: string
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.update");
   if (!a.ok) return a.response;
   try {
-    const r = await indexFor(ctx.env, { orgId, libraryId }).call<{ folder: FolderRow; moved: number }>({
+    const r = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<{ folder: FolderRow; moved: number }>({
       op: "moveFolder",
       from: from!,
       to: to!,
@@ -134,7 +134,7 @@ export async function handleTrashFolder(ctx: Ctx, request: Request, orgId: strin
   const a = await loadAuthorized(ctx, orgId, libraryId, "file.delete");
   if (!a.ok) return a.response;
   try {
-    const r = await indexFor(ctx.env, { orgId, libraryId }).call<{ trashed: number }>({ op: "trashFolder", folder: path, nowIso: ctx.now().toISOString() });
+    const r = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<{ trashed: number }>({ op: "trashFolder", folder: path, nowIso: ctx.now().toISOString() });
     return successResponse(r, ctx.requestId);
   } catch (e) {
     return indexError(ctx, e);
@@ -179,7 +179,7 @@ export async function handleBatch(ctx: Ctx, request: Request, orgId: string, lib
     const r = await ctx.repo.orgIsOnFreePlan(orgId);
     requireSafety = r.ok ? r.value : true;
   }
-  const idx = indexFor(ctx.env, { orgId, libraryId });
+  const idx = indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId });
   const r = await idx.call<BatchResult>({
     op: "batch",
     ids,
@@ -218,7 +218,7 @@ export async function handleLiveTicket(ctx: Ctx, orgId: string, libraryId: strin
   if (await authorizeOnLibrary(ctx.env, ctx.actor, "file.list", a.lib, a.facts, ctx.requestId)) scope = "all";
   else if (await authorizeOnLibrary(ctx.env, ctx.actor, "file.list.own", a.lib, a.facts, ctx.requestId)) scope = "own";
   else return nf(ctx);
-  const t = await indexFor(ctx.env, { orgId, libraryId }).call<{ ticket: string; expiresAt: string }>({
+  const t = await indexFor(ctx.env, { orgId, libraryId, actor: ctx.actor.subjectId }).call<{ ticket: string; expiresAt: string }>({
     op: "issueTicket",
     subject: ctx.actor.subjectId,
     scope,

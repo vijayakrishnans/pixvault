@@ -355,5 +355,35 @@
     "deleteConfirm": "删除这条评论？",
     "notified": "已通知：{names}",
     "someNotNotified": "部分人未收到通知：他们看不到这个文件。"
+  },
+  "activity": {
+    "title": "动态",
+    "none": "暂无动态。",
+    "pipeline": "处理流程",
+    "operator": "Pixvault 团队",
+    "system": "Pixvault",
+    "op": {
+      "file_uploaded": "上传了 {name}",
+      "file_version": "上传了 {name} 的第 {version} 版",
+      "file_moved": "将 {name} 移到 {to}",
+      "file_trashed": "将 {name} 移入回收站",
+      "file_restored": "恢复了 {name}",
+      "file_purged": "永久删除了一个文件",
+      "file_version_restored": "将 {name} 的第 {version} 版设为当前",
+      "file_visibility": "将 {name} 设为 {visibility}",
+      "file_approved": "批准了 {name}",
+      "file_rejected": "拒绝了 {name}",
+      "file_taken_down": "下架了 {name}",
+      "file_reinstated": "恢复上架 {name}",
+      "file_processed": "处理了 {name}（{status}）",
+      "file_commented": "评论了一个文件",
+      "folder_created": "创建了文件夹 {folder}",
+      "folder_moved": "将文件夹 {from} 移到 {folder}",
+      "folder_trashed": "删除了文件夹 {folder}（{files} 个文件移入回收站）",
+      "collection_created": "创建了合集 {collection}",
+      "collection_deleted": "删除了一个合集",
+      "collection_files_added": "向 {collection} 添加了 {files} 个文件",
+      "collection_files_removed": "从 {collection} 移除了 {files} 个文件"
+    }
   }
 }

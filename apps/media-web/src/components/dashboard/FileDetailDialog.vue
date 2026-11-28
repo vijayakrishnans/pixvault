@@ -54,6 +54,9 @@
       </ul>
 
       <CommentsPanel ref="comments" :org="org" :lib="lib" :file-id="file.id" :names="names" :me="me" :can-moderate="canEdit" />
+
+      <h3 class="section">{{ $t("activity.title") }}</h3>
+      <ActivityList ref="activity" :org="org" :lib="lib" :file-id="file.id" :names="names" />
     </template>
   </el-drawer>
 </template>
@@ -63,12 +66,13 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api/client";
 import { fileKind, thumbUrl, withPreset } from "@/utils/browse";
 import CommentsPanel from "@/components/CommentsPanel.vue";
+import ActivityList from "@/components/ActivityList.vue";
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"];
 
 export default {
   name: "FileDetailDialog",
-  components: { CommentsPanel },
+  components: { CommentsPanel, ActivityList },
   props: {
     file: { type: Object, default: null },
     org: { type: String, required: true },
@@ -125,6 +129,10 @@ export default {
     /** A teammate changed this file's comments (live event). */
     reloadComments() {
       this.$refs.comments?.reload();
+      this.$refs.activity?.reload();
+    },
+    reloadActivity() {
+      this.$refs.activity?.reload();
     },
     fmt(n) {
       let i = 0;

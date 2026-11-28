@@ -22,7 +22,10 @@ export function indexStub(env: Env, scope: Scope): { fetch(request: Request): Pr
   return ns.get(ns.idFromName(`org:${scope.orgId}:lib:${scope.libraryId}`)) as unknown as { fetch(request: Request): Promise<Response> };
 }
 
-/** The index of one library. The DO's name binds it to (org, library), and every call restates the scope. */
+/**
+ * The index of one library. The DO's name binds it to (org, library), and every call restates the scope. `scope.actor`
+ * says who is acting, for the activity log.
+ */
 export function indexFor(env: Env, scope: Scope): LibraryIndexClient {
   const ns = env.LIBRARY_INDEX!;
   const stub = ns.get(ns.idFromName(`org:${scope.orgId}:lib:${scope.libraryId}`)) as unknown as IndexStub;
